@@ -106,7 +106,7 @@ const VisitFeedbackSheet = ({ visitData, onClose, onSubmit }) => {
                      value={feedback}
                      onChangeText={setFeedback}
                      placeholder="What did the buyer like? Any concerns about price, location, or vastu?"
-                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-[4vw] text-[3.5vw] font-medium min-h-[120px]"
+                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-[4vw] text-[3vw] font-medium min-h-[120px]"
                   />
                </View>
 
@@ -123,7 +123,7 @@ const VisitFeedbackSheet = ({ visitData, onClose, onSubmit }) => {
                               onPress={() => handleTag(tag)}
                               className={`px-[4vw] py-[2vw] rounded-xl border ${tags.includes(tag) ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-200'}`}
                            >
-                              <Text className={`text-[3vw] font-bold ${tags.includes(tag) ? 'text-white' : 'text-gray-500'}`}>{tag}</Text>
+                              <Text className={`text-[2.5vw] font-bold ${tags.includes(tag) ? 'text-white' : 'text-gray-500'}`}>{tag}</Text>
                            </TouchableOpacity>
                         ))}
                      </View>
@@ -132,12 +132,12 @@ const VisitFeedbackSheet = ({ visitData, onClose, onSubmit }) => {
 
             </ScrollView>
 
-            <View className="p-[6vw] border-t border-gray-100 bg-white">
+            <View className="p-[5vw] border-t border-gray-100 bg-white">
                <TouchableOpacity 
                   onPress={handleSubmit}
-                  className="w-full bg-gray-900 py-[4vw] rounded-2xl shadow-xl active:scale-95 items-center"
+                  className="w-full bg-gray-900 py-[3vw] rounded-2xl shadow-xl active:scale-95 items-center"
                >
-                  <Text className="text-white font-bold text-[4.5vw]">Save Feedback & Update Deal</Text>
+                  <Text className="text-white font-bold text-[4vw]">Save Feedback & Update Deal</Text>
                </TouchableOpacity>
             </View>
 

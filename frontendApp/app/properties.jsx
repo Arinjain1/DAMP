@@ -2,24 +2,24 @@ import { StatusBar, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
 // Components
-import FAB from '../src/Components/FAB.jsx';
 import AddModal from '../src/Modal and Sheets/AddModal.jsx';
 import PropertyDetailSheet from '../src/Modal and Sheets/PropertyDetailSheet.jsx';
-import InventoryPage from '../src/Views/InventoryPage.jsx';
 
 // Redux actions
-import { 
-  addProperty, 
-  clearSelectedProperty, 
-  setSelectedProperty, 
-  updateProperty 
+import {
+    addProperty,
+    clearSelectedProperty,
+    setSelectedProperty,
+    updateProperty
 } from '../src/store/slices/propertiesSlice.js';
-import { 
-  clearEditItem, 
-  setEditItem, 
-  setModalOpen, 
-  setModalType 
+import {
+    clearEditItem,
+    setEditItem,
+    setModalOpen,
+    setModalType
 } from '../src/store/slices/uiSlice.js';
+import InventoryPageBasic from '@/src/Views/InventoryPageBasic.jsx';
+import FABBasic from '@/src/Components/FABBasic.jsx';
 
 export default function Properties() {
   const dispatch = useDispatch();
@@ -57,22 +57,19 @@ export default function Properties() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
       {/* Dynamic StatusBar for clean UI */}
       <StatusBar barStyle="dark-content" backgroundColor="white" />
       
-      {/* Main Content:
-          InventoryPage ab internal logic ke liye params use karega, 
-          lekin Redux data hum yahan se pass kar rahe hain.
-      */}
-      <InventoryPage 
+      {/* Main Content - Using basic version without className */}
+      <InventoryPageBasic 
         properties={properties} 
         onSelect={(property) => dispatch(setSelectedProperty(property))} 
         onEdit={handleEdit} 
       />
 
       {/* Action Components */}
-      <FAB onClick={handleFABClick} />
+      <FABBasic onPress={handleFABClick} />
 
       <AddModal 
         isOpen={modalOpen} 

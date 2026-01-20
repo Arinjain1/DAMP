@@ -18,42 +18,44 @@ import VisitFeedbackSheet from "../src/Modal and Sheets/VisitFeedbackSheet";
 
 // Redux
 import {
-  addCustomer,
-  clearSelectedCustomer,
-  updateCustomerStatus,
+    addCustomer,
+    clearSelectedCustomer,
+    updateCustomer,
+    updateCustomerStatus,
 } from "../src/store/slices/customersSlice";
 
 import {
-  addDeal,
-  clearSelectedDeal,
-  closeDeal,
-  setSelectedDeal,
-  updateDeal,
+    addDeal,
+    clearSelectedDeal,
+    closeDeal,
+    setSelectedDeal,
+    updateDeal,
 } from "../src/store/slices/dealsSlice";
 
 import {
-  addFollowUp,
-  clearActiveSiteVisit,
-  clearShowFeedback,
-  setShowFeedback
+    addFollowUp,
+    clearActiveSiteVisit,
+    clearShowFeedback,
+    setShowFeedback,
+    updateFollowUp
 } from "../src/store/slices/followUpsSlice";
 
 import {
-  addProperty,
-  clearSelectedProperty,
-  updateProperty,
+    addProperty,
+    clearSelectedProperty,
+    updateProperty,
 } from "../src/store/slices/propertiesSlice";
 
 import { activateSubscription } from "../src/store/slices/subscriptionSlice";
 
-import {
-  clearEditItem,
-  setCollabOpen,
-  setEditItem,
-  setModalOpen,
-  setModalType,
-} from "../src/store/slices/uiSlice";
 import { useRouter } from "expo-router";
+import {
+    clearEditItem,
+    setCollabOpen,
+    setEditItem,
+    setModalOpen,
+    setModalType,
+} from "../src/store/slices/uiSlice";
 
 export default function Index() {
   const dispatch = useDispatch();
@@ -84,11 +86,17 @@ export default function Index() {
   // Utils
   const generateId = () => Math.random().toString(36).substring(2, 11);
 
+  // Modal handler for quick actions
+  const handleOpenModal = (type) => {
+    console.log('handleOpenModal called with type:', type);
+    dispatch(clearEditItem());
+    dispatch(setModalType(type));
+    dispatch(setModalOpen(true));
+  };
+
   // FAB
   const handleFABPress = () => {
-    dispatch(clearEditItem());
-    dispatch(setModalType("Property"));
-    dispatch(setModalOpen(true));
+    handleOpenModal("Property");
   };
 
   // Add
@@ -110,7 +118,10 @@ export default function Index() {
   };
 
   const handleUpdate = (item) => {
+    console.log('handleUpdate called with:', { modalType, item });
     if (modalType === "Property") dispatch(updateProperty(item));
+    if (modalType === "Customer") dispatch(updateCustomer(item));
+    if (modalType === "FollowUp") dispatch(updateFollowUp(item));
     dispatch(clearEditItem());
     dispatch(setModalOpen(false));
   };
@@ -185,6 +196,21 @@ export default function Index() {
     dispatch(activateSubscription({ plan }));
   };
 
+  // FollowUp handlers
+  const handleAddFollowUpFromCustomer = (customer) => {
+    dispatch(setEditItem({ customerId: customer.id }));
+    dispatch(setModalType('FollowUp'));
+    dispatch(setModalOpen(true));
+  };
+
+  const handleEditTask = (task) => {
+    console.log('handleEditTask called with:', task);
+    // Don't close customer detail sheet, just open modal on top
+    dispatch(setEditItem(task));
+    dispatch(setModalType('FollowUp'));
+    dispatch(setModalOpen(true));
+  };
+
   return (
     <View className="flex-1 bg-gray-50">
       <StatusBar style="dark" backgroundColor="white" />
@@ -199,6 +225,7 @@ export default function Index() {
         onOpenCollab={() => dispatch(setCollabOpen(true))}
         onOpenDeal={(deal) => dispatch(setSelectedDeal(deal))}
         onNavigate={handleNavigation}
+        onOpenModal={handleOpenModal}
       />
 
       {/* FAB */}
@@ -239,6 +266,8 @@ export default function Index() {
           followUps={followUps}
           onClose={() => dispatch(clearSelectedCustomer())}
           onStartDeal={handleStartDeal}
+          onAddFollowUp={handleAddFollowUpFromCustomer}
+          onEditTask={handleEditTask}
         />
       )}
 

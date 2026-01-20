@@ -5,9 +5,12 @@ import {
   ScrollView, 
   TouchableOpacity, 
   Image, 
-  Dimensions 
+  Platform,
+  StatusBar,
+  StyleSheet
 } from 'react-native';
-import { Briefcase, ChevronRight } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Briefcase, ChevronRight, ArrowLeft } from 'lucide-react-native';
 
 // Helper for currency formatting
 const formatCurrency = (amount) => {
@@ -18,7 +21,7 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-const DealsManagerPage = ({ deals, properties, customers, onOpenDeal }) => {
+const DealsManagerPage = ({ deals, properties, customers, onOpenDeal, onBack }) => {
    const [filter, setFilter] = useState('All');
 
    // Sort and Filter Logic
@@ -27,133 +30,472 @@ const DealsManagerPage = ({ deals, properties, customers, onOpenDeal }) => {
 
    const filters = ['All', 'Meeting', 'Negotiation', 'Agreement', 'Closed', 'Dropped'];
 
+   // Calculate stats
+   const stats = {
+     total: deals.length,
+     active: deals.filter(d => !['Closed', 'Dropped'].includes(d.stage)).length,
+     closed: deals.filter(d => d.stage === 'Closed').length,
+     dropped: deals.filter(d => d.stage === 'Dropped').length,
+   };
+
    return (
-      <View className="flex-1 bg-gray-50">
-         
-         {/* --- STICKY HEADER --- */}
-         <View className="bg-white px-[6vw] pt-[12vw] pb-[4vw] border-b border-gray-200 z-20 shadow-sm">
-            <View className="flex-row items-center gap-[2vw]">
-               <Briefcase size={24} color="#4f46e5" />
-               <Text className="text-[6vw] font-black text-gray-900">Deals Manager</Text>
-            </View>
-            <Text className="text-[3.5vw] text-gray-500 mt-[1vw]">Track your property pipeline</Text>
+      <View style={styles.container}>
+         <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+
+         <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+         >
             
-            {/* Filter Horizontal Scroll */}
-            <View className="mt-[4vw]">
-               <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingRight: 20 }}
-               >
-                  {filters.map(f => (
-                     <TouchableOpacity 
-                        key={f} 
-                        onPress={() => setFilter(f)} 
-                        className={`
-                           px-[4vw] py-[2vw] rounded-lg border mr-[2vw]
-                           ${filter === f 
-                              ? 'bg-indigo-600 border-indigo-600' 
-                              : 'bg-white border-gray-200'
-                           }
-                        `}
-                     >
-                        <Text className={`text-[3vw] font-bold ${filter === f ? 'text-white' : 'text-gray-500'}`}>
-                           {f}
-                        </Text>
-                     </TouchableOpacity>
-                  ))}
-               </ScrollView>
-            </View>
-         </View>
+            {/* ===== GRADIENT HEADER ===== */}
+            <LinearGradient
+               colors={['#BFB7FD', '#E5E1FF', '#f9fafb']} 
+               locations={[0, 0.7, 1]}
+               style={styles.gradientHeader}
+            >
+               {/* Back Button */}
+               {onBack && (
+                  <TouchableOpacity 
+                     onPress={onBack}
+                     style={styles.backButton}
+                  >
+                     <ArrowLeft size={20} color="#111827" />
+                  </TouchableOpacity>
+               )}
 
-         {/* --- SCROLLABLE CONTENT --- */}
-         <ScrollView className="flex-1 p-[5vw]" contentContainerStyle={{ paddingBottom: 100 }}>
-            {filteredDeals.length > 0 ? (
-               <View className="gap-[4vw]">
-                  {filteredDeals.map(deal => {
-                     const prop = properties.find(p => p.id === deal.propertyId);
-                     const cust = customers.find(c => c.id === deal.customerId);
-                     
-                     return (
-                        <TouchableOpacity 
-                           key={deal.id} 
-                           onPress={() => onOpenDeal(deal)} 
-                           activeOpacity={0.9}
-                           className="bg-white p-[4vw] rounded-2xl border border-gray-100 shadow-sm"
-                        >
-                           {/* Card Top: Property Info & Status */}
-                           <View className="flex-row justify-between items-start mb-[3vw]">
-                              <View className="flex-row gap-[3vw] flex-1">
-                                 <Image 
-                                    source={{ uri: prop?.image }} 
-                                    className="w-[12vw] h-[12vw] rounded-xl bg-gray-200" 
-                                 />
-                                 <View className="flex-1 mr-[2vw]">
-                                    <Text className="font-bold text-[3.5vw] text-gray-900" numberOfLines={1}>
-                                       {prop?.title}
-                                    </Text>
-                                    <Text className="text-[3vw] text-gray-500" numberOfLines={1}>
-                                       {prop?.location}
-                                    </Text>
-                                 </View>
-                              </View>
-                              
-                              {/* Status Badge */}
-                              <View className={`px-[2vw] py-[1vw] rounded ${
-                                 deal.stage === 'Closed' ? 'bg-green-100' : 
-                                 deal.stage === 'Dropped' ? 'bg-red-50' : 
-                                 'bg-indigo-50'
-                              }`}>
-                                 <Text className={`text-[2.5vw] font-bold ${
-                                    deal.stage === 'Closed' ? 'text-green-700' : 
-                                    deal.stage === 'Dropped' ? 'text-red-500' : 
-                                    'text-indigo-700'
-                                 }`}>
-                                    {deal.stage}
-                                 </Text>
-                              </View>
-                           </View>
-
-                           {/* Card Middle: Customer & Price */}
-                           <View className="bg-gray-50 p-[3vw] rounded-xl flex-row items-center justify-between mb-[3vw]">
-                              <View className="flex-row items-center gap-[2vw]">
-                                 <View className="w-[6vw] h-[6vw] rounded-full bg-indigo-100 items-center justify-center">
-                                    <Text className="text-[2.5vw] font-bold text-indigo-700">{cust?.name.charAt(0)}</Text>
-                                 </View>
-                                 <Text className="text-[3vw] font-bold text-gray-700">{cust?.name}</Text>
-                              </View>
-                              <Text className="text-[3vw] font-black text-gray-900">{formatCurrency(prop?.price)}</Text>
-                           </View>
-
-                           {/* Card Bottom: Footer */}
-                           <View className="flex-row justify-between items-center pt-[2vw] border-t border-gray-100">
-                              <Text className="text-[2.5vw] font-bold text-gray-400">
-                                 Updated: {new Date(deal.startedAt).toLocaleDateString()}
-                              </Text>
-                              <View className="flex-row items-center gap-[1vw]">
-                                 <Text className="text-[2.5vw] font-bold text-indigo-600">Manage Deal</Text>
-                                 <ChevronRight size={12} color="#4f46e5"/>
-                              </View>
-                           </View>
-                        </TouchableOpacity>
-                     )
-                  })}
-               </View>
-            ) : (
-               /* Empty State */
-               <View className="items-center justify-center py-[20vw]">
-                  <View className="bg-gray-100 h-[20vw] w-[20vw] rounded-full items-center justify-center mb-[4vw]">
-                     <Briefcase size={32} color="#d1d5db"/>
+               {/* Header */}
+               <View style={styles.headerContent}>
+                  <View style={styles.headerTitleRow}>
+                     <Briefcase size={24} color="#111827" />
+                     <Text style={styles.headerTitle}>Deals Manager</Text>
                   </View>
-                  <Text className="text-gray-900 font-bold text-[4.5vw]">No Deals Found</Text>
-                  <Text className="text-[3.5vw] text-gray-500 mt-[1vw] text-center px-[10vw]">
-                     Start a deal from Customers or Properties tab.
-                  </Text>
+                  <Text style={styles.headerSubtitle}>Track your property pipeline</Text>
                </View>
-            )}
+
+               {/* Stats Box */}
+               <View style={styles.statsOuterBox}>
+                  <View style={styles.statInnerBox}>
+                     <Text style={styles.statCount}>{stats.total}</Text>
+                     <Text style={styles.statLabel}>Total</Text>
+                  </View>
+                  <View style={styles.statInnerBox}>
+                     <Text style={styles.statCount}>{stats.active}</Text>
+                     <Text style={styles.statLabel}>Active</Text>
+                  </View>
+                  <View style={styles.statInnerBox}>
+                     <Text style={styles.statCount}>{stats.closed}</Text>
+                     <Text style={styles.statLabel}>Closed</Text>
+                  </View>
+                  <View style={styles.statInnerBox}>
+                     <Text style={styles.statCount}>{stats.dropped}</Text>
+                     <Text style={styles.statLabel}>Dropped</Text>
+                  </View>
+               </View>
+            </LinearGradient>
+
+            {/* ===== MAIN CONTENT ===== */}
+            <View style={styles.mainBody}>
+               
+               {/* Filter Chips */}
+               <View style={styles.filterSection}>
+                  <Text style={styles.sectionTitle}>FILTER BY STAGE</Text>
+                  <ScrollView 
+                     horizontal 
+                     showsHorizontalScrollIndicator={false}
+                     contentContainerStyle={styles.filterScroll}
+                  >
+                     {filters.map(f => (
+                        <TouchableOpacity 
+                           key={f} 
+                           onPress={() => setFilter(f)} 
+                           style={[
+                              styles.filterChip,
+                              filter === f && styles.filterChipActive
+                           ]}
+                        >
+                           <Text style={[
+                              styles.filterChipText,
+                              filter === f && styles.filterChipTextActive
+                           ]}>
+                              {f}
+                           </Text>
+                        </TouchableOpacity>
+                     ))}
+                  </ScrollView>
+               </View>
+
+               {/* Deals List */}
+               {filteredDeals.length > 0 ? (
+                  <View style={styles.dealsContainer}>
+                     {filteredDeals.map(deal => {
+                        const prop = properties.find(p => p.id === deal.propertyId);
+                        const cust = customers.find(c => c.id === deal.customerId);
+                        
+                        return (
+                           <TouchableOpacity 
+                              key={deal.id} 
+                              onPress={() => onOpenDeal(deal)} 
+                              activeOpacity={0.9}
+                              style={styles.dealCard}
+                           >
+                              {/* Card Top: Property Info & Status */}
+                              <View style={styles.dealCardTop}>
+                                 <View style={styles.dealInfoRow}>
+                                    <Image 
+                                       source={{ uri: prop?.image || 'https://via.placeholder.com/100' }} 
+                                       style={styles.dealImage}
+                                    />
+                                    <View style={styles.dealTextInfo}>
+                                       <Text style={styles.dealTitle} numberOfLines={1}>
+                                          {prop?.title || 'Unknown Property'}
+                                       </Text>
+                                       <Text style={styles.dealLocation} numberOfLines={1}>
+                                          {prop?.location || 'Location N/A'}
+                                       </Text>
+                                    </View>
+                                 </View>
+                                 
+                                 {/* Status Badge */}
+                                 <View style={[
+                                    styles.stageBadge,
+                                    deal.stage === 'Closed' && styles.stageBadgeClosed,
+                                    deal.stage === 'Dropped' && styles.stageBadgeDropped,
+                                 ]}>
+                                    <Text style={[
+                                       styles.stageText,
+                                       deal.stage === 'Closed' && styles.stageTextClosed,
+                                       deal.stage === 'Dropped' && styles.stageTextDropped,
+                                    ]}>
+                                       {deal.stage}
+                                    </Text>
+                                 </View>
+                              </View>
+
+                              {/* Card Middle: Customer & Price */}
+                              <View style={styles.dealCardMiddle}>
+                                 <View style={styles.customerRow}>
+                                    <View style={styles.customerAvatar}>
+                                       <Text style={styles.customerInitial}>
+                                          {cust?.name?.charAt(0) || '?'}
+                                       </Text>
+                                    </View>
+                                    <Text style={styles.customerName}>{cust?.name || 'Unknown Client'}</Text>
+                                 </View>
+                                 <Text style={styles.dealPrice}>{formatCurrency(prop?.price)}</Text>
+                              </View>
+
+                              {/* Card Bottom: Footer */}
+                              <View style={styles.dealCardBottom}>
+                                 <Text style={styles.dealDate}>
+                                    Updated: {new Date(deal.startedAt).toLocaleDateString()}
+                                 </Text>
+                                 <View style={styles.manageButton}>
+                                    <Text style={styles.manageText}>Manage</Text>
+                                    <ChevronRight size={12} color="#4f46e5"/>
+                                 </View>
+                              </View>
+                           </TouchableOpacity>
+                        )
+                     })}
+                  </View>
+               ) : (
+                  /* Empty State */
+                  <View style={styles.emptyState}>
+                     <View style={styles.emptyIconContainer}>
+                        <Briefcase size={32} color="#d1d5db"/>
+                     </View>
+                     <Text style={styles.emptyTitle}>No Deals Found</Text>
+                     <Text style={styles.emptySubtitle}>
+                        Start a deal from Customers or Properties tab.
+                     </Text>
+                  </View>
+               )}
+            </View>
          </ScrollView>
       </View>
    );
 };
+
+const styles = StyleSheet.create({
+   container: {
+      flex: 1,
+      backgroundColor: '#f9fafb',
+   },
+   scrollContent: {
+      paddingBottom: 120,
+   },
+
+   // Gradient Header
+   gradientHeader: {
+      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 60,
+      paddingHorizontal: 20,
+      paddingBottom: 32,
+      borderBottomLeftRadius: 32,
+      borderBottomRightRadius: 32,
+   },
+   backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.6)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+   },
+   headerContent: {
+      marginBottom: 24,
+   },
+   headerTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 6,
+   },
+   headerTitle: {
+      fontSize: 24,
+      fontWeight: '900',
+      color: '#111827',
+   },
+   headerSubtitle: {
+      fontSize: 13,
+      color: '#6b7280',
+      fontWeight: '600',
+   },
+
+   // Stats Box
+   statsOuterBox: {
+      flexDirection: 'row',
+      backgroundColor: 'white',
+      borderRadius: 20,
+      padding: 12,
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: '#e5e7eb',
+   },
+   statInnerBox: {
+      flex: 1,
+      backgroundColor: '#fff',
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginHorizontal: 4,
+      borderWidth: 1,
+      borderColor: '#e5e7eb',
+   },
+   statCount: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: '#111827',
+   },
+   statLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#6b7280',
+      marginTop: 4,
+   },
+
+   // Main Body
+   mainBody: {
+      paddingHorizontal: 20,
+   },
+
+   // Filter Section
+   filterSection: {
+      marginTop: 8,
+      marginBottom: 18,
+   },
+   sectionTitle: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      color: '#9ca3af',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 12,
+   },
+   filterScroll: {
+      gap: 8,
+      paddingRight: 20,
+   },
+   filterChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 12,
+      backgroundColor: 'white',
+      borderWidth: 1,
+      borderColor: '#e5e7eb',
+   },
+   filterChipActive: {
+      backgroundColor: '#4f46e5',
+      borderColor: '#4f46e5',
+   },
+   filterChipText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: '#6b7280',
+   },
+   filterChipTextActive: {
+      color: 'white',
+   },
+
+   // Deals Container
+   dealsContainer: {
+      gap: 12,
+   },
+
+   // Deal Card
+   dealCard: {
+      backgroundColor: 'white',
+      padding: 16,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: '#e5e7eb',
+   },
+   dealCardTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+   },
+   dealInfoRow: {
+      flexDirection: 'row',
+      gap: 12,
+      flex: 1,
+   },
+   dealImage: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: '#f3f4f6',
+   },
+   dealTextInfo: {
+      flex: 1,
+      justifyContent: 'center',
+   },
+   dealTitle: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      color: '#111827',
+      marginBottom: 2,
+   },
+   dealLocation: {
+      fontSize: 12,
+      color: '#6b7280',
+   },
+   stageBadge: {
+      backgroundColor: '#eff6ff',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 8,
+   },
+   stageBadgeClosed: {
+      backgroundColor: '#d1fae5',
+   },
+   stageBadgeDropped: {
+      backgroundColor: '#fee2e2',
+   },
+   stageText: {
+      fontSize: 10,
+      fontWeight: 'bold',
+      color: '#4f46e5',
+   },
+   stageTextClosed: {
+      color: '#059669',
+   },
+   stageTextDropped: {
+      color: '#dc2626',
+   },
+
+   // Card Middle
+   dealCardMiddle: {
+      backgroundColor: '#f9fafb',
+      padding: 12,
+      borderRadius: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+   },
+   customerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+   },
+   customerAvatar: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: '#eff6ff',
+      alignItems: 'center',
+      justifyContent: 'center',
+   },
+   customerInitial: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      color: '#4f46e5',
+   },
+   customerName: {
+      fontSize: 13,
+      fontWeight: 'bold',
+      color: '#374151',
+   },
+   dealPrice: {
+      fontSize: 14,
+      fontWeight: '900',
+      color: '#111827',
+   },
+
+   // Card Bottom
+   dealCardBottom: {
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: '#f3f4f6',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+   },
+   dealDate: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#9ca3af',
+   },
+   manageButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+   },
+   manageText: {
+      fontSize: 11,
+      fontWeight: 'bold',
+      color: '#4f46e5',
+   },
+
+   // Empty State
+   emptyState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 80,
+   },
+   emptyIconContainer: {
+      backgroundColor: '#f3f4f6',
+      height: 80,
+      width: 80,
+      borderRadius: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+   },
+   emptyTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#111827',
+      marginBottom: 6,
+   },
+   emptySubtitle: {
+      fontSize: 13,
+      color: '#6b7280',
+      textAlign: 'center',
+      paddingHorizontal: 40,
+   },
+});
 
 export default DealsManagerPage;

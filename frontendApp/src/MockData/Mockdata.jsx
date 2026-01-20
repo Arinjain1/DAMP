@@ -20,7 +20,7 @@ export const INITIAL_PROPERTIES = [
     id: "p2",
     title: "Tech Park Office Space",
     category: "Commercial",
-    type: "Office",
+    type: "Office Space", // Fixed to match PROPERTY_STRUCTURE
     status: "Available",
     price: 45000000,
     location: "Whitefield, Bangalore",
@@ -36,8 +36,8 @@ export const INITIAL_PROPERTIES = [
   {
     id: "p3",
     title: "Prime Corner Plot",
-    category: "Commercial",
-    type: "Plot/Land",
+    category: "Residential", // Changed to Residential to match Plot type
+    type: "Plot", // Fixed to match PROPERTY_STRUCTURE
     status: "Sold",
     price: 8500000,
     location: "Sarjapur, Bangalore",
@@ -227,6 +227,34 @@ export const INITIAL_NOTIFICATIONS = [
     read: false,
   },
 ];
+
+export const INITIAL_PROFILE = {
+  id: "u1",
+  name: "Rajesh Sharma",
+  designation: "Senior Property Consultant",
+  brokerId: "BROK-8821",
+  avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=200&q=80",
+  phone: "+91 98765 43210",
+  email: "rajesh.sharma@realestate.com",
+  experience: "8+ Years",
+  location: "Bangalore, Karnataka",
+  stats: {
+    deals: 45,
+    clients: 128,
+    rating: 4.9,
+    totalSales: "₹12.5 Cr",
+    activeListings: 23
+  },
+  badges: [
+    { type: "top_rated", label: "TOP RATED", color: "#d97706", bgColor: "#fef3c7" },
+    { type: "verified", label: "VERIFIED", color: "#059669", bgColor: "#d1fae5" }
+  ],
+  achievements: [
+    "Best Performer 2023",
+    "Customer Choice Award",
+    "Top Sales Agent"
+  ]
+};
 
 export const formatCurrency = (value) => {
   if (!value) return "0";

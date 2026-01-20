@@ -1,18 +1,47 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView } from 'react-native';
-import { Lock, ArrowRight, Crown } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  Modal,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  StatusBar
+} from 'react-native';
+import { ArrowRight, Check, X } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Mock Data
 const SUBSCRIPTION_PLANS = [
-  { id: 1, name: 'Starter', duration: 'Monthly', price: 999, label: null },
-  { id: 2, name: 'Pro', duration: 'Yearly', price: 4999, label: 'Save 20%' },
-  { id: 3, name: 'Enterprise', duration: 'Lifetime', price: 14999, label: 'Best Value' },
+  { 
+    id: 1, 
+    name: 'Monthly', 
+    price: '99.00', 
+    period: 'Billed Monthly',
+    isBestValue: false 
+  },
+  { 
+    id: 2, 
+    name: 'Yearly', 
+    price: '0.00', 
+    period: 'Free 1 Week Trial',
+    save: 'Save $40.00',
+    isBestValue: true 
+  },
+];
+
+const FEATURES = [
+  'Unlimited Listings',
+  'Lead & Client Tracker',
+  'Auto Follow-Up Reminders',
+  'Smart Suggestions & Alerts'
 ];
 
 const SubscriptionSheet = ({ isOpen, onClose, onSubscribe }) => {
   const [selectedPlan, setSelectedPlan] = useState(SUBSCRIPTION_PLANS[1]);
   const [loading, setLoading] = useState(false);
-  const [apiKey, setApiKey] = useState('');
 
   if (!isOpen) return null;
 
@@ -25,88 +54,260 @@ const SubscriptionSheet = ({ isOpen, onClose, onSubscribe }) => {
   };
 
   return (
-    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-        <View className="flex-1 justify-end">
-
-          {/* Backdrop */}
-          <TouchableOpacity activeOpacity={1} onPress={onClose} className="absolute inset-0 bg-black/80" />
-
-          {/* Sheet */}
-          <View className="bg-white w-full h-[95vh] rounded-t-[8vw] shadow-2xl overflow-hidden flex-col">
-            
-            {/* Header */}
-            <View className="bg-gray-900 pb-[12vw] relative overflow-hidden rounded-b-[10vw]">
-              <View className="absolute top-0 left-0 right-0 bottom-0 bg-blue-600 opacity-20" />
-              <View className="p-[8vw] items-center">
-                <View className="bg-white/10 p-[4vw] rounded-full w-[20vw] h-[20vw] items-center justify-center mb-[4vw] border border-white/10">
-                  <Crown size={40} color="#fbbf24" fill="#fbbf24" />
-                </View>
-                <Text className="text-[6vw] font-black text-white mb-[1vw]">BrokerOne Pro</Text>
-                <Text className="text-gray-300 text-[3.5vw] text-center px-[4vw]">
-                  Unlock unlimited access to manage properties, leads, and tasks efficiently.
-                </Text>
-              </View>
-            </View>
-
-            {/* Plans */}
-            <ScrollView className="flex-1 px-[6vw] -mt-[8vw] relative z-10" contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
-              <View className="space-y-[4vw] mb-[4vw]">
-                {SUBSCRIPTION_PLANS.map((plan) => (
-                  <TouchableOpacity
-                    key={plan.id}
-                    onPress={() => setSelectedPlan(plan)}
-                    className={`relative p-[5vw] rounded-2xl border-2 flex-row justify-between items-center ${selectedPlan.id === plan.id ? 'border-gray-900 bg-blue-50' : 'border-gray-100 bg-white'}`}
-                  >
-                    {selectedPlan.id === plan.id && (
-                      <View className="absolute -top-[2.5vw] left-[4vw] bg-gray-900 px-[2vw] py-[0.5vw] rounded-md">
-                        <Text className="text-white text-[2.5vw] font-bold uppercase tracking-wider">Selected</Text>
-                      </View>
-                    )}
-                    <View>
-                      <Text className="font-bold text-gray-900 text-[4vw]">{plan.name}</Text>
-                      <Text className="text-[3vw] text-gray-500 font-medium">{plan.duration}</Text>
-                    </View>
-                    <View className="items-end">
-                      <Text className="text-[5vw] font-black text-gray-900">₹{plan.price}</Text>
-                      {plan.label && <View className="bg-green-50 px-[1.5vw] py-[0.5vw] rounded mt-[0.5vw]"><Text className="text-[2.5vw] font-bold text-green-600">{plan.label}</Text></View>}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* API Key */}
-              <View className="bg-gray-50 p-[4vw] rounded-2xl border border-gray-200">
-                <View className="flex-row items-center gap-[2vw] mb-[2vw]">
-                  <Lock size={16} color="#9ca3af" />
-                  <Text className="text-[3vw] font-bold text-gray-500 uppercase tracking-wide">Secure Payment Gateway</Text>
-                </View>
-                <TextInput
-                  placeholder="Enter Gateway API Key (Optional)"
-                  placeholderTextColor="#9ca3af"
-                  value={apiKey}
-                  onChangeText={setApiKey}
-                  className="w-full bg-white p-[3vw] rounded-xl border border-gray-200 text-[3.5vw] font-bold text-gray-900"
-                />
-              </View>
-            </ScrollView>
-
-            {/* Footer */}
-            <View className="p-[6vw] border-t border-gray-100 bg-white pb-[8vw]">
-              <TouchableOpacity
-                onPress={handlePayment}
-                disabled={loading}
-                className={`w-full bg-gray-900 py-[4vw] rounded-2xl shadow-xl shadow-gray-200 flex-row items-center justify-center gap-[3vw] ${loading ? 'opacity-80' : 'active:scale-95'}`}
-              >
-                {loading ? <ActivityIndicator color="white" /> : <><Text className="text-white font-bold text-[4.5vw]">Pay ₹{selectedPlan.price} & Start</Text><ArrowRight size={20} color="white" /></>}
-              </TouchableOpacity>
-            </View>
-
+    <Modal
+      visible={isOpen}
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" />
+        
+        {/* === HEADER GRADIENT (Updated Color) === */}
+        <LinearGradient
+          colors={['#BFB7FD', '#E5E1FF', '#FFFFFF']}
+          locations={[0, 0.6, 1]}
+          style={styles.headerGradient}
+        >
+          {/* Top Bar */}
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <X size={20} color="#374151" />
+            </TouchableOpacity>
+            <TouchableOpacity>
+              <Text style={styles.restoreText}>Restore</Text>
+            </TouchableOpacity>
           </View>
+
+          {/* Title Section (Compact) */}
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Broker 99</Text>
+            <Text style={styles.subtitle}>Deal Karo, Pocket Bharo</Text>
+          </View>
+        </LinearGradient>
+
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent} 
+          showsVerticalScrollIndicator={false}
+        >
+          {/* === FEATURES LIST (Compact) === */}
+          <View style={styles.featuresContainer}>
+            {FEATURES.map((feature, index) => (
+              <View key={index} style={styles.featureRow}>
+                <Check size={16} color="#111827" strokeWidth={3} />
+                <Text style={styles.featureText}>{feature}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* === PLAN CARDS (Smaller) === */}
+          <View style={styles.plansContainer}>
+            {SUBSCRIPTION_PLANS.map((plan) => {
+              const isSelected = selectedPlan.id === plan.id;
+              return (
+                <TouchableOpacity
+                  key={plan.id}
+                  onPress={() => setSelectedPlan(plan)}
+                  activeOpacity={0.9}
+                  style={[
+                    styles.planCard,
+                    isSelected && styles.planCardSelected
+                  ]}
+                >
+                  {/* Selection Checkmark */}
+                  {isSelected && (
+                    <View style={styles.checkmarkBadge}>
+                      <Check size={10} color="white" strokeWidth={4} />
+                    </View>
+                  )}
+
+                  <View>
+                    <Text style={styles.planName}>{plan.name}</Text>
+                    <Text style={styles.planPrice}>${plan.price}</Text>
+                    
+                    {plan.save && (
+                      <Text style={styles.saveText}>{plan.save}</Text>
+                    )}
+                  </View>
+
+                  <Text style={styles.planPeriod}>{plan.period}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+        </ScrollView>
+
+        {/* === BOTTOM ACTION === */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            onPress={handlePayment}
+            disabled={loading}
+            style={styles.subscribeButton}
+            activeOpacity={0.9}
+          >
+            {loading ? (
+              <ActivityIndicator color="#1F2937" />
+            ) : (
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+                <Text style={styles.subscribeButtonText}>Subscribe</Text>
+                <ArrowRight size={18} color="#1F2937" />
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+
+      </View>
     </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  
+  // Header
+  headerGradient: {
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 50,
+    paddingBottom: 30, // Reduced padding
+    paddingHorizontal: 20,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20, // Reduced margin
+  },
+  closeButton: {
+    padding: 4,
+  },
+  restoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  titleContainer: {
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 26, // Smaller Title
+    fontWeight: '900',
+    color: '#1F2937',
+    marginBottom: 4,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 13, // Smaller Subtitle
+    color: '#4B5563',
+    fontWeight: '500',
+  },
+
+  // Content
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+  
+  // Features
+  featuresContainer: {
+    marginTop: 20,
+    marginBottom: 30,
+    gap: 14, // Reduced gap
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  featureText: {
+    fontSize: 13, // Smaller text
+    fontWeight: '600',
+    color: '#374151',
+  },
+
+  // Plans
+  plansContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  planCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16, // Reduced padding inside card
+    borderWidth: 1,
+    borderColor: '#9CA3AF',
+    height: 150, // Reduced Height
+    justifyContent: 'space-between',
+    position: 'relative',
+  },
+  planCardSelected: {
+    borderColor: '#111827',
+    borderWidth: 1.5,
+    backgroundColor: '#fff',
+  },
+  checkmarkBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#10B981', 
+    width: 20, // Smaller Badge
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+    zIndex: 10,
+  },
+  planName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  planPrice: {
+    fontSize: 24, // Smaller Price
+    fontWeight: '900',
+    color: '#111827',
+    letterSpacing: -0.5,
+  },
+  saveText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#111827',
+    marginTop: 2,
+  },
+  planPeriod: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#4B5563',
+  },
+
+  // Footer
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    paddingBottom: 30,
+    backgroundColor: 'white',
+  },
+  subscribeButton: {
+    backgroundColor: '#C7D2FE', // Matching Button Color
+    paddingVertical: 14, // Slimmer Button
+    borderRadius: 24, 
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subscribeButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+});
 
 export default SubscriptionSheet;

@@ -1,13 +1,14 @@
 import {
-    Briefcase,
     Calendar,
     ChevronRight,
+    Edit3,
     Handshake,
     MapPin,
+    MessageCircle,
     Phone,
     Plus,
-    Search,
     Sparkles,
+    Trash2,
     X
 } from 'lucide-react-native';
 import { useState } from 'react';
@@ -16,6 +17,7 @@ import {
     Linking,
     Modal,
     ScrollView,
+    StyleSheet,
     Text,
     TouchableOpacity,
     View
@@ -30,7 +32,7 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-const CustomerDetailSheet = ({ customer, onClose, properties, activeDeals, onAddFollowUp, onStartDeal, onOpenDeal }) => {
+const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals = [], followUps = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask }) => {
   const [showPropertyPicker, setShowPropertyPicker] = useState(false);
 
   if (!customer) return null;
@@ -38,10 +40,13 @@ const CustomerDetailSheet = ({ customer, onClose, properties, activeDeals, onAdd
   // Filter Logic
   const customerDeals = activeDeals.filter(d => d.customerId === customer.id);
   const dealtPropertyIds = customerDeals.map(d => d.propertyId);
+  const customerTasks = followUps.filter(f => f.customerId === customer.id);
+  
+  console.log('CustomerDetailSheet - customer:', customer.id, 'followUps:', followUps.length, 'customerTasks:', customerTasks.length);
+  console.log('🔍 Customer tasks:', customerTasks);
 
   const matches = properties.filter(p => {
     if (p.type !== customer.type) return false;
-    if (p.price > customer.budget * 1.15) return false;
     if (p.status === 'Sold') return false;
     if (dealtPropertyIds.includes(p.id)) return false;
     return true;
@@ -49,6 +54,11 @@ const CustomerDetailSheet = ({ customer, onClose, properties, activeDeals, onAdd
 
   const handleCall = () => {
     Linking.openURL(`tel:${customer.phone}`);
+  };
+
+  const handleWhatsApp = () => {
+    const message = `Hi ${customer.name}, I have some properties that match your requirements.`;
+    Linking.openURL(`https://wa.me/${customer.phone}?text=${encodeURIComponent(message)}`);
   };
 
   return (
@@ -59,159 +69,214 @@ const CustomerDetailSheet = ({ customer, onClose, properties, activeDeals, onAdd
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View className="flex-1 justify-end bg-black/60">
+      <View style={styles.overlay}>
         
         {/* Main Sheet Container */}
-        <View className="bg-white w-full h-[92vh] rounded-t-[10vw] shadow-2xl overflow-hidden flex-col relative">
+        <View style={styles.sheetContainer}>
           
-          {/* Header (Sticky) */}
-          <View className="p-[6vw] border-b border-gray-100 flex-row justify-between items-center bg-white/95 z-10">
-            <View className="flex-row items-center gap-[4vw]">
-               <View className="h-[12vw] w-[12vw] bg-gray-100 rounded-2xl flex items-center justify-center border border-white shadow-sm">
-                  <Text className="text-gray-700 font-black text-[5vw]">{customer.name.charAt(0)}</Text>
+          {/* Header (Spacious) */}
+          <View style={styles.header}>
+            <View style={styles.headerContent}>
+               <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{customer.name.charAt(0)}</Text>
                </View>
                <View>
-                  <Text className="text-[5vw] font-bold text-gray-900">{customer.name}</Text>
-                  <Text className="text-[3vw] text-gray-500 font-medium">{customer.phone}</Text>
+                  <Text style={styles.customerName}>{customer.name}</Text>
+                  <Text style={styles.customerPhone}>{customer.phone}</Text>
                </View>
             </View>
-            <TouchableOpacity onPress={onClose} className="p-[2vw] bg-gray-100 rounded-full">
-               <X size={20} color="#6b7280" />
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+               <X size={24} color="#6b7280" />
             </TouchableOpacity>
           </View>
           
           {/* Main Scroll Content */}
-          <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+          <ScrollView 
+            style={styles.content} 
+            contentContainerStyle={{ paddingBottom: 100 }} 
+            showsVerticalScrollIndicator={false}
+          >
             
-            {/* Action Buttons Grid */}
-            <View className="flex-row flex-wrap gap-[3vw] mb-[8vw]">
-               <TouchableOpacity 
-                 onPress={handleCall}
-                 className="flex-1 bg-white py-[3.5vw] rounded-2xl border border-gray-200 flex-row items-center justify-center gap-[2vw]"
-               >
-                  <Phone size={18} color="#047857" />
-                  <Text className="font-bold text-emerald-700 text-[3.5vw]">Call</Text>
+            {/* Quick Stats Row (Spacious) */}
+            <View style={styles.infoRow}>
+                <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>BUDGET</Text>
+                    <Text style={styles.infoValue}>{formatCurrency(customer.budget)}</Text>
+                </View>
+                <View style={styles.verticalLine} />
+                <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>TYPE</Text>
+                    <Text style={styles.infoValue}>{customer.type}</Text>
+                </View>
+                <View style={styles.verticalLine} />
+                <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>STATUS</Text>
+                    <Text style={[styles.infoValue, {color: '#d97706'}]}>{customer.status || 'New'}</Text>
+                </View>
+            </View>
+
+            {/* Action Buttons Grid (Bigger Touch Targets) */}
+            <View style={styles.actionGrid}>
+               <TouchableOpacity onPress={handleCall} style={styles.actionBtn}>
+                  <View style={[styles.iconBox, { backgroundColor: '#ecfdf5' }]}>
+                     <Phone size={22} color="#059669" />
+                  </View>
+                  <Text style={styles.actionText}>Call</Text>
                </TouchableOpacity>
                
-               <TouchableOpacity 
-                 onPress={() => onAddFollowUp(customer)}
-                 className="flex-1 bg-white py-[3.5vw] rounded-2xl border border-gray-200 flex-row items-center justify-center gap-[2vw]"
-               >
-                  <Calendar size={18} color="#1d4ed8" />
-                  <Text className="font-bold text-blue-700 text-[3.5vw]">Task</Text>
+               <TouchableOpacity onPress={handleWhatsApp} style={styles.actionBtn}>
+                  <View style={[styles.iconBox, { backgroundColor: '#ecfccb' }]}>
+                     <MessageCircle size={22} color="#65a30d" />
+                  </View>
+                  <Text style={styles.actionText}>WhatsApp</Text>
                </TouchableOpacity>
 
-               <TouchableOpacity 
-                 onPress={() => setShowPropertyPicker(true)}
-                 className="w-full bg-gray-900 py-[4vw] rounded-2xl shadow-lg shadow-gray-200 active:scale-95 flex-row items-center justify-center gap-[2vw] mt-[1vw]"
-               >
-                  <Briefcase size={18} color="#d1d5db" />
-                  <Text className="font-bold text-white text-[3.5vw]">Start Deal / Interest</Text>
+               <TouchableOpacity onPress={() => {
+                  // If there are existing tasks, edit the first pending task
+                  // Otherwise, add a new task
+                  const pendingTasks = customerTasks.filter(task => task.status === 'Pending');
+                  if (pendingTasks.length > 0) {
+                     onEditTask && onEditTask(pendingTasks[0]);
+                  } else {
+                     onAddFollowUp(customer);
+                  }
+               }} style={styles.actionBtn}>
+                  <View style={[styles.iconBox, { backgroundColor: '#eff6ff' }]}>
+                     <Calendar size={22} color="#2563eb" />
+                  </View>
+                  <Text style={styles.actionText}>Task</Text>
+               </TouchableOpacity>
+
+               <TouchableOpacity onPress={() => setShowPropertyPicker(true)} style={styles.actionBtn}>
+                  <View style={[styles.iconBox, { backgroundColor: '#111827' }]}>
+                     <Plus size={22} color="#fff" />
+                  </View>
+                  <Text style={styles.actionText}>Deal</Text>
                </TouchableOpacity>
             </View>
 
             {/* Active Deals Section */}
-            <View className="mb-[8vw]">
-               <View className="flex-row items-center gap-[2vw] mb-[3vw]">
-                  <Briefcase size={18} color="#4f46e5" />
-                  <Text className="font-bold text-gray-900 text-[4.5vw]">Active Deals ({customerDeals.length})</Text>
-               </View>
-               
-               {customerDeals.length > 0 ? (
-                  <View className="gap-[3vw]">
-                     {customerDeals.map(deal => {
-                        const prop = properties.find(p => p.id === deal.propertyId);
-                        return (
-                           <TouchableOpacity 
-                             key={deal.id} 
-                             onPress={() => onOpenDeal(deal)}
-                             className="bg-white border border-gray-200 rounded-2xl p-[3vw] flex-row gap-[3vw] items-center shadow-sm active:scale-95"
-                           >
-                              <Image source={{ uri: prop?.image }} className="w-[16vw] h-[16vw] rounded-xl bg-gray-200" />
-                              <View className="flex-1">
-                                 <View className="flex-row justify-between items-center mb-[1vw]">
-                                    <Text className="font-bold text-[3.5vw] text-gray-900 flex-1 mr-2" numberOfLines={1}>
-                                       {prop?.title}
-                                    </Text>
-                                    <View className={`px-[2vw] py-[0.5vw] rounded ${deal.stage === 'Closed' ? 'bg-green-100' : 'bg-indigo-50'}`}>
-                                       <Text className={`text-[2.5vw] font-bold ${deal.stage === 'Closed' ? 'text-green-700' : 'text-indigo-700'}`}>
-                                          {deal.stage}
-                                       </Text>
+            {customerDeals.length > 0 && (
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Active Deals</Text>
+                    <View style={styles.listContainer}>
+                        {customerDeals.map(deal => {
+                            const prop = properties.find(p => p.id === deal.propertyId);
+                            return (
+                                <TouchableOpacity 
+                                    key={deal.id} 
+                                    onPress={() => onOpenDeal(deal)}
+                                    style={styles.compactCard}
+                                >
+                                    <Image source={{ uri: prop?.image }} style={styles.compactImg} />
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.compactTitle} numberOfLines={1}>{prop?.title}</Text>
+                                        <Text style={styles.compactSub}>{deal.stage}</Text>
                                     </View>
-                                 </View>
-                                 <Text className="text-[3vw] text-gray-500">{prop?.location}</Text>
-                              </View>
-                              <ChevronRight size={18} color="#d1d5db" />
-                           </TouchableOpacity>
-                        );
-                     })}
-                  </View>
-               ) : (
-                  <View className="bg-gray-50 p-[4vw] rounded-2xl items-center border border-dashed border-gray-200">
-                     <Text className="text-[3vw] text-gray-400 font-bold">No active deals running.</Text>
-                  </View>
-               )}
-            </View>
+                                    <ChevronRight size={18} color="#d1d5db" />
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </View>
+            )}
 
-            {/* Customer Info Card */}
-            <View className="bg-white rounded-3xl p-[5vw] border border-gray-100 shadow-sm mb-[8vw]">
-               <View className="flex-row justify-between mb-[5vw]">
-                  <View>
-                     <Text className="text-[2.5vw] text-gray-400 font-bold uppercase tracking-wider mb-[1vw]">Max Budget</Text>
-                     <Text className="font-black text-[6vw] text-gray-900">{formatCurrency(customer.budget)}</Text>
-                  </View>
-                  <View className="items-end">
-                     <Text className="text-[2.5vw] text-gray-400 font-bold uppercase tracking-wider mb-[1vw]">Looking For</Text>
-                     <View className="bg-gray-100 px-[3vw] py-[1vw] rounded-lg">
-                        <Text className="text-[3.5vw] font-bold text-gray-700">{customer.type}</Text>
-                     </View>
-                  </View>
-               </View>
-               <View className="pt-[4vw] border-t border-gray-100">
-                  <Text className="text-[2.5vw] text-gray-400 font-bold uppercase mb-[1vw] tracking-wider">Preferences / Notes</Text>
-                  <Text className="text-[3.5vw] text-gray-600 font-medium leading-relaxed">
-                     {customer.notes || 'No specific preferences added.'}
-                  </Text>
-               </View>
-            </View>
+            {/* Tasks Section */}
+            {customerTasks.length > 0 && (
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Tasks ({customerTasks.length})</Text>
+                    <View style={styles.listContainer}>
+                        {customerTasks.map(task => {
+                            const prop = properties.find(p => p.id === task.propertyId);
+                            const date = new Date(task.date);
+                            const isVisit = task.type === 'Visit' || task.type === 'Meeting';
+                            const statusColor = task.status === 'Done' ? '#059669' : '#d97706';
+                            
+                            return (
+                                <View 
+                                    key={task.id} 
+                                    style={styles.taskCard}
+                                >
+                                    <View style={styles.taskHeader}>
+                                        <View style={[styles.taskTypeBadge, { 
+                                            backgroundColor: isVisit ? '#fffbeb' : '#eff6ff' 
+                                        }]}>
+                                            <Text style={[styles.taskTypeText, { 
+                                                color: isVisit ? '#b45309' : '#1d4ed8' 
+                                            }]}>
+                                                {isVisit ? 'Site Visit' : 'Call / Follow-up'}
+                                            </Text>
+                                        </View>
+                                        
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <TouchableOpacity 
+                                                onPress={() => onEditTask && onEditTask(task)}
+                                                style={{ padding: 4 }}
+                                            >
+                                                <Edit3 size={14} color="#6b7280" />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity 
+                                                onPress={() => onDeleteTask && onDeleteTask(task.id)}
+                                                style={{ padding: 4 }}
+                                            >
+                                                <Trash2 size={14} color="#ef4444" />
+                                            </TouchableOpacity>
+                                            <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+                                                <Text style={styles.statusText}>{task.status}</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                    
+                                    <Text style={styles.taskNote} numberOfLines={2}>{task.note}</Text>
+                                    
+                                    <View style={styles.taskFooter}>
+                                        <Text style={styles.taskDate}>
+                                            {date.toLocaleDateString()} at {date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                                        </Text>
+                                        {prop && (
+                                            <Text style={styles.taskProperty} numberOfLines={1}>{prop.title}</Text>
+                                        )}
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                </View>
+            )}
 
             {/* Matches Section */}
-            <View>
-               <View className="flex-row items-center justify-between mb-[4vw]">
-                  <View className="flex-row items-center gap-[2vw]">
-                     <Sparkles size={18} color="#f59e0b" fill="#f59e0b" />
-                     <Text className="font-bold text-gray-900 text-[4.5vw]">Matches</Text>
-                  </View>
-                  <View className="bg-amber-100 px-[2.5vw] py-[1vw] rounded-full border border-amber-200">
-                     <Text className="text-amber-800 text-[2.5vw] font-bold">{matches.length} found</Text>
-                  </View>
+            <View style={styles.section}>
+               <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Matches ({matches.length})</Text>
+                  {matches.length > 0 && <Sparkles size={16} color="#f59e0b" />}
                </View>
 
                {matches.length > 0 ? (
-                  <View className="gap-[4vw]">
+                  <View style={styles.listContainer}>
                      {matches.map(prop => (
                         <TouchableOpacity 
                            key={prop.id} 
-                           activeOpacity={0.9}
-                           className="bg-white border border-gray-100 rounded-2xl p-[3vw] flex-row gap-[4vw] shadow-sm relative overflow-hidden"
+                           style={styles.matchCard}
+                           activeOpacity={0.8}
                         >
-                           <Image source={{ uri: prop.image }} className="w-[20vw] h-[20vw] rounded-xl bg-gray-200" />
-                           <View className="flex-1 py-[1vw] justify-between">
+                           <Image source={{ uri: prop.image }} style={styles.matchImg} />
+                           <View style={styles.matchContent}>
                               <View>
-                                 <Text className="font-bold text-[3.5vw] text-gray-900 mb-[1vw]" numberOfLines={1}>{prop.title}</Text>
-                                 <View className="flex-row items-center gap-[1vw] mb-[2vw]">
-                                    <MapPin size={10} color="#6b7280" />
-                                    <Text className="text-[3vw] text-gray-500" numberOfLines={1}>{prop.location}</Text>
-                                 </View>
+                                <Text style={styles.matchTitle} numberOfLines={1}>{prop.title}</Text>
+                                <View style={styles.rowCenter}>
+                                   <MapPin size={12} color="#9ca3af" />
+                                   <Text style={styles.matchLoc} numberOfLines={1}>{prop.location}</Text>
+                                </View>
                               </View>
-                              <View className="flex-row justify-between items-center">
-                                 <Text className="font-black text-indigo-600 text-[3.5vw]">{formatCurrency(prop.price)}</Text>
+                              
+                              <View style={styles.matchFooter}>
+                                 <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
                                  <TouchableOpacity 
                                     onPress={() => { onStartDeal(customer, prop); setShowPropertyPicker(false); }}
-                                    className="bg-gray-900 px-[3vw] py-[1.5vw] rounded-lg shadow-md flex-row items-center gap-[1vw]"
+                                    style={styles.smallDealBtn}
                                  >
-                                    <Handshake size={12} color="white" />
-                                    <Text className="text-[2.5vw] font-bold text-white">Start Deal</Text>
+                                    <Handshake size={14} color="white" />
+                                    <Text style={styles.smallDealText}>Start</Text>
                                  </TouchableOpacity>
                               </View>
                            </View>
@@ -219,40 +284,37 @@ const CustomerDetailSheet = ({ customer, onClose, properties, activeDeals, onAdd
                      ))}
                   </View>
                ) : (
-                  <View className="py-[10vw] bg-gray-50 rounded-3xl border border-dashed border-gray-200 items-center">
-                     <View className="bg-white p-[3vw] rounded-full shadow-sm mb-[3vw]">
-                        <Search size={24} color="#d1d5db" />
-                     </View>
-                     <Text className="text-[3.5vw] text-gray-500 font-medium">No properties match this criteria.</Text>
+                  <View style={styles.emptyState}>
+                     <Text style={styles.emptyText}>No matching properties found.</Text>
                   </View>
                )}
             </View>
 
           </ScrollView>
 
-          {/* Property Picker Overlay (Full Cover) */}
+          {/* --- PROPERTY PICKER MODAL --- */}
           {showPropertyPicker && (
-             <View className="absolute inset-0 z-50 bg-white flex-col">
-                <View className="p-[4vw] border-b border-gray-100 flex-row items-center justify-between bg-white pt-[6vw]">
-                   <Text className="font-black text-[5vw]">Select Property</Text>
-                   <TouchableOpacity onPress={() => setShowPropertyPicker(false)} className="p-[2vw]">
-                      <X size={24} color="#000" />
+             <View style={styles.pickerOverlay}>
+                <View style={styles.pickerHeader}>
+                   <Text style={styles.pickerTitle}>Select Property</Text>
+                   <TouchableOpacity onPress={() => setShowPropertyPicker(false)} style={styles.closeButton}>
+                      <X size={22} color="#000" />
                    </TouchableOpacity>
                 </View>
                 
-                <ScrollView className="flex-1 p-[4vw]" contentContainerStyle={{ paddingBottom: 40 }}>
+                <ScrollView style={styles.pickerContent}>
                    {properties.filter(p => p.status === 'Available' && !dealtPropertyIds.includes(p.id)).map(p => (
                       <TouchableOpacity 
                          key={p.id} 
                          onPress={() => { onStartDeal(customer, p); setShowPropertyPicker(false); }}
-                         className="flex-row gap-[3vw] p-[3vw] border border-gray-100 rounded-xl items-center mb-[3vw] bg-white active:bg-gray-50"
+                         style={styles.pickerItem}
                       >
-                         <Image source={{ uri: p.image }} className="w-[12vw] h-[12vw] rounded-lg bg-gray-200" />
-                         <View className="flex-1">
-                            <Text className="font-bold text-[3.5vw]">{p.title}</Text>
-                            <Text className="text-[3vw] text-gray-500">{formatCurrency(p.price)}</Text>
+                         <Image source={{ uri: p.image }} style={styles.pickerImg} />
+                         <View style={{ flex: 1 }}>
+                            <Text style={styles.pickerItemTitle}>{p.title}</Text>
+                            <Text style={styles.pickerItemPrice}>{formatCurrency(p.price)}</Text>
                          </View>
-                         <Plus size={20} color="#9ca3af" />
+                         <Plus size={20} color="#2563eb" />
                       </TouchableOpacity>
                    ))}
                 </ScrollView>
@@ -264,5 +326,386 @@ const CustomerDetailSheet = ({ customer, onClose, properties, activeDeals, onAdd
     </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)', // Slightly darker overlay
+  },
+  sheetContainer: {
+    backgroundColor: '#f9fafb', // Light gray background for contrast
+    width: '100%',
+    height: '83%', // Increased Height for spacious feel
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+  },
+  
+  // Header
+  header: {
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  avatar: {
+    height: 52, // Bigger Avatar
+    width: 52,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#374151',
+  },
+  customerName: {
+    fontSize: 16, // Bigger Font
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  customerPhone: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  closeButton: {
+    padding: 10,
+    backgroundColor: '#f9fafb',
+    borderRadius: 99,
+  },
+  
+  // Content
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+  },
+  
+  // Info Row
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: 'white',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginBottom: 28, // More gap
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  infoItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#9ca3af',
+    marginBottom: 4,
+    letterSpacing: 0.5,
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  verticalLine: {
+    width: 1,
+    height: '80%',
+    backgroundColor: '#e5e7eb',
+    alignSelf: 'center',
+  },
+
+  // Action Grid
+  actionGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 32, // More gap
+  },
+  actionBtn: {
+    alignItems: 'center',
+    width: '22%',
+  },
+  iconBox: {
+    width: 52, // Bigger Touch Target
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  actionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4b5563',
+  },
+
+  // Sections
+  section: {
+    marginBottom: 32, // Spacing between sections
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  listContainer: {
+    gap: 14, // Gap between cards
+  },
+  
+  // Compact Deal Card
+  compactCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 14,
+    gap: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  compactImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#f3f4f6',
+  },
+  compactTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  compactSub: {
+    fontSize: 12,
+    color: '#4f46e5',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+
+  // Task Card
+  taskCard: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  taskHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  taskTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  taskTypeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: 'white',
+    textTransform: 'uppercase',
+  },
+  taskNote: {
+    fontSize: 13,
+    color: '#374151',
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  taskFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    paddingTop: 8,
+  },
+  taskDate: {
+    fontSize: 11,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  taskProperty: {
+    fontSize: 11,
+    color: '#9ca3af',
+    marginTop: 2,
+  },
+
+  // Match Card (Spacious)
+  matchCard: {
+    flexDirection: 'row',
+    padding: 16, // More padding inside
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  matchImg: {
+    width: 70, // Bigger Image
+    height: 70,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+  },
+  matchContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  matchTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  matchLoc: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginLeft: 4,
+  },
+  rowCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  matchFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  matchPrice: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#2563eb',
+  },
+  smallDealBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#111827',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  smallDealText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  emptyState: {
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    backgroundColor: '#f9fafb',
+  },
+  emptyText: {
+    fontSize: 13,
+    color: '#9ca3af',
+  },
+
+  // Property Picker
+  pickerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'white',
+    zIndex: 50,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+    marginTop: 20,
+  },
+  pickerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  pickerContent: {
+    padding: 20,
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 14,
+    marginBottom: 12,
+    gap: 14,
+  },
+  pickerImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: '#f3f4f6',
+  },
+  pickerItemTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  pickerItemPrice: {
+    fontSize: 13,
+    color: '#6b7280',
+  }
+});
 
 export default CustomerDetailSheet;

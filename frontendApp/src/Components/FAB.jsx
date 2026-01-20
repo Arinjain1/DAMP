@@ -9,7 +9,7 @@ const FAB = ({ onPress }) => {
     <TouchableOpacity
       onPress={onPress}
       className="absolute right-[5vw] w-[15vw] h-[15vw] bg-gray-900 rounded-full items-center justify-center"
-      style={{ bottom: 80 + insets.bottom }}
+      style={{ bottom: 30 + insets.bottom }}
     >
       <Plus size={28} color="white" />
     </TouchableOpacity>

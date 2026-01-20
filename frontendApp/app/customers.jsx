@@ -1,4 +1,4 @@
-import { StatusBar, View } from 'react-native';
+import { View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import FAB from '../src/Components/FAB.jsx';
 import AddModal from '../src/Modal and Sheets/AddModal';
@@ -9,7 +9,7 @@ import CustomersList from '../src/Views/CustomersList';
 // Redux actions
 import { addCustomer, clearSelectedCustomer, setSelectedCustomer, updateCustomer, updateCustomerStatus } from '../src/store/slices/customersSlice';
 import { addDeal, clearSelectedDeal, closeDeal, setSelectedDeal, updateDeal } from '../src/store/slices/dealsSlice';
-import { addFollowUp } from '../src/store/slices/followUpsSlice';
+import { addFollowUp, deleteFollowUp, updateFollowUp } from '../src/store/slices/followUpsSlice';
 import { clearEditItem, setEditItem, setModalOpen, setModalType } from '../src/store/slices/uiSlice';
 
 export default function Customers() {
@@ -35,22 +35,36 @@ export default function Customers() {
     dispatch(setModalOpen(false));
   };
 
-  const handleEdit = (item, type) => {
-    dispatch(setEditItem(item));
-    dispatch(setModalType(type));
-    dispatch(setModalOpen(true));
-  };
-
   const handleUpdate = (updatedItem) => {
-    dispatch(updateCustomer(updatedItem));
+    if (modalType === 'FollowUp') {
+      dispatch(updateFollowUp(updatedItem));
+    } else {
+      dispatch(updateCustomer(updatedItem));
+    }
     dispatch(clearEditItem());
     dispatch(setModalOpen(false));
   };
 
-  const handleAddFollowUpFromCustomer = () => {
-    dispatch(clearSelectedCustomer());
+  const handleAddFollowUpFromCustomer = (customer) => {
+    // Don't clear the selected customer, keep it for initialCustomer
+    dispatch(setEditItem({ customerId: customer.id })); // Set the customer for the follow-up
     dispatch(setModalType('FollowUp'));
     dispatch(setModalOpen(true));
+  };
+
+  const handleEditTask = (task) => {
+    console.log('🔥 handleEditTask called with:', task);
+    console.log('🔥 Task ID:', task?.id, 'Customer ID:', task?.customerId);
+    console.log('🔥 Current modal state - isOpen:', modalOpen, 'type:', modalType);
+    // Don't close customer detail sheet, just open modal on top
+    dispatch(setEditItem(task));
+    dispatch(setModalType('FollowUp'));
+    dispatch(setModalOpen(true));
+    console.log('🔥 Dispatched modal open actions');
+  };
+
+  const handleDeleteTask = (taskId) => {
+    dispatch(deleteFollowUp(taskId));
   };
 
   const handleStartDeal = (customer, property) => {
@@ -77,19 +91,20 @@ export default function Customers() {
 
   return (
     <View className="flex-1 bg-gray-50">
-      <StatusBar barStyle="dark-content" backgroundColor="white" />
-      
       <CustomersList 
         customers={customers} 
         onSelect={(customer) => dispatch(setSelectedCustomer(customer))} 
       />
 
-      <FAB onClick={handleFABClick} />
+      <FAB onPress={handleFABClick} />
 
       <AddModal 
         isOpen={modalOpen} 
         type={modalType} 
-        onClose={() => dispatch(setModalOpen(false))} 
+        onClose={() => {
+          console.log('🔥 AddModal closing');
+          dispatch(setModalOpen(false));
+        }} 
         onSave={handleAdd} 
         onUpdate={handleUpdate} 
         editItem={editItem} 
@@ -106,6 +121,8 @@ export default function Customers() {
           activeDeals={deals} 
           followUps={followUps} 
           onAddFollowUp={handleAddFollowUpFromCustomer} 
+          onEditTask={handleEditTask}
+          onDeleteTask={handleDeleteTask}
           onUpdateStatus={(id, status) => dispatch(updateCustomerStatus({ id, status }))}
           onStartDeal={handleStartDeal}
           onOpenDeal={(deal) => dispatch(setSelectedDeal(deal))}

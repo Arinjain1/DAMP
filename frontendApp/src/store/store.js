@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { persistenceMiddleware } from './middleware/persistenceMiddleware';
+import authReducer from './slices/authSlice';
 import customersReducer from './slices/customersSlice';
 import dealsReducer from './slices/dealsSlice';
 import followUpsReducer from './slices/followUpsSlice';
@@ -10,6 +11,7 @@ import uiReducer from './slices/uiSlice';
 
 export const store = configureStore({
   reducer: {
+    auth: authReducer,
     properties: propertiesReducer,
     customers: customersReducer,
     followUps: followUpsReducer,

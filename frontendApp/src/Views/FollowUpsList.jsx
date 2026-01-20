@@ -4,22 +4,27 @@ import {
   Text, 
   ScrollView, 
   TouchableOpacity, 
-  Linking 
+  Linking,
+  StyleSheet,
+  Dimensions
 } from 'react-native';
 import { 
   Home, 
   CheckCircle, 
   Map, 
   Phone, 
-  MessageCircle 
+  MessageCircle,
+  Clock,
+  Calendar
 } from 'lucide-react-native';
 
-// Mock helper if not provided globally
+// Helper for generating IDs if needed
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-const FollowUpsList = ({ followUps, customers, properties, onUpdateStatus, onDelete, onStartVisit }) => {
+const FollowUpsList = ({ followUps = [], customers = [], properties = [], onUpdateStatus, onDelete, onStartVisit }) => {
   const [filter, setFilter] = useState('Pending');
   
+  // Logic to filter and sort tasks
   const filteredTasks = followUps
     .filter(t => t.status === filter)
     .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -34,19 +39,31 @@ const FollowUpsList = ({ followUps, customers, properties, onUpdateStatus, onDel
   };
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View style={styles.container}>
       
-      {/* Sticky Header (Fixed View at top) */}
-      <View className="bg-white/95 pt-[12vw] pb-[4vw] px-[6vw] border-b border-gray-200 flex-row justify-between items-end z-20 shadow-sm">
-         <Text className="text-[6vw] font-black text-gray-900">Daily Planner</Text>
-         <View className="flex-row bg-gray-100 p-[1vw] rounded-lg">
+      {/* --- STICKY HEADER --- */}
+      <View style={styles.headerContainer}>
+         <View>
+            <Text style={styles.headerTitle}>Daily Planner</Text>
+            <Text style={styles.headerSubtitle}>Manage your tasks</Text>
+         </View>
+         
+         {/* Improved Toggle Buttons */}
+         <View style={styles.filterContainer}>
             {['Pending', 'Done'].map(f => (
                <TouchableOpacity 
                   key={f} 
                   onPress={() => setFilter(f)} 
-                  className={`px-[4vw] py-[1.5vw] rounded-md transition-all ${filter === f ? 'bg-white shadow-sm' : ''}`}
+                  style={[
+                    styles.filterTab, 
+                    filter === f && styles.filterTabActive
+                  ]}
+                  activeOpacity={0.8}
                >
-                  <Text className={`text-[3vw] font-bold ${filter === f ? 'text-gray-900' : 'text-gray-500'}`}>
+                  <Text style={[
+                    styles.filterText, 
+                    filter === f ? styles.filterTextActive : styles.filterTextInactive
+                  ]}>
                      {f}
                   </Text>
                </TouchableOpacity>
@@ -54,101 +71,122 @@ const FollowUpsList = ({ followUps, customers, properties, onUpdateStatus, onDel
          </View>
       </View>
       
-      {/* Scrollable List Area */}
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
-         <View className="p-[5vw] relative min-h-screen">
+      {/* --- SCROLLABLE TIMELINE --- */}
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+         <View style={styles.timelineContainer}>
             
-            {/* Vertical Timeline Line */}
-            <View className="absolute top-[5vw] left-[11vw] bottom-0 w-[0.5vw] bg-gray-200 z-0" />
+            {/* Vertical Line */}
+            <View style={styles.timelineLine} />
 
-            <View className="gap-[6vw] relative z-10">
+            <View style={styles.taskList}>
                {filteredTasks.length > 0 ? filteredTasks.map((task) => {
                   const customer = customers.find(c => c.id === task.customerId);
                   const property = properties.find(p => p.id === task.propertyId);
                   const date = new Date(task.date);
-                  const isVisit = task.type === 'Visit' || task.type === 'Meeting';
                   
+                  // Determine type (Visit vs Call) for styling
+                  const isVisit = task.type === 'Visit' || task.type === 'Meeting';
+                  const primaryColor = isVisit ? '#f59e0b' : '#3b82f6'; // Amber vs Blue
+                  const lightBg = isVisit ? '#fffbeb' : '#eff6ff'; // Light Amber vs Light Blue
+
                   return (
-                     <View key={task.id} className="flex-row gap-[4vw]">
+                     <View key={task.id} style={styles.taskRow}>
                         
                         {/* Left Column: Time & Dot */}
-                        <View className="flex-col items-center w-[12vw] pt-[1vw]">
-                           <Text className="text-[3vw] font-bold text-gray-900">
+                        <View style={styles.timeColumn}>
+                           <Text style={styles.timeText}>
                               {date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                            </Text>
-                           <View className={`w-[3.5vw] h-[3.5vw] rounded-full border-2 mt-[1vw] bg-white ${isVisit ? 'border-amber-500' : 'border-blue-500'}`} />
+                           <View style={[styles.timelineDot, { borderColor: primaryColor }]} />
                         </View>
 
                         {/* Right Column: Task Card */}
-                        <View className={`flex-1 bg-white p-[4vw] rounded-2xl shadow-sm border-l-[1.5vw] ${isVisit ? 'border-l-amber-500' : 'border-l-blue-500'} border-y border-r border-gray-100`}>
+                        <View style={[
+                           styles.card, 
+                           { borderLeftColor: primaryColor } 
+                        ]}>
                            
                            {/* Card Header */}
-                           <View className="flex-row justify-between items-start mb-[2vw]">
-                              <View className="flex-1 mr-[2vw]">
-                                 <View className={`self-start px-[2vw] py-[0.5vw] rounded mb-[1vw] ${isVisit ? 'bg-amber-50' : 'bg-blue-50'}`}>
-                                    <Text className={`text-[2.5vw] font-bold uppercase tracking-wider ${isVisit ? 'text-amber-700' : 'text-blue-700'}`}>
+                           <View style={styles.cardHeader}>
+                              <View style={{ flex: 1, marginRight: 8 }}>
+                                 {/* Type Badge */}
+                                 <View style={[styles.badge, { backgroundColor: lightBg }]}>
+                                    <Text style={[styles.badgeText, { color: isVisit ? '#b45309' : '#1d4ed8' }]}>
                                        {isVisit ? 'Site Visit' : 'Call / Follow-up'}
                                     </Text>
                                  </View>
-                                 <Text className="font-bold text-gray-900 text-[3.5vw]">{customer?.name}</Text>
+                                 
+                                 {/* Customer Name */}
+                                 <Text style={styles.customerName}>{customer?.name || 'Unknown Customer'}</Text>
+                                 
+                                 {/* Property Link */}
                                  {property && (
-                                    <View className="flex-row items-center gap-[1vw] mt-[0.5vw]">
-                                       <Home size={10} color="#6b7280" />
-                                       <Text className="text-[2.5vw] text-gray-500 font-bold" numberOfLines={1}>
+                                    <View style={styles.propertyRow}>
+                                       <Home size={12} color="#6b7280" />
+                                       <Text style={styles.propertyText} numberOfLines={1}>
                                           {property.title}
                                        </Text>
                                     </View>
                                  )}
                               </View>
                               
-                              {/* Check/Done Button */}
+                              {/* Done Button */}
                               {filter !== 'Done' && (
                                  <TouchableOpacity 
-                                    onPress={() => onUpdateStatus(task.id, 'Done')} 
-                                    className="bg-gray-50 p-[1.5vw] rounded-full active:bg-green-50"
+                                    onPress={() => onUpdateStatus && onUpdateStatus(task.id, 'Done')} 
+                                    style={styles.checkButton}
                                  >
-                                    <CheckCircle size={22} color="#9ca3af" />
+                                    <CheckCircle size={24} color="#9ca3af" />
                                  </TouchableOpacity>
                               )}
                            </View>
                            
                            {/* Note */}
-                           <Text className="text-[3vw] text-gray-500 mb-[3vw]">{task.note}</Text>
+                           <Text style={styles.noteText}>{task.note}</Text>
                            
                            {/* Action Buttons */}
-                           {isVisit && filter === 'Pending' && property ? (
-                              <TouchableOpacity 
-                                 onPress={() => onStartVisit({ id: generateId(), customer, property, taskId: task.id })}
-                                 className="w-full bg-gray-900 py-[2.5vw] rounded-xl shadow-md active:scale-95 flex-row items-center justify-center gap-[2vw]"
-                              >
-                                 <Map size={14} color="#fbbf24" />
-                                 <Text className="text-white text-[3vw] font-bold">Start Site Visit Flow</Text>
-                              </TouchableOpacity>
-                           ) : (
-                              <View className="flex-row gap-[2vw] pt-[2vw] border-t border-gray-50">
+                           <View style={styles.actionContainer}>
+                              {isVisit && filter === 'Pending' && property ? (
                                  <TouchableOpacity 
-                                    onPress={() => handleCall(customer?.phone)} 
-                                    className="flex-1 flex-row items-center justify-center gap-[1.5vw] py-[2vw] rounded-lg bg-green-50 active:bg-green-100"
+                                    onPress={() => onStartVisit && onStartVisit({ id: generateId(), customer, property, taskId: task.id })}
+                                    style={styles.startVisitButton}
                                  >
-                                    <Phone size={14} color="#15803d" />
-                                    <Text className="text-green-700 text-[3vw] font-bold">Call</Text>
+                                    <Map size={16} color="#fbbf24" />
+                                    <Text style={styles.startVisitText}>Start Site Visit Flow</Text>
                                  </TouchableOpacity>
-                                 
-                                 <TouchableOpacity 
-                                    onPress={() => handleWhatsApp(customer?.phone)}
-                                    className="flex-1 flex-row items-center justify-center gap-[1.5vw] py-[2vw] rounded-lg bg-gray-50 active:bg-gray-100"
-                                 >
-                                    <MessageCircle size={14} color="#4b5563" />
-                                    <Text className="text-gray-600 text-[3vw] font-bold">WhatsApp</Text>
-                                 </TouchableOpacity>
-                              </View>
-                           )}
+                              ) : (
+                                 <View style={styles.contactButtonsRow}>
+                                    <TouchableOpacity 
+                                       onPress={() => handleCall(customer?.phone)} 
+                                       style={[styles.contactButton, { backgroundColor: '#f0fdf4' }]}
+                                    >
+                                       <Phone size={16} color="#15803d" />
+                                       <Text style={[styles.contactButtonText, { color: '#15803d' }]}>Call</Text>
+                                    </TouchableOpacity>
+                                    
+                                    <TouchableOpacity 
+                                       onPress={() => handleWhatsApp(customer?.phone)}
+                                       style={[styles.contactButton, { backgroundColor: '#f9fafb' }]}
+                                    >
+                                       <MessageCircle size={16} color="#4b5563" />
+                                       <Text style={[styles.contactButtonText, { color: '#4b5563' }]}>WhatsApp</Text>
+                                    </TouchableOpacity>
+                                 </View>
+                              )}
+                           </View>
+
                         </View>
                      </View>
                   );
                }) : (
-                  <View className="items-center py-[20vw]">
-                     <Text className="text-gray-400 font-medium text-[3.5vw]">No tasks scheduled.</Text>
+                  <View style={styles.emptyState}>
+                     <Calendar size={48} color="#e5e7eb" />
+                     <Text style={styles.emptyText}>No {filter.toLowerCase()} tasks.</Text>
+                     <Text style={styles.emptySubtext}>Enjoy your free time!</Text>
                   </View>
                )}
             </View>
@@ -157,5 +195,247 @@ const FollowUpsList = ({ followUps, customers, properties, onUpdateStatus, onDel
     </View>
   );
 };
+
+// --- STYLES ---
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+  },
+  headerContainer: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingTop: 56,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#111827',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  
+  // --- IMPROVED TOGGLE BUTTONS ---
+  filterContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#f3f4f6',
+    padding: 4,
+    height: 34,
+    borderRadius: 10, // More rounded container
+    alignItems: 'center',
+    gap:4,
+    
+  },
+  filterTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 12, // Slightly taller
+    borderRadius: 6,   // Matches container curve
+    minWidth: 80,   
+    height: 24,    // Consistent width
+    alignItems: 'center',
+  },
+  filterTabActive: {
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  filterText: {
+    fontSize: 13,
+    fontWeight: '700', // Bolder text
+  },
+  filterTextActive: {
+    color: '#111827',
+  },
+  filterTextInactive: {
+    color: '#9ca3af',
+  },
+  
+  // --- CONTENT ---
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100, // Space for FAB
+  },
+  timelineContainer: {
+    padding: 20,
+    position: 'relative',
+    minHeight: '100%',
+  },
+  timelineLine: {
+    position: 'absolute',
+    top: 20,
+    left: 68, // Aligned with the center of the time column
+    bottom: 0,
+    width: 2,
+    backgroundColor: '#e5e7eb',
+    zIndex: 0,
+  },
+  taskList: {
+    gap: 24,
+    zIndex: 10,
+  },
+  taskRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  timeColumn: {
+    width: 60,
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  timeText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  timelineDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 3,
+    backgroundColor: 'white',
+    marginTop: 8,
+    zIndex: 20,
+  },
+  card: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    borderLeftWidth: 6, // Colored accent bar
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#f3f4f6',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginBottom: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  customerName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  propertyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  propertyText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+    flex: 1,
+  },
+  checkButton: {
+    padding: 6,
+    backgroundColor: '#f9fafb',
+    borderRadius: 999,
+  },
+  noteText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  actionContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#f9fafb',
+    paddingTop: 12,
+  },
+  startVisitButton: {
+    backgroundColor: '#111827',
+    paddingVertical: 10,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  startVisitText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  contactButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  contactButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  contactButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingTop: 100,
+    opacity: 0.5,
+  },
+  emptyText: {
+    color: '#374151',
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginTop: 16,
+  },
+  emptySubtext: {
+    color: '#9ca3af',
+    fontSize: 13,
+    marginTop: 4,
+  }
+});
 
 export default FollowUpsList;
