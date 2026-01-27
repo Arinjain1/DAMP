@@ -17,12 +17,14 @@ import {
     Image,
     Linking,
     Modal,
+    Platform,
     ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
+
 
 // Helper for currency formatting
 const formatCurrency = (amount) => {
@@ -42,6 +44,11 @@ const DealSheet = ({ deal, properties, customers, onClose, onUpdateDeal, onClose
   const [pendingAmount, setPendingAmount] = useState(0);
   const [isSettling, setIsSettling] = useState(false);
   const [settleAmount, setSettleAmount] = useState('0');
+  
+  // Date/Time picker states
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date());
 
   useEffect(() => {
     if (deal?.financials) {
@@ -81,6 +88,34 @@ const DealSheet = ({ deal, properties, customers, onClose, onUpdateDeal, onClose
     setMeetingDate('');
     setMeetingNote('');
     Alert.alert("Success", "Meeting Scheduled & Added to Tasks!");
+  };
+
+  // Date/Time picker handlers
+  const handleDateChange = (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      if (event?.type === 'set' && selectedDate) {
+        setTempDate(selectedDate);
+        setTimeout(() => setShowTimePicker(true), 100);
+      }
+    } else {
+      if (selectedDate) {
+        setTempDate(selectedDate);
+        setMeetingDate(selectedDate.toISOString());
+      }
+    }
+  };
+
+  const handleTimeChange = (event, selectedTime) => {
+    setShowTimePicker(false);
+    if (event?.type === 'set' && selectedTime) {
+      const combinedDateTime = new Date(tempDate);
+      combinedDateTime.setHours(selectedTime.getHours());
+      combinedDateTime.setMinutes(selectedTime.getMinutes());
+      setMeetingDate(combinedDateTime.toISOString());
+    } else if (Platform.OS === 'android' && event?.type === 'dismissed') {
+      setMeetingDate(tempDate.toISOString());
+    }
   };
 
   const handleMeetingOutcome = (success) => {
@@ -196,7 +231,7 @@ const DealSheet = ({ deal, properties, customers, onClose, onUpdateDeal, onClose
         <View className="bg-white w-full h-[90vh] rounded-t-[8vw] shadow-2xl relative flex-col overflow-hidden">
           
           {/* Header */}
-          <View className="bg-gray-900 p-[6vw] pb-[8vw]">
+          <View className="bg-gray-900 p-[6vw] pb-[12vw]">
             <View className="flex-row justify-between items-start mb-[4vw]">
               <View>
                 <View className={`self-start px-[2vw] py-[0.5vw] rounded ${deal.stage === 'Closed' ? 'bg-green-500' : deal.stage === 'Dropped' ? 'bg-red-500' : 'bg-amber-400'}`}>
@@ -253,12 +288,17 @@ const DealSheet = ({ deal, properties, customers, onClose, onUpdateDeal, onClose
                 <View className="bg-blue-50 p-[4vw] rounded-xl border border-blue-100 mb-[4vw]">
                   <Text className="text-[3vw] font-bold text-blue-800 uppercase tracking-wide mb-[3vw]">Schedule Meeting</Text>
                   
-                  <TextInput 
-                    placeholder="YYYY-MM-DD HH:MM"
-                    value={meetingDate}
-                    onChangeText={setMeetingDate}
-                    className="bg-white border border-blue-200 p-[3vw] rounded-xl text-[3.5vw] font-bold text-gray-700 mb-[3vw]"
-                  />
+                  <TouchableOpacity
+                    onPress={() => {
+                      setTempDate(meetingDate ? new Date(meetingDate) : new Date());
+                      setShowDatePicker(true);
+                    }}
+                    className="bg-white border border-blue-200 p-[3vw] rounded-xl mb-[3vw]"
+                  >
+                    <Text className="text-[3.5vw] font-bold text-gray-700">
+                      {meetingDate ? new Date(meetingDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Select Date & Time'}
+                    </Text>
+                  </TouchableOpacity>
                   
                   <TextInput 
                     placeholder="Agenda / Notes" 
@@ -271,6 +311,25 @@ const DealSheet = ({ deal, properties, customers, onClose, onUpdateDeal, onClose
                     <Text className="text-white font-bold text-[3.5vw]">Confirm Schedule</Text>
                   </TouchableOpacity>
                 </View>
+
+                {/* Date/Time Pickers */}
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={tempDate || new Date()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={handleDateChange}
+                    minimumDate={new Date()}
+                  />
+                )}
+                {showTimePicker && (
+                  <DateTimePicker
+                    value={tempDate || new Date()}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={handleTimeChange}
+                  />
+                )}
 
                 {deal.meetings && deal.meetings.length > 0 && (
                    <View>

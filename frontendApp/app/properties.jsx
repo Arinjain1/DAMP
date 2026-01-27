@@ -6,6 +6,8 @@ import AddModal from '../src/Modal and Sheets/AddModal.jsx';
 import PropertyDetailSheet from '../src/Modal and Sheets/PropertyDetailSheet.jsx';
 
 // Redux actions
+import FABBasic from '@/src/Components/FABBasic.jsx';
+import InventoryPageBasic from '@/src/Views/InventoryPageBasic.jsx';
 import {
     addProperty,
     clearSelectedProperty,
@@ -18,8 +20,7 @@ import {
     setModalOpen,
     setModalType
 } from '../src/store/slices/uiSlice.js';
-import InventoryPageBasic from '@/src/Views/InventoryPageBasic.jsx';
-import FABBasic from '@/src/Components/FABBasic.jsx';
+import { addDeal } from '@/src/store/slices/dealsSlice.js';
 
 export default function Properties() {
   const dispatch = useDispatch();
@@ -56,6 +57,12 @@ export default function Properties() {
     dispatch(setModalOpen(false));
   };
 
+  // Handle deal creation from property detail sheet
+  const handleCreateDeal = (dealData) => {
+    dispatch(addDeal(dealData));
+    console.log('Deal created:', dealData);
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
       {/* Dynamic StatusBar for clean UI */}
@@ -87,7 +94,10 @@ export default function Properties() {
         <PropertyDetailSheet 
           property={selectedProperty} 
           onClose={() => dispatch(clearSelectedProperty())} 
-          onEdit={handleEdit} 
+          onEdit={handleEdit}
+          customers={customers}
+          properties={properties}
+          onCreateDeal={handleCreateDeal}
         />
       )}
     </View>

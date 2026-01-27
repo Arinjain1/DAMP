@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { getAmenitiesForType } from '../MockData/Mockdata';
 
 // Mock Structure Data
 const PROPERTY_STRUCTURE = {
@@ -72,6 +73,7 @@ const AddModal = ({
           owner: '',
           ownerPhone: '',
           title: '',
+          amenities: [],
         });
       } else if (type === 'Customer') {
         setFormData({
@@ -367,6 +369,77 @@ const AddModal = ({
                           placeholder="Owner Phone Number"
                           style={styles.textInputFull}
                       />
+                  </View>
+
+                  {/* Amenities */}
+                  <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>Amenities</Text>
+                    <Text style={styles.inputLabel}>Select available amenities for {formData.type}</Text>
+                    
+                    {/* Type-specific Amenities */}
+                    {(() => {
+                      const typeAmenities = getAmenitiesForType(formData.type);
+                      
+                      if (typeAmenities.length === 0) {
+                        return (
+                          <View style={styles.noAmenitiesContainer}>
+                            <Text style={styles.noAmenitiesText}>
+                              No specific amenities available for {formData.type}
+                            </Text>
+                          </View>
+                        );
+                      }
+                      
+                      return (
+                        <View style={styles.amenityGrid}>
+                          {typeAmenities.map((amenity) => {
+                            const isSelected = formData.amenities?.includes(amenity.id);
+                            return (
+                              <TouchableOpacity
+                                key={amenity.id}
+                                onPress={() => {
+                                  const currentAmenities = formData.amenities || [];
+                                  let newAmenities;
+                                  
+                                  if (isSelected) {
+                                    newAmenities = currentAmenities.filter(id => id !== amenity.id);
+                                  } else {
+                                    newAmenities = [...currentAmenities, amenity.id];
+                                  }
+                                  
+                                  handleChange('amenities', newAmenities);
+                                }}
+                                style={[
+                                  styles.amenityChipCompact,
+                                  isSelected ? styles.amenityChipSelected : styles.amenityChipUnselected
+                                ]}
+                              >
+                                <Text style={[
+                                  styles.amenityTextCompact,
+                                  isSelected ? styles.amenityTextSelected : styles.amenityTextUnselected
+                                ]} numberOfLines={1}>
+                                  {amenity.name}
+                                </Text>
+                                {isSelected && (
+                                  <View style={styles.amenityCheckmarkCompact}>
+                                    <Text style={styles.checkmarkText}>✓</Text>
+                                  </View>
+                                )}
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      );
+                    })()}
+                    
+                    {/* Selected Amenities Count */}
+                    {formData.amenities?.length > 0 && (
+                      <View style={styles.amenitySummary}>
+                        <Text style={styles.amenitySummaryText}>
+                          {formData.amenities.length} amenities selected
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               )}
@@ -849,6 +922,79 @@ const styles = StyleSheet.create({
   },
   halfWidth: {
     flex: 1,
+  },
+
+  // Amenities - Flexible grid layout
+  amenityGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'flex-start',
+  },
+  amenityChipCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 8,
+    marginRight: 8,
+  },
+  amenityChipSelected: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
+  },
+  amenityChipUnselected: {
+    backgroundColor: 'white',
+    borderColor: '#e5e7eb',
+  },
+  amenityTextCompact: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  amenityTextSelected: {
+    color: 'white',
+  },
+  amenityTextUnselected: {
+    color: '#374151',
+  },
+  amenityCheckmarkCompact: {
+    marginLeft: 6,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmarkText: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: '#3b82f6',
+  },
+  amenitySummary: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  amenitySummaryText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#6b7280',
+  },
+  noAmenitiesContainer: {
+    padding: 16,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  noAmenitiesText: {
+    fontSize: 12,
+    color: '#6b7280',
+    textAlign: 'center',
   },
 });
 

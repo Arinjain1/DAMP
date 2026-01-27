@@ -1,6 +1,10 @@
-import React from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, Modal, Linking } from 'react-native';
-import { Edit3, X, MapPin, Layout, Building, Sofa, Phone, MessageCircle, Briefcase } from 'lucide-react-native';
+import { Briefcase, Building, Edit3, Layout, MapPin, MessageCircle, Phone, Search, Sofa, Users, X } from 'lucide-react-native';
+import { useState } from 'react';
+import { Image, Linking, Modal, ScrollView, Text, TextInput, TouchableOpacity, View, StyleSheet, Dimensions } from 'react-native';
+import { getAmenitiesForType } from '../MockData/Mockdata';
+import DealSheet from './DealSheet';
+
+const { height } = Dimensions.get('window');
 
 // Helper: currency format
 const formatCurrency = (amount) =>
@@ -8,105 +12,178 @@ const formatCurrency = (amount) =>
 
 // Badge Component
 const Badge = ({ children, className }) => (
-  <View className={`px-[2vw] py-[0.5vh] rounded-md ${className}`}>
-    <Text className="text-white text-[2.5vw] font-bold">{children}</Text>
+  <View className={`px-3 py-1.5 rounded-lg ${className}`}>
+    <Text className="text-white text-xs font-bold uppercase tracking-wide">{children}</Text>
   </View>
 );
 
-const PropertyDetailSheet = ({ property, onClose, onEdit }) => {
+const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], properties = [], onCreateDeal }) => {
+  const [showProposeModal, setShowProposeModal] = useState(false);
+  const [customerSearchText, setCustomerSearchText] = useState('');
+  const [selectedDeal, setSelectedDeal] = useState(null);
+  
   if (!property) return null;
 
   const handleCall = () => Linking.openURL(`tel:${property.ownerPhone}`);
   const handleMessage = () => Linking.openURL(`sms:${property.ownerPhone}`);
+
+  // Filter customers based on search text
+  const filteredCustomers = customers.filter(customer =>
+    customer.name.toLowerCase().includes(customerSearchText.toLowerCase()) ||
+    customer.phone.includes(customerSearchText) ||
+    customer.preferredLocation.toLowerCase().includes(customerSearchText.toLowerCase())
+  );
+
+  // Handle customer selection for deal creation
+  const handleCustomerSelect = (customer) => {
+    const newDeal = {
+      id: `d${Date.now()}`,
+      customerId: customer.id,
+      propertyId: property.id,
+      stage: 'Meeting',
+      startedAt: new Date().toISOString(),
+      meetings: [],
+      visits: [],
+      expectedCloseDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), 
+      dealValue: property.price,
+      commission: property.price * 0.01, 
+    };
+    
+    if (onCreateDeal) {
+      onCreateDeal(newDeal);
+    }
+    
+    setSelectedDeal(newDeal);
+    setShowProposeModal(false);
+  };
 
   return (
     <Modal visible={true} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View className="flex-1 justify-end bg-black/60">
         
         {/* Sheet Container */}
-        <View className="bg-white w-full h-[90vh] rounded-t-[10vw] shadow-2xl overflow-hidden relative">
+        <View className="bg-white w-full h-[92vh] rounded-t-[32px] overflow-hidden relative">
           
           {/* Top Actions */}
-          <View className="absolute top-[4vh] right-[4vw] z-50 flex-row gap-[2vw]">
-            <TouchableOpacity onPress={() => onEdit(property, 'Property')} className="bg-white/20 p-[2.5vw] rounded-full backdrop-blur-md">
+          <View className="absolute top-6 right-6 z-50 flex-row gap-3">
+            <TouchableOpacity onPress={() => onEdit(property, 'Property')} className="bg-white/20 p-2.5 rounded-full backdrop-blur-md border border-white/10">
               <Edit3 size={20} color="white" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={onClose} className="bg-black/20 p-[2.5vw] rounded-full backdrop-blur-md">
+            <TouchableOpacity onPress={onClose} className="bg-black/20 p-2.5 rounded-full backdrop-blur-md border border-white/10">
               <X size={20} color="white" />
             </TouchableOpacity>
           </View>
 
-          {/* Hero Image */}
-          <View className="h-[35vh] w-full relative">
+          {/* Hero Image (Increased Size) */}
+          <View className="h-64 w-full relative">
             <Image source={{ uri: property.image }} className="w-full h-full" resizeMode="cover" />
-            <View className="absolute inset-0 bg-black/30" />
-            <View className="absolute bottom-0 left-0 right-0 p-[6vw] pt-[12vw] bg-black/50">
+            <View className="absolute inset-0 bg-black/20" />
+            <View className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
               <View className="flex-row justify-between items-end">
                 <View>
-                  <View className="bg-white self-start px-[2vw] py-[0.5vh] rounded mb-[2vw] shadow-sm">
-                    <Text className="text-gray-900 text-[2.5vw] font-bold uppercase">For {property.listingType || 'Sell'}</Text>
+                  <View className="bg-white/95 self-start px-3 py-1 rounded-md mb-2 shadow-sm">
+                    <Text className="text-gray-900 text-xs font-extrabold uppercase tracking-wider">For {property.listingType || 'Sell'}</Text>
                   </View>
-                  <Text className="text-[8vw] font-black text-white tracking-tight leading-tight">{formatCurrency(property.price)}</Text>
-                  <View className="flex-row items-center mt-[1vw]">
+                  <Text className="text-3xl font-black text-white tracking-tight leading-tight">{formatCurrency(property.price)}</Text>
+                  <View className="flex-row items-center mt-2">
                     <MapPin size={14} color="rgba(255,255,255,0.9)" />
-                    <Text className="text-white/90 text-[3.5vw] font-medium ml-[1vw]">{property.location}</Text>
+                    <Text className="text-white/95 text-sm font-medium ml-1.5">{property.location}</Text>
                   </View>
                 </View>
-                <Badge className="bg-emerald-500 shadow-sm">{property.status}</Badge>
+                <Badge className="bg-emerald-500 shadow-sm mb-1">{property.status}</Badge>
               </View>
             </View>
           </View>
 
           {/* Content */}
-          <ScrollView className="flex-1 bg-white px-[6vw] py-[6vw]" contentContainerStyle={{ paddingBottom: 40 }}>
+          <ScrollView className="flex-1 bg-white px-6 py-6" contentContainerStyle={{ paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
             
-            {/* Title */}
-            <View className="mb-[6vw]">
-              <Text className="text-[6vw] font-black text-gray-900 leading-tight">{property.title}</Text>
-              <View className="flex-row items-center mt-[3vw]">
-                <View className="flex-row items-center bg-gray-100 px-[3vw] py-[1.5vw] rounded-full">
-                  <Briefcase size={12} color="#6b7280" />
-                  <Text className="text-[3vw] font-bold text-gray-500 ml-[1.5vw]">{property.category} • {property.type}</Text>
+            {/* Title & Type */}
+            <View className="mb-6">
+              <Text className="text-2xl font-black text-gray-900 leading-tight mb-3">{property.title}</Text>
+              <View className="flex-row items-center">
+                <View className="flex-row items-center bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
+                  <Briefcase size={14} color="#6b7280" />
+                  <Text className="text-xs font-bold text-gray-600 ml-2">{property.category} • {property.type}</Text>
                 </View>
               </View>
             </View>
 
-            {/* Stats Grid */}
-            <View className="flex-row justify-between gap-[4vw] mb-[8vw]">
-              <View className="flex-1 bg-gray-50 p-[4vw] rounded-2xl border border-gray-100 items-center shadow-sm">
-                <Layout size={24} color="#111827" style={{ opacity: 0.8, marginBottom: 8 }} />
-                <Text className="text-[2.5vw] font-bold text-gray-400 uppercase tracking-wide">Area</Text>
-                <Text className="text-[3.5vw] font-black text-gray-900 mt-[0.5vh]">{property.size} <Text className="text-[2.5vw] font-normal text-gray-500">sqft</Text></Text>
+            {/* Stats Grid (Spacious) */}
+            <View className="flex-row justify-between gap-4 mb-8">
+              <View className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-100 items-center shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <Layout size={20} color="#374151" style={{ marginBottom: 6 }} />
+                <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Area</Text>
+                <Text className="text-base font-bold text-gray-900">{property.size} <Text className="text-xs font-medium text-gray-500">sqft</Text></Text>
               </View>
 
               {property.bhk && (
-                <View className="flex-1 bg-gray-50 p-[4vw] rounded-2xl border border-gray-100 items-center shadow-sm">
-                  <Building size={24} color="#111827" style={{ opacity: 0.8, marginBottom: 8 }} />
-                  <Text className="text-[2.5vw] font-bold text-gray-400 uppercase tracking-wide">Config</Text>
-                  <Text className="text-[3.5vw] font-black text-gray-900 mt-[0.5vh]">{property.bhk}</Text>
+                <View className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-100 items-center shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                  <Building size={20} color="#374151" style={{ marginBottom: 6 }} />
+                  <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Config</Text>
+                  <Text className="text-base font-bold text-gray-900">{property.bhk}</Text>
                 </View>
               )}
 
-              <View className="flex-1 bg-gray-50 p-[4vw] rounded-2xl border border-gray-100 items-center shadow-sm">
-                <Sofa size={24} color="#111827" style={{ opacity: 0.8, marginBottom: 8 }} />
-                <Text className="text-[2.5vw] font-bold text-gray-400 uppercase tracking-wide">Furnishing</Text>
-                <Text className="text-[3.5vw] font-black text-gray-900 mt-[0.5vh]" numberOfLines={1}>{property.furnishing || 'No Info'}</Text>
+              <View className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-100 items-center shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <Sofa size={20} color="#374151" style={{ marginBottom: 6 }} />
+                <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Furnish</Text>
+                <Text className="text-base font-bold text-gray-900" numberOfLines={1}>{property.furnishing || 'N/A'}</Text>
               </View>
             </View>
 
-            {/* Owner */}
-            <View className="bg-gray-50 p-[5vw] rounded-2xl border border-gray-100 flex-row items-center justify-between">
-              <View>
-                <Text className="text-[2.5vw] text-gray-400 font-bold uppercase mb-[1vw] tracking-wider">Owner Details</Text>
-                <Text className="font-bold text-gray-900 text-[4.5vw]">{property.owner}</Text>
-                <Text className="text-[3vw] text-gray-500 font-medium mt-[0.5vh]">{property.ownerPhone}</Text>
+            {/* Amenities Section */}
+            {property.amenities && property.amenities.length > 0 && (
+              <View className="mb-8">
+                <Text className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 ml-1">Amenities</Text>
+                <View className="flex-row flex-wrap gap-2.5">
+                  {(() => {
+                    const typeAmenities = getAmenitiesForType(property.type);
+                    const selectedAmenities = typeAmenities.filter(a => 
+                      property.amenities.includes(a.id)
+                    );
+                    
+                    return selectedAmenities.map((amenity) => (
+                      <View key={amenity.id} className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm flex-row items-center gap-1.5">
+                        <Text className="text-xs">{amenity.icon || '✨'}</Text>
+                        <Text className="text-xs font-semibold text-gray-700">{amenity.name}</Text>
+                      </View>
+                    ));
+                  })()}
+                </View>
               </View>
-              <View className="flex-row gap-[3vw]">
-                <TouchableOpacity onPress={handleCall} className="bg-white p-[3vw] rounded-xl shadow-sm border border-gray-200">
+            )}
+
+            {/* Propose to Deal Section */}
+            <View className="mb-8">
+              <View className="bg-indigo-50 p-5 rounded-3xl border border-indigo-100 flex-row items-center justify-between shadow-sm">
+                <View className="flex-1 pr-4">
+                  <Text className="text-indigo-950 text-base font-bold mb-1">Have a buyer?</Text>
+                  <Text className="text-indigo-600/80 text-xs font-medium leading-relaxed">Start a deal immediately for this property.</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowProposeModal(true)}
+                  className="bg-indigo-600 px-5 py-3 rounded-xl flex-row items-center gap-2 shadow-md shadow-indigo-200 active:scale-95"
+                >
+                  <Users size={16} color="white" />
+                  <Text className="text-white font-bold text-xs">Propose</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Owner Details */}
+            <View className="bg-gray-50 p-5 rounded-3xl border border-gray-100 flex-row items-center justify-between">
+              <View>
+                <Text className="text-[10px] text-gray-400 font-bold uppercase mb-1 tracking-widest">Owner</Text>
+                <Text className="font-bold text-gray-900 text-lg">{property.owner}</Text>
+                <Text className="text-xs text-gray-500 font-medium mt-0.5">{property.ownerPhone}</Text>
+              </View>
+              <View className="flex-row gap-3">
+                <TouchableOpacity onPress={handleCall} className="bg-white p-3 rounded-xl shadow-sm border border-gray-200 active:bg-gray-50">
                   <Phone size={20} color="#111827" />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleMessage} className="bg-white p-[3vw] rounded-xl shadow-sm border border-green-100">
-                  <MessageCircle size={20} color="#16a34a" />
+                <TouchableOpacity onPress={handleMessage} className="bg-white p-3 rounded-xl shadow-sm border border-gray-200 active:bg-gray-50">
+                  <MessageCircle size={20} color="#111827" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -114,6 +191,80 @@ const PropertyDetailSheet = ({ property, onClose, onEdit }) => {
           </ScrollView>
         </View>
       </View>
+
+      {/* Customer Selection Modal (Kept same logic, slight styling tweak) */}
+      {showProposeModal && (
+        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowProposeModal(false)}>
+          <View className="flex-1 justify-end bg-black/60">
+            <View className="bg-white w-full h-[85vh] rounded-t-[32px] shadow-2xl overflow-hidden">
+              
+              <View className="p-6 border-b border-gray-100 flex-row justify-between items-center">
+                <View>
+                  <Text className="text-xl font-bold text-gray-900">Select Customer</Text>
+                  <Text className="text-xs text-gray-500 mt-1">Propose this property to a lead</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowProposeModal(false)} className="bg-gray-100 p-2.5 rounded-full">
+                  <X size={20} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+
+              <View className="px-6 py-4 border-b border-gray-100">
+                <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                  <Search size={18} color="#9ca3af" />
+                  <TextInput
+                    value={customerSearchText}
+                    onChangeText={setCustomerSearchText}
+                    placeholder="Search customers..."
+                    className="flex-1 ml-3 text-sm text-gray-800"
+                  />
+                </View>
+              </View>
+
+              <ScrollView className="flex-1 px-6 py-4" contentContainerStyle={{ paddingBottom: 40 }}>
+                {filteredCustomers.length === 0 ? (
+                  <View className="items-center justify-center py-12">
+                    <Users size={40} color="#e5e7eb" />
+                    <Text className="text-gray-400 text-sm font-medium mt-4">No customers found</Text>
+                  </View>
+                ) : (
+                  filteredCustomers.map((customer) => (
+                    <TouchableOpacity
+                      key={customer.id}
+                      onPress={() => handleCustomerSelect(customer)}
+                      className="bg-white border border-gray-200 rounded-2xl p-4 mb-3 shadow-sm active:bg-gray-50 flex-row items-center gap-4"
+                    >
+                      <View className="w-10 h-10 bg-indigo-50 rounded-full items-center justify-center border border-indigo-100">
+                        <Text className="text-indigo-700 font-bold text-sm">{customer.name.charAt(0)}</Text>
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-sm font-bold text-gray-900 mb-0.5">{customer.name}</Text>
+                        <Text className="text-xs text-gray-500">Looking for: <Text className="font-semibold text-gray-700">{customer.type}</Text></Text>
+                      </View>
+                      <View className="items-end">
+                        <Text className="text-xs font-bold text-gray-900">{formatCurrency(customer.budget)}</Text>
+                        <Text className="text-[10px] text-gray-400 mt-0.5">{customer.status}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Deal Sheet Logic */}
+      {selectedDeal && (
+        <DealSheet
+          deal={selectedDeal}
+          properties={properties}
+          customers={customers}
+          onClose={() => setSelectedDeal(null)}
+          onUpdateDeal={(dealId, updatedDeal) => setSelectedDeal(updatedDeal)}
+          onCloseDeal={() => setSelectedDeal(null)}
+          onAddTask={(task) => console.log('Task added:', task)}
+        />
+      )}
     </Modal>
   );
 };

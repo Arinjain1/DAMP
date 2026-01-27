@@ -1,3 +1,126 @@
+// Property-type specific amenities
+export const AMENITIES_BY_TYPE = {
+  // === RESIDENTIAL ===
+  'Apartment/Flats': [
+    { id: 'parking', name: 'Parking', icon: '🚗' },
+    { id: 'elevator', name: 'Lift', icon: '🛗' },
+    { id: 'power_backup', name: 'Power Backup', icon: '🔋' },
+    { id: 'water_supply', name: '24/7 Water Supply', icon: '💧' },
+    { id: 'security', name: '24/7 Security/CCTV', icon: '📹' },
+    { id: 'gym', name: 'Gymnasium', icon: '🏋️' },
+    { id: 'swimming_pool', name: 'Swimming Pool', icon: '🏊' },
+    { id: 'club_house', name: 'Club House', icon: '🎉' },
+    { id: 'gas_pipeline', name: 'Gas Pipeline', icon: '🔥' },
+    { id: 'garden', name: 'Park/Garden', icon: '🌳' },
+  ],
+
+  'Villa': [
+    { id: 'private_parking', name: 'Private Parking', icon: '🚗' },
+    { id: 'gated_security', name: 'Gated Security', icon: '🛡️' },
+    { id: 'private_garden', name: 'Private Garden', icon: '🌳' },
+    { id: 'power_backup', name: 'Power Backup', icon: '🔋' },
+    { id: 'water_supply', name: '24/7 Water Supply', icon: '💧' },
+    { id: 'terrace', name: 'Private Terrace', icon: '🏡' },
+    { id: 'servant_room', name: 'Servant Room', icon: '🏠' },
+    { id: 'modular_kitchen', name: 'Modular Kitchen', icon: '🍳' },
+    { id: 'vastu', name: 'Vastu Compliant', icon: '✨' },
+  ],
+
+  'Plot': [
+    { id: 'boundary_wall', name: 'Boundary Wall', icon: '🧱' },
+    { id: 'electricity', name: 'Electricity', icon: '⚡' },
+    { id: 'water_connection', name: 'Water Connection', icon: '💧' },
+    { id: 'sewage', name: 'Sewage Connection', icon: '🚿' },
+    { id: 'road_access', name: 'Wide Road Access', icon: '🛣️' },
+    { id: 'gated_society', name: 'Gated Society', icon: '⛩️' },
+    { id: 'corner_plot', name: 'Corner Plot', icon: '📍' },
+    { id: 'park_facing', name: 'Park Facing', icon: '🌳' },
+    { id: 'clear_title', name: 'Clear Title/Registry', icon: '📋' },
+  ],
+
+  'Duplex': [
+    { id: 'parking', name: 'Covered Parking', icon: '🚗' },
+    { id: 'private_entrance', name: 'Private Entrance', icon: '🚪' },
+    { id: 'internal_staircase', name: 'Internal Staircase', icon: '🪜' },
+    { id: 'terrace', name: 'Private Terrace', icon: '🏠' },
+    { id: 'balcony', name: 'Balconies', icon: '🏡' },
+    { id: 'power_backup', name: 'Power Backup', icon: '🔋' },
+    { id: 'water_supply', name: '24/7 Water', icon: '💧' },
+    { id: 'security', name: 'Security', icon: '🔒' },
+  ],
+
+  // === COMMERCIAL ===
+  'Office Space': [
+    { id: 'parking', name: 'Ample Parking', icon: '🚗' },
+    { id: 'central_ac', name: 'Central AC', icon: '❄️' },
+    { id: 'power_backup', name: '100% Power Backup', icon: '🔋' },
+    { id: 'elevator', name: 'High Speed Lifts', icon: '🛗' },
+    { id: 'fire_safety', name: 'Fire Safety', icon: '🚨' },
+    { id: 'wifi', name: 'Internet/Wifi Ready', icon: '📶' },
+    { id: 'reception', name: 'Reception Area', icon: '💁' },
+    { id: 'cafeteria', name: 'Pantry/Cafeteria', icon: '☕' },
+    { id: 'conference', name: 'Conference Room', icon: '📊' },
+  ],
+
+  'Shop': [
+    { id: 'main_road', name: 'Main Road Facing', icon: '🛣️' },
+    { id: 'ground_floor', name: 'Ground Floor', icon: '⬇️' },
+    { id: 'parking', name: 'Customer Parking', icon: '🅿️' },
+    { id: 'power_backup', name: 'Power Backup', icon: '🔋' },
+    { id: 'shutter', name: 'Rolling Shutter', icon: '🚪' },
+    { id: 'water_supply', name: 'Water Connection', icon: '💧' },
+    { id: 'washroom', name: 'Private Washroom', icon: '🚻' },
+    { id: 'signage', name: 'Signage Space', icon: '🪧' },
+  ],
+
+  'Showroom': [
+    { id: 'main_road', name: 'Main Road Facing', icon: '🛣️' },
+    { id: 'display_glass', name: 'Full Glass Front', icon: '🪟' },
+    { id: 'parking', name: 'Valet/Ample Parking', icon: '🚗' },
+    { id: 'ac', name: 'Central AC', icon: '❄️' },
+    { id: 'corner_property', name: 'Corner Property', icon: '📍' },
+    { id: 'fire_safety', name: 'Fire Safety', icon: '🚨' },
+    { id: 'loading', name: 'Loading/Unloading Area', icon: '🚚' },
+  ],
+
+  'Warehouse': [
+    { id: 'loading_dock', name: 'Loading Dock', icon: '🚚' },
+    { id: 'high_ceiling', name: 'High Ceiling', icon: '📏' },
+    { id: 'highway_access', name: 'Highway Connectivity', icon: '🛣️' },
+    { id: 'heavy_vehicle', name: 'Heavy Vehicle Access', icon: '🚛' },
+    { id: 'fire_safety', name: 'Fire Safety System', icon: '🚨' },
+    { id: 'electricity', name: 'Industrial Power Load', icon: '⚡' },
+    { id: 'security', name: 'Gated Security', icon: '🔒' },
+    { id: 'staff_quarters', name: 'Staff/Guard Room', icon: '🏠' },
+  ],
+
+  // === AGRICULTURE ===
+  'Farm Land': [
+    { id: 'water_source', name: 'Tube Well/Water Source', icon: '💧' },
+    { id: 'electricity', name: 'Electricity Connection', icon: '⚡' },
+    { id: 'road_access', name: 'Tar Road Access', icon: '🛣️' },
+    { id: 'soil', name: 'Fertile Soil', icon: '🌱' },
+    { id: 'fencing', name: 'Wire Fencing', icon: '🚧' },
+    { id: 'storage', name: 'Storage Room', icon: '🏠' },
+    { id: 'plantation', name: 'Existing Plantation', icon: '🌳' },
+  ],
+
+  'Farm House': [
+    { id: 'electricity', name: '24/7 Electricity', icon: '⚡' },
+    { id: 'water_supply', name: 'Water Supply', icon: '💧' },
+    { id: 'swimming_pool', name: 'Swimming Pool', icon: '🏊' },
+    { id: 'lawn', name: 'Big Lawn/Garden', icon: '🌳' },
+    { id: 'fencing', name: 'Boundary Wall', icon: '🧱' },
+    { id: 'parking', name: 'Ample Parking', icon: '🚗' },
+    { id: 'security', name: 'Caretaker Room', icon: '🏠' },
+    { id: 'generator', name: 'Generator Backup', icon: '🔋' },
+  ],
+};
+// Helper function to get amenities for a specific property type
+export const getAmenitiesForType = (propertyType) => {
+  return AMENITIES_BY_TYPE[propertyType] || {};
+};
+
 export const INITIAL_PROPERTIES = [
   {
     id: "p1",
@@ -15,6 +138,7 @@ export const INITIAL_PROPERTIES = [
     image:
       "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
     listingType: "Sell",
+    amenities: ['parking', 'elevator', 'security', 'gym', 'swimming_pool', 'garden', 'wifi', 'power_backup'],
   },
   {
     id: "p2",
@@ -32,6 +156,7 @@ export const INITIAL_PROPERTIES = [
     image:
       "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
     listingType: "Sell",
+    amenities: ['parking', 'elevator', 'security', 'power_backup', 'wifi', 'maintenance', 'medical'],
   },
   {
     id: "p3",
@@ -49,6 +174,7 @@ export const INITIAL_PROPERTIES = [
     image:
       "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80",
     listingType: "Sell",
+    amenities: ['water_supply', 'transport', 'school'],
   },
   {
     id: "p4",
@@ -66,6 +192,7 @@ export const INITIAL_PROPERTIES = [
     image:
       "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80",
     listingType: "Rent",
+    amenities: ['parking', 'security', 'water_supply', 'transport'],
   },
 ];
 
