@@ -47,6 +47,54 @@ const Dashboard = ({
     hotLeads: activeDeals.length,
   };
 
+  // Function to get stage badge colors
+  const getStageBadgeStyle = (stage) => {
+    const stageColors = {
+  'Lead': {
+    bg: '#F3F1FF',      // very light purple
+    text: '#5B4DFF',
+  },
+
+  'Interested': {
+    bg: '#E9E6F7',      // app soft purple
+    text: '#4B3CFF',
+  },
+
+  'Follow-up': {
+    bg: '#EEEAFE',      // lavender
+    text: '#4338CA',
+  },
+
+  'Site Visit': {
+    bg: '#F0ECFF',
+    text: '#5B21B6',
+  },
+
+  'Negotiation': {
+    bg: '#FDF2F8',      // soft pink (still premium)
+    text: '#9D174D',
+  },
+
+  'Closing': {
+    bg: '#E0F2FE',      // calm blue (decision phase)
+    text: '#075985',
+  },
+
+  'Won': {
+    bg: '#DCFCE7',      // success green (keep semantic)
+    text: '#047857',
+  },
+
+  'Lost': {
+    bg: '#FEE2E2',      // error red (clear)
+    text: '#991B1B',
+  },
+};
+
+
+    return stageColors[stage] || { bg: '#F3F4F6', text: '#374151' }; // Default Gray
+  };
+
   const NavItem = ({ icon: Icon, label, onPress }) => (
     <TouchableOpacity 
       onPress={onPress} 
@@ -190,6 +238,8 @@ const Dashboard = ({
                 {activeDeals.map(deal => {
                   const property = properties.find(p => p.id === deal.propertyId);
                   const customer = customers.find(c => c.id === deal.customerId);
+                  const stageColors = getStageBadgeStyle(deal.stage);
+                  
                   return (
                     <TouchableOpacity
                       key={deal.id}
@@ -212,8 +262,10 @@ const Dashboard = ({
                             </Text>
                           </View>
                         </View>
-                        <View style={styles.stageBadge}>
-                          <Text style={styles.stageText}>{deal.stage}</Text>
+                        <View style={[styles.stageBadge, { backgroundColor: stageColors.bg }]}>
+                          <Text style={[styles.stageText, { color: stageColors.text }]}>
+                            {deal.stage}
+                          </Text>
                         </View>
                       </View>
                       
@@ -349,8 +401,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    // Added shadow for better visibility on gradient
-    
   },
   statInnerBox: {
     flex: 1,
@@ -411,11 +461,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'white',
-    
-    // Standard Border (Detailed Look)
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    
   },
   navLabel: {
     fontSize: 11,
@@ -433,7 +480,7 @@ const styles = StyleSheet.create({
   },
   sectionHeaderTitle: {
     fontSize: 16,
-    fontWeight: 700,
+    fontWeight: '700',
     color: '#1f2937',
   },
   countBadge: {
@@ -452,11 +499,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 16,
     borderRadius: 16,
-    
-    // Detailed Border
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    
   },
   dealCardTop: {
     flexDirection: 'row',
@@ -486,7 +530,6 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   stageBadge: {
-    backgroundColor: '#eff6ff',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -494,9 +537,6 @@ const styles = StyleSheet.create({
   stageText: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: '#FDB8D7',
-    
-    
   },
   dealCardBottom: {
     marginTop: 4,
@@ -533,16 +573,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 16,
     borderRadius: 16,
-    
-    // Detailed Border
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
     marginBottom: 12,
-    
   },
   dateBox: {
     backgroundColor: '#eff6ff',

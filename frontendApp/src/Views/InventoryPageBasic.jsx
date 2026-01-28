@@ -63,6 +63,13 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
     });
   }, [properties, listingFilter, activeCategory, activeType, activeBHK]);
 
+  const getStatusBadgeStyle = (status) => {
+    if (status?.toLowerCase() === 'sold') {
+      return styles.statusBadgeSold;
+    }
+    return styles.statusBadge;
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
@@ -209,7 +216,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
               >
                 <View style={styles.propertyImageContent}>
                   <View style={styles.propertyBadges}>
-                    <View style={styles.statusBadge}>
+                    <View style={getStatusBadgeStyle(property.status)}>
                       <Text style={styles.statusBadgeText}>{property.status}</Text>
                     </View>
                     {property.bhk && (
@@ -492,7 +499,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   toggleTextActive: {
-    color: '#ffffff', // White text for active state
+    color: '#ffffff',
   },
 
   categoryContainer: {
@@ -518,14 +525,6 @@ const styles = StyleSheet.create({
   },
 
   chipsContainer: { paddingBottom: 8 },
-
-  filterLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6b7280',
-    marginBottom: 8,
-    marginLeft: 4,
-  },
 
   chip: {
     paddingHorizontal: 16,
@@ -623,7 +622,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusBadge: {
-    backgroundColor: 'rgba(34, 197, 94, 0.9)',
+    backgroundColor: 'rgba(34, 197, 94, 0.9)', // Green for Available
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statusBadgeSold: {
+    backgroundColor: 'rgba(239, 68, 68, 0.9)', // Red for Sold
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -799,25 +804,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: 'white',
-  },
-
-  // Floating Action Button
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 80,
-    width: 56,
-    height: 56,
-    backgroundColor: '#111827',
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    zIndex: 1000,
   },
 });
 
