@@ -1,9 +1,10 @@
-import { Briefcase, Building, Edit3, Layout, MapPin, MessageCircle, Phone, Search, Sofa, Users, X } from 'lucide-react-native';
+import * as LucideIcons from 'lucide-react-native';
+import { Briefcase, Building, Edit3, Layout, MapPin, Phone, Search, Sofa, Users, X } from 'lucide-react-native';
 import { useState } from 'react';
-import { Image, Linking, Modal, ScrollView, Text, TextInput, TouchableOpacity, View, StyleSheet, Dimensions } from 'react-native';
+import { Dimensions, Image, Linking, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { getAmenitiesForType } from '../MockData/Mockdata';
 import DealSheet from './DealSheet';
-
+import WhatsAppIcon from '../Components/WhatsAppIcon';
 const { height } = Dimensions.get('window');
 
 // Helper: currency format
@@ -21,6 +22,15 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
   const [showProposeModal, setShowProposeModal] = useState(false);
   const [customerSearchText, setCustomerSearchText] = useState('');
   const [selectedDeal, setSelectedDeal] = useState(null);
+  
+  // Helper function to render Lucide icons
+  const renderIcon = (iconName, size = 14, color = '#6b7280') => {
+    const IconComponent = LucideIcons[iconName];
+    if (IconComponent) {
+      return <IconComponent size={size} color={color} />;
+    }
+    return <LucideIcons.Star size={size} color={color} />; // Fallback icon
+  };
   
   if (!property) return null;
 
@@ -136,7 +146,7 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
             {property.amenities && property.amenities.length > 0 && (
               <View className="mb-8">
                 <Text className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 ml-1">Amenities</Text>
-                <View className="flex-row flex-wrap gap-2.5">
+                <View className="flex-row flex-wrap gap-2">
                   {(() => {
                     const typeAmenities = getAmenitiesForType(property.type);
                     const selectedAmenities = typeAmenities.filter(a => 
@@ -144,8 +154,8 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
                     );
                     
                     return selectedAmenities.map((amenity) => (
-                      <View key={amenity.id} className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm flex-row items-center gap-1.5">
-                        <Text className="text-xs">{amenity.icon || '✨'}</Text>
+                      <View key={amenity.id} className="bg-white border border-gray-200 rounded-xl px-3 py-2 flex-row items-center gap-1.5">
+                        {renderIcon(amenity.icon, 14, '#6b7280')}
                         <Text className="text-xs font-semibold text-gray-700">{amenity.name}</Text>
                       </View>
                     ));
@@ -154,16 +164,20 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
               </View>
             )}
 
-            {/* Propose to Deal Section */}
+            {/* --- UPDATED: Propose to Deal Section --- */}
             <View className="mb-8">
-              <View className="bg-indigo-50 p-5 rounded-3xl border border-indigo-100 flex-row items-center justify-between shadow-sm">
+              <View 
+                className="p-5 rounded-3xl border flex-row items-center justify-between shadow-sm"
+                style={{ backgroundColor: '#E9E6F7', borderColor: '#BFB7FD' }}
+              >
                 <View className="flex-1 pr-4">
-                  <Text className="text-indigo-950 text-base font-bold mb-1">Have a buyer?</Text>
-                  <Text className="text-indigo-600/80 text-xs font-medium leading-relaxed">Start a deal immediately for this property.</Text>
+                  <Text className="text-gray-800 text-base font-bold mb-1">Have a buyer?</Text>
+                  <Text className="text-gray-500 text-xs font-medium leading-relaxed">Start a deal immediately for this property.</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => setShowProposeModal(true)}
-                  className="bg-indigo-600 px-5 py-3 rounded-xl flex-row items-center gap-2 shadow-md shadow-indigo-200 active:scale-95"
+                  className="px-5 py-3 rounded-xl flex-row items-center gap-2 shadow-sm active:scale-95"
+                  style={{ backgroundColor: '#BFB7FD' }}
                 >
                   <Users size={16} color="white" />
                   <Text className="text-white font-bold text-xs">Propose</Text>
@@ -183,7 +197,7 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
                   <Phone size={20} color="#111827" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleMessage} className="bg-white p-3 rounded-xl shadow-sm border border-gray-200 active:bg-gray-50">
-                  <MessageCircle size={20} color="#111827" />
+                  <WhatsAppIcon size={20} color="#111827" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -192,7 +206,7 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
         </View>
       </View>
 
-      {/* Customer Selection Modal (Kept same logic, slight styling tweak) */}
+      {/* Customer Selection Modal */}
       {showProposeModal && (
         <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowProposeModal(false)}>
           <View className="flex-1 justify-end bg-black/60">

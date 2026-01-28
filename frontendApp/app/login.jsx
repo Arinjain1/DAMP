@@ -53,7 +53,7 @@ export default function Login() {
 
       <LinearGradient
         colors={['#BFB7FD', '#E5E1FF', '#ffffff']}
-        locations={[0, 0.55, 1]}
+        locations={[0, 0.25, 1]}
         style={{ flex: 1 }}
       >
         <KeyboardAvoidingView
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 28,
-    marginTop: height * 0.08,
+    marginTop: height * 0.06,
   },
   logoContainer: {
     flexDirection: 'row',

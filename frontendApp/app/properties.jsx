@@ -6,7 +6,7 @@ import AddModal from '../src/Modal and Sheets/AddModal.jsx';
 import PropertyDetailSheet from '../src/Modal and Sheets/PropertyDetailSheet.jsx';
 
 // Redux actions
-import FABBasic from '@/src/Components/FABBasic.jsx';
+import { addDeal } from '@/src/store/slices/dealsSlice.js';
 import InventoryPageBasic from '@/src/Views/InventoryPageBasic.jsx';
 import {
     addProperty,
@@ -20,7 +20,6 @@ import {
     setModalOpen,
     setModalType
 } from '../src/store/slices/uiSlice.js';
-import { addDeal } from '@/src/store/slices/dealsSlice.js';
 
 export default function Properties() {
   const dispatch = useDispatch();
@@ -29,6 +28,10 @@ export default function Properties() {
   const { properties, selectedProperty } = useSelector(state => state.properties);
   const { customers } = useSelector(state => state.customers);
   const { modalOpen, modalType, editItem } = useSelector(state => state.ui);
+
+  // Debug logging
+  console.log('Properties - customers from Redux:', customers);
+  console.log('Properties - customers length:', customers?.length || 0);
 
   const generateId = () => Math.random().toString(36).substring(2, 11);
 
@@ -72,11 +75,11 @@ export default function Properties() {
       <InventoryPageBasic 
         properties={properties} 
         onSelect={(property) => dispatch(setSelectedProperty(property))} 
-        onEdit={handleEdit} 
+        onEdit={handleEdit}
+        onAddProperty={handleFABClick}
       />
 
       {/* Action Components */}
-      <FABBasic onPress={handleFABClick} />
 
       <AddModal 
         isOpen={modalOpen} 

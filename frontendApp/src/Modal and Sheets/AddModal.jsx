@@ -1,26 +1,29 @@
 import { ChevronDown, CloudUpload, Search, X } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
+import * as LucideIcons from 'lucide-react-native';
 import { getAmenitiesForType } from '../MockData/Mockdata';
 
 // Mock Structure Data
 const PROPERTY_STRUCTURE = {
-  Residential: { types: ['Apartment/Flats', 'Villa', 'Plot', 'Duplex'] },
-  Commercial: { types: ['Office Space', 'Shop', 'Showroom', 'Warehouse'] },
-  Agriculture: { types: ['Farm Land', 'Farm House'] },
+  Residential: { types: ['Apartment/Flats', 'Builder Floor', 'House/Villa', 'Plot/Land', 'Farmhouse', 'Other'] },
+  Commercial: { types: ['Office', 'Shop/Showroom', 'Storage', 'Industry', 'Hospitality', 'Plot/Land', 'Other'] },
+  Agriculture: { types: ['Farm Land', 'Farm House'] }
 };
 
 const AddModal = ({
@@ -36,19 +39,38 @@ const AddModal = ({
 }) => {
   const generateId = () => Math.random().toString(36).substring(2, 11);
 
+  // Helper function to render Lucide icons
+  const renderIcon = (iconName, size = 12, color = '#6b7280') => {
+    const IconComponent = LucideIcons[iconName];
+    if (IconComponent) {
+      return <IconComponent size={size} color={color} />;
+    }
+    return <LucideIcons.Star size={size} color={color} />; // Fallback icon
+  };
+
   const [formData, setFormData] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [tempDate, setTempDate] = useState(new Date());
+  
+  // Dropdown States
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [customerSearchText, setCustomerSearchText] = useState('');
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
   const [propertySearchText, setPropertySearchText] = useState('');
+  const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
+  
+  // Location States
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  
+  // Ref for Debouncing
+  const debounceTimer = useRef(null);
 
   useEffect(() => {
-    console.log('AddModal useEffect - type:', type, 'editItem:', editItem, 'isOpen:', isOpen);
+    // console.log('AddModal useEffect - type:', type, 'editItem:', editItem, 'isOpen:', isOpen);
     if (editItem) {
-      // Convert single propertyId to propertyIds array for backward compatibility
       const updatedEditItem = { ...editItem };
       if (editItem.propertyId && !editItem.propertyIds) {
         updatedEditItem.propertyIds = [editItem.propertyId];
@@ -87,14 +109,14 @@ const AddModal = ({
         setFormData({
           status: 'Pending',
           type: 'Call',
-          date: new Date().toISOString(), // Use ISO string instead of Date object
+          date: new Date().toISOString(),
           customerId: initialCustomer?.id || '',
-          propertyIds: [], // Changed to array for multiple properties
+          propertyIds: [],
           note: '',
         });
       }
     }
-  }, [editItem, type, initialCustomer, isOpen]); // Reset on open
+  }, [editItem, type, initialCustomer, isOpen]);
 
   if (!isOpen) return null;
 
@@ -105,7 +127,6 @@ const AddModal = ({
       if (['price', 'size', 'budget'].includes(name)) {
         processedValue = value === '' ? '' : Number(value) || 0;
       } else if (name === 'date' && value instanceof Date) {
-        // Convert Date to ISO string to avoid serialization issues
         processedValue = value.toISOString();
       } else {
         processedValue = value;
@@ -120,14 +141,145 @@ const AddModal = ({
         if (value !== 'Residential') newData.bhk = '';
       }
 
+      // Handle location search
+      if (name === 'location' && type === 'Property') {
+        searchPlaces(value);
+      }
+
       return newData;
     });
   };
 
+  // --- UPDATED: New Google Places API (v1) ---
+  const searchPlaces = (query) => {
+    // 1. Clear previous timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    if (!query || query.length < 2) {
+      setLocationSuggestions([]);
+      setShowLocationDropdown(false);
+      return;
+    }
+    
+    // 2. Set new timer (500ms delay)
+    debounceTimer.current = setTimeout(async () => {
+      setLocationLoading(true);
+      
+      try {
+        const API_KEY = 'AIzaSyBh6QaQefnuItu6ntz4Z3xiH4pLt4b48pA';
+        
+        // NEW URL (v1)
+        const url = 'https://places.googleapis.com/v1/places:autocomplete';
+        
+        // POST Request for New API
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': API_KEY,
+          },
+          body: JSON.stringify({
+            input: query,
+            includedRegionCodes: ['in'], // Limit to India
+          })
+        });
+
+        const data = await response.json();
+        // console.log('New Places API Response:', JSON.stringify(data)); 
+
+        if (data.suggestions) {
+          // Map new response format to our app format
+          const suggestions = data.suggestions.map((item) => {
+            const prediction = item.placePrediction;
+            return {
+              id: prediction.place, // 'place' is the ID in new API
+              description: prediction.text.text, // Full text
+              main_text: prediction.structuredFormat?.mainText?.text || prediction.text.text,
+              secondary_text: prediction.structuredFormat?.secondaryText?.text || '',
+            };
+          });
+          
+          setLocationSuggestions(suggestions);
+          setShowLocationDropdown(suggestions.length > 0);
+        } else {
+          // console.log('No suggestions found or Error:', data);
+          setLocationSuggestions([]);
+          setShowLocationDropdown(false);
+        }
+      } catch (error) {
+        console.error('Error fetching places:', error);
+        setLocationSuggestions([]);
+        setShowLocationDropdown(false);
+      } finally {
+        setLocationLoading(false);
+      }
+    }, 500);
+  };
+
+  const selectLocation = (location) => {
+    // Directly update formData without triggering another search
+    setFormData(prev => ({ ...prev, location: location.description }));
+    setShowLocationDropdown(false);
+    setLocationSuggestions([]);
+    
+    // Clear timer to prevent any pending searches from overwriting
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+  };
+
   const pickImage = () => {
-    const mockImage =
-      'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80';
-    handleChange('image', mockImage);
+    setPhotoSheetVisible(true);
+  };
+
+  const openCamera = async () => {
+    try {
+      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (!cameraPermission.granted) {
+        Alert.alert('Permission Required', 'Camera permission is required.', [{ text: 'OK' }]);
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        handleChange('image', result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error opening camera:', error);
+      Alert.alert('Error', 'Failed to open camera.');
+    }
+  };
+
+  const openGallery = async () => {
+    try {
+      const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!mediaPermission.granted) {
+        Alert.alert('Permission Required', 'Gallery permission is required.', [{ text: 'OK' }]);
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        handleChange('image', result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error opening gallery:', error);
+      Alert.alert('Error', 'Failed to open gallery.');
+    }
   };
 
   const handleSubmit = () => {
@@ -139,8 +291,7 @@ const AddModal = ({
         if (!finalData.title)
           finalData.title = `${finalData.bhk ? finalData.bhk + ' ' : ''}${finalData.type}`;
         if (!finalData.image)
-          finalData.image =
-            'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80';
+          finalData.image = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80';
       }
       onSave(finalData);
     }
@@ -222,7 +373,12 @@ const AddModal = ({
             </View>
 
             {/* Form Content */}
-            <ScrollView className="flex-1 px-6 pt-4" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+              className="flex-1 px-6 pt-4" 
+              contentContainerStyle={{ paddingBottom: 100 }} 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled" // Important for Dropdown clicks
+            >
               
               {/* === PROPERTY FORM === */}
               {type === 'Property' && (
@@ -291,8 +447,8 @@ const AddModal = ({
                     </ScrollView>
                   </View>
 
-                  {/* BHK Configuration (Only for Residential) */}
-                  {formData.category === 'Residential' && (formData.type === 'Apartment/Flats' || formData.type === 'Villa' || formData.type === 'Duplex') && (
+                  {/* BHK Configuration */}
+                  {formData.category === 'Residential' && (formData.type === 'Apartment/Flats' || formData.type === 'Builder Floor' || formData.type === 'House/Villa') && (
                     <View style={styles.section}>
                       <Text style={styles.sectionLabel}>Configuration</Text>
                       <View style={styles.chipContainer}>
@@ -303,7 +459,7 @@ const AddModal = ({
                     </View>
                   )}
 
-                  {/* Furnishing (Only for Residential) */}
+                  {/* Furnishing */}
                   {formData.category === 'Residential' && (
                     <View style={styles.section}>
                       <Text style={styles.sectionLabel}>Furnishing</Text>
@@ -315,19 +471,52 @@ const AddModal = ({
                     </View>
                   )}
 
-                  {/* Location */}
-                  <View style={styles.section}>
+                  {/* Location with Z-Index fix */}
+                  <View style={[styles.section, { zIndex: 2000 }]}>
                     <Text style={styles.sectionLabel}>Location</Text>
-                    <TextInput
-                        value={formData.location || ''}
-                        onChangeText={(t) => handleChange('location', t)}
-                        placeholder="e.g. MG Road, Indiranagar, Bangalore"
-                        style={styles.textInputFull}
-                    />
+                    <View style={styles.locationContainer}>
+                      <View style={styles.inputWithIcon}>
+                        <LucideIcons.MapPin size={16} color="#6b7280" />
+                        <TextInput
+                          value={formData.location || ''}
+                          onChangeText={(text) => handleChange('location', text)}
+                          placeholder="e.g. MG Road, Indiranagar, Bangalore"
+                          style={styles.textInput}
+                        />
+                      </View>
+                      
+                      {/* Location Suggestions Dropdown */}
+                      {showLocationDropdown && locationSuggestions.length > 0 && (
+                        <View style={styles.locationDropdown}>
+                          {locationLoading && (
+                            <View style={styles.loadingContainer}>
+                              <Text style={styles.loadingText}>Searching locations...</Text>
+                            </View>
+                          )}
+                          {locationSuggestions.map((location) => (
+                            <TouchableOpacity
+                              key={location.id}
+                              onPress={() => selectLocation(location)}
+                              style={styles.locationItem}
+                            >
+                              <View style={styles.locationIcon}>
+                                <LucideIcons.MapPin size={16} color="#6b7280" />
+                              </View>
+                              <View style={styles.locationDetails}>
+                                <Text style={styles.locationMainText}>{location.main_text}</Text>
+                                {location.secondary_text && (
+                                  <Text style={styles.locationSecondaryText}>{location.secondary_text}</Text>
+                                )}
+                              </View>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+                    </View>
                   </View>
 
                   {/* Price and Size */}
-                  <View style={styles.section}>
+                  <View style={[styles.section, { zIndex: 1000 }]}>
                     <Text style={styles.sectionLabel}>Property Details</Text>
                     <View style={styles.rowContainer}>
                         <View style={styles.halfWidth}>
@@ -374,22 +563,16 @@ const AddModal = ({
                   {/* Amenities */}
                   <View style={styles.section}>
                     <Text style={styles.sectionLabel}>Amenities</Text>
-                    <Text style={styles.inputLabel}>Select available amenities for {formData.type}</Text>
                     
-                    {/* Type-specific Amenities */}
                     {(() => {
                       const typeAmenities = getAmenitiesForType(formData.type);
-                      
                       if (typeAmenities.length === 0) {
                         return (
                           <View style={styles.noAmenitiesContainer}>
-                            <Text style={styles.noAmenitiesText}>
-                              No specific amenities available for {formData.type}
-                            </Text>
+                            <Text style={styles.noAmenitiesText}>No specific amenities available.</Text>
                           </View>
                         );
                       }
-                      
                       return (
                         <View style={styles.amenityGrid}>
                           {typeAmenities.map((amenity) => {
@@ -400,13 +583,8 @@ const AddModal = ({
                                 onPress={() => {
                                   const currentAmenities = formData.amenities || [];
                                   let newAmenities;
-                                  
-                                  if (isSelected) {
-                                    newAmenities = currentAmenities.filter(id => id !== amenity.id);
-                                  } else {
-                                    newAmenities = [...currentAmenities, amenity.id];
-                                  }
-                                  
+                                  if (isSelected) newAmenities = currentAmenities.filter(id => id !== amenity.id);
+                                  else newAmenities = [...currentAmenities, amenity.id];
                                   handleChange('amenities', newAmenities);
                                 }}
                                 style={[
@@ -414,32 +592,21 @@ const AddModal = ({
                                   isSelected ? styles.amenityChipSelected : styles.amenityChipUnselected
                                 ]}
                               >
-                                <Text style={[
-                                  styles.amenityTextCompact,
-                                  isSelected ? styles.amenityTextSelected : styles.amenityTextUnselected
-                                ]} numberOfLines={1}>
-                                  {amenity.name}
-                                </Text>
-                                {isSelected && (
-                                  <View style={styles.amenityCheckmarkCompact}>
-                                    <Text style={styles.checkmarkText}>✓</Text>
-                                  </View>
-                                )}
+                                <View style={styles.amenityContent}>
+                                  {renderIcon(amenity.icon, 12, isSelected ? 'white' : '#6b7280')}
+                                  <Text style={[
+                                    styles.amenityTextCompact,
+                                    isSelected ? styles.amenityTextSelected : styles.amenityTextUnselected
+                                  ]} numberOfLines={1}>
+                                    {amenity.name}
+                                  </Text>
+                                </View>
                               </TouchableOpacity>
                             );
                           })}
                         </View>
                       );
                     })()}
-                    
-                    {/* Selected Amenities Count */}
-                    {formData.amenities?.length > 0 && (
-                      <View style={styles.amenitySummary}>
-                        <Text style={styles.amenitySummaryText}>
-                          {formData.amenities.length} amenities selected
-                        </Text>
-                      </View>
-                    )}
                   </View>
                 </View>
               )}
@@ -447,7 +614,6 @@ const AddModal = ({
               {/* === CUSTOMER / FOLLOWUP FORM === */}
               {(type === 'Customer' || type === 'FollowUp') && (
                 <View className="gap-5">
-                  
                   {type === 'Customer' && (
                     <>
                       <View>
@@ -496,7 +662,6 @@ const AddModal = ({
                           </View>
                         ) : (
                           <View>
-                            {/* Customer Dropdown Button */}
                             <TouchableOpacity
                               onPress={() => setShowCustomerDropdown(!showCustomerDropdown)}
                               className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl flex-row justify-between items-center"
@@ -510,10 +675,8 @@ const AddModal = ({
                               <ChevronDown size={16} color="#9ca3af" />
                             </TouchableOpacity>
 
-                            {/* Customer Dropdown */}
                             {showCustomerDropdown && (
                               <View className="mt-2 bg-white border border-gray-200 rounded-xl overflow-hidden">
-                                {/* Search Input */}
                                 <View className="px-4 py-3 border-b border-gray-100 flex-row items-center">
                                   <Search size={16} color="#9ca3af" />
                                   <TextInput
@@ -524,7 +687,6 @@ const AddModal = ({
                                   />
                                 </View>
 
-                                {/* Customer List */}
                                 <ScrollView style={{ maxHeight: 200 }}>
                                   {customers
                                     .filter(c => 
@@ -571,41 +733,6 @@ const AddModal = ({
                         </View>
                       </View>
 
-                      {/* Task Preview Card */}
-                      {formData.type && (
-                        <View>
-                          <Text className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Preview</Text>
-                          <View className="p-4 bg-white border border-gray-200 rounded-xl">
-                            <View className="flex-row justify-between items-center mb-2">
-                              <View className={`px-2 py-1 rounded ${
-                                formData.type === 'Visit' || formData.type === 'Meeting' 
-                                  ? 'bg-yellow-50' 
-                                  : 'bg-blue-50'
-                              }`}>
-                                <Text className={`text-xs font-bold ${
-                                  formData.type === 'Visit' || formData.type === 'Meeting'
-                                    ? 'text-yellow-700'
-                                    : 'text-blue-700'
-                                }`}>
-                                  {formData.type === 'Visit' || formData.type === 'Meeting' 
-                                    ? 'Site Visit' 
-                                    : 'Call / Follow-up'}
-                                </Text>
-                              </View>
-                              <View className="px-2 py-1 bg-orange-500 rounded">
-                                <Text className="text-xs font-bold text-white">Pending</Text>
-                              </View>
-                            </View>
-                            <Text className="text-sm text-gray-700 mb-2">
-                              {formData.note || 'Task description will appear here...'}
-                            </Text>
-                            <Text className="text-xs text-gray-500">
-                              {formData.date ? new Date(formData.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Date & time will appear here...'}
-                            </Text>
-                          </View>
-                        </View>
-                      )}
-
                       {/* Note */}
                       <View>
                         <Text className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Task Note</Text>
@@ -622,7 +749,6 @@ const AddModal = ({
                       <View>
                         <Text className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Properties</Text>
                         
-                        {/* Property Dropdown Button */}
                         <TouchableOpacity
                           onPress={() => setShowPropertyDropdown(!showPropertyDropdown)}
                           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl flex-row justify-between items-center"
@@ -661,7 +787,6 @@ const AddModal = ({
                         {/* Property Dropdown */}
                         {showPropertyDropdown && (
                           <View className="mt-2 bg-white border border-gray-200 rounded-xl overflow-hidden">
-                            {/* Search Input */}
                             <View className="px-4 py-3 border-b border-gray-100 flex-row items-center">
                               <Search size={16} color="#9ca3af" />
                               <TextInput
@@ -672,13 +797,11 @@ const AddModal = ({
                               />
                             </View>
 
-                            {/* Property List */}
                             <ScrollView style={{ maxHeight: 200 }}>
                               {properties
                                 .filter(p => 
                                   p.title.toLowerCase().includes(propertySearchText.toLowerCase()) ||
-                                  p.location.toLowerCase().includes(propertySearchText.toLowerCase()) ||
-                                  p.type.toLowerCase().includes(propertySearchText.toLowerCase())
+                                  p.location.toLowerCase().includes(propertySearchText.toLowerCase())
                                 )
                                 .map((property) => {
                                   const isSelected = formData.propertyIds?.includes(property.id);
@@ -688,15 +811,8 @@ const AddModal = ({
                                       onPress={() => {
                                         const currentIds = formData.propertyIds || [];
                                         let newPropertyIds;
-                                        
-                                        if (isSelected) {
-                                          // Remove if already selected
-                                          newPropertyIds = currentIds.filter(id => id !== property.id);
-                                        } else {
-                                          // Add if not selected
-                                          newPropertyIds = [...currentIds, property.id];
-                                        }
-                                        
+                                        if (isSelected) newPropertyIds = currentIds.filter(id => id !== property.id);
+                                        else newPropertyIds = [...currentIds, property.id];
                                         handleChange('propertyIds', newPropertyIds);
                                       }}
                                       className={`px-4 py-3 border-b border-gray-50 flex-row items-center ${
@@ -704,13 +820,8 @@ const AddModal = ({
                                       }`}
                                     >
                                       <View className="flex-1">
-                                        <Text className={`text-sm font-bold ${
-                                          isSelected ? 'text-blue-700' : 'text-gray-800'
-                                        }`}>
+                                        <Text className={`text-sm font-bold ${isSelected ? 'text-blue-700' : 'text-gray-800'}`}>
                                           {property.title}
-                                        </Text>
-                                        <Text className="text-xs text-gray-500 mt-1">
-                                          {property.location} • {property.type}
                                         </Text>
                                       </View>
                                       {isSelected && (
@@ -742,7 +853,6 @@ const AddModal = ({
                           </Text>
                         </TouchableOpacity>
 
-                        {/* Pickers */}
                         {showDatePicker && (
                           <DateTimePicker
                             value={tempDate || new Date()}
@@ -780,6 +890,52 @@ const AddModal = ({
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Photo Selection Bottom Sheet */}
+      <Modal
+        visible={photoSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPhotoSheetVisible(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          style={styles.sheetOverlay}
+          onPress={() => setPhotoSheetVisible(false)}
+        >
+          <View style={styles.bottomSheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Select Photo</Text>
+            
+            <TouchableOpacity
+              style={styles.sheetBtn}
+              onPress={() => {
+                setPhotoSheetVisible(false);
+                openCamera();
+              }}
+            >
+              <Text style={styles.sheetBtnText}>📷 Camera</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.sheetBtn}
+              onPress={() => {
+                setPhotoSheetVisible(false);
+                openGallery();
+              }}
+            >
+              <Text style={styles.sheetBtnText}>🖼️ Gallery</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.sheetBtn, styles.cancelBtn]}
+              onPress={() => setPhotoSheetVisible(false)}
+            >
+              <Text style={[styles.sheetBtnText, styles.cancelText]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </Modal>
   );
 };
@@ -791,6 +947,7 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 4,
+    position: 'relative', // Necessary for zIndex to work locally
   },
   sectionLabel: {
     fontSize: 12,
@@ -893,6 +1050,7 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 12,
   },
+
   inputWithIcon: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -910,9 +1068,62 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
   },
-  multilineInput: {
-    height: 60,
-    textAlignVertical: 'top',
+
+  // Location Autocomplete
+  locationContainer: {
+    position: 'relative',
+    zIndex: 9999, // Ensure it stays on top
+  },
+  locationDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    maxHeight: 200,
+    zIndex: 9999,
+    elevation: 10, // For Android Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  loadingContainer: {
+    padding: 12,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontStyle: 'italic',
+  },
+  locationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  locationIcon: {
+    marginRight: 12,
+  },
+  locationDetails: {
+    flex: 1,
+  },
+  locationMainText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  locationSecondaryText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
   },
 
   // Row Layout
@@ -928,7 +1139,7 @@ const styles = StyleSheet.create({
   amenityGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
     justifyContent: 'flex-start',
   },
   amenityChipCompact: {
@@ -941,9 +1152,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginRight: 8,
   },
+  amenityContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   amenityChipSelected: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
+    backgroundColor: '#bfb7fd',
+    borderColor: '#8B5CF6',
   },
   amenityChipUnselected: {
     backgroundColor: 'white',
@@ -952,6 +1168,7 @@ const styles = StyleSheet.create({
   amenityTextCompact: {
     fontSize: 11,
     fontWeight: '600',
+    color: '#000000',
   },
   amenityTextSelected: {
     color: 'white',
@@ -971,7 +1188,7 @@ const styles = StyleSheet.create({
   checkmarkText: {
     fontSize: 8,
     fontWeight: 'bold',
-    color: '#3b82f6',
+    color: '#8B5CF6',
   },
   amenitySummary: {
     marginTop: 12,
@@ -995,6 +1212,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
     textAlign: 'center',
+  },
+
+  // Photo Selection Bottom Sheet
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheet: {
+    backgroundColor: '#fff',
+    paddingTop: 12,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#d1d5db',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 16,
+    color: '#111827',
+  },
+  sheetBtn: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#f3f4f6',
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  sheetBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  cancelBtn: {
+    backgroundColor: '#fee2e2',
+  },
+  cancelText: {
+    color: '#b91c1c',
   },
 });
 

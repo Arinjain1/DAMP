@@ -4,7 +4,6 @@ import {
     Edit3,
     Handshake,
     MapPin,
-    MessageCircle,
     Phone,
     Plus,
     Sparkles,
@@ -22,6 +21,8 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import WhatsAppIcon from '../Components/WhatsAppIcon';
+
 
 // Helper for currency formatting
 const formatCurrency = (amount) => {
@@ -126,7 +127,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                
                <TouchableOpacity onPress={handleWhatsApp} style={styles.actionBtn}>
                   <View style={[styles.iconBox, { backgroundColor: '#ecfccb' }]}>
-                     <MessageCircle size={22} color="#65a30d" />
+                     <WhatsAppIcon size={22} color="#65a30d" />
                   </View>
                   <Text style={styles.actionText}>WhatsApp</Text>
                </TouchableOpacity>

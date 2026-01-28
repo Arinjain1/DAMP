@@ -4,7 +4,6 @@ import {
     Edit3,
     Home,
     Map,
-    MessageCircle,
     Phone,
     Trash2
 } from 'lucide-react-native';
@@ -31,6 +30,7 @@ import {
     updateFollowUp,
     updateFollowUpStatus
 } from '../src/store/slices/followUpsSlice';
+import WhatsAppIcon from '@/src/Components/WhatsAppIcon.jsx';
 
 // Helper for generating IDs if needed
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -232,7 +232,7 @@ export default function FollowUps() {
                                        onPress={() => handleWhatsApp(customer?.phone)}
                                        style={styles.miniBtn}
                                     >
-                                       <MessageCircle size={12} color="#4b5563" />
+                                       <WhatsAppIcon size={12} color="#25D366" />
                                        <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
                                     </TouchableOpacity>
                                  </View>

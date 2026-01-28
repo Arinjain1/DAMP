@@ -1,22 +1,21 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
-  Linking,
-  StyleSheet,
-  Dimensions
-} from 'react-native';
-import { 
-  Home, 
-  CheckCircle, 
-  Map, 
-  Phone, 
-  MessageCircle,
-  Clock,
-  Calendar
+import {
+    Calendar,
+    CheckCircle,
+    Home,
+    Map,
+    Phone
 } from 'lucide-react-native';
+import { useState } from 'react';
+import {
+    Linking,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
+import WhatsAppIcon from '../Components/WhatsAppIcon';
+
 
 // Helper for generating IDs if needed
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -172,7 +171,7 @@ const FollowUpsList = ({ followUps = [], customers = [], properties = [], onUpda
                                        onPress={() => handleWhatsApp(customer?.phone)}
                                        style={[styles.contactButton, { backgroundColor: '#f9fafb' }]}
                                     >
-                                       <MessageCircle size={16} color="#4b5563" />
+                                       <WhatsAppIcon size={16} color="#25D366" />
                                        <Text style={[styles.contactButtonText, { color: '#4b5563' }]}>WhatsApp</Text>
                                     </TouchableOpacity>
                                  </View>
