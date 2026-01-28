@@ -96,7 +96,7 @@ export default function Register() {
 
       <LinearGradient
         colors={['#BFB7FD', '#E5E1FF', '#ffffff']}
-        locations={[0, 0.55, 1]}
+        locations={[0, 0.25, 1]}
         style={{ flex: 1 }}
       >
         <KeyboardAvoidingView

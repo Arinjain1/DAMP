@@ -1,35 +1,36 @@
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-    Award,
-    Camera,
-    ChevronRight,
-    CreditCard,
-    LogOut,
-    Settings,
-    ShieldCheck,
-    Zap
+  Award,
+  Camera,
+  ChevronRight,
+  CreditCard,
+  LogOut,
+  Settings,
+  ShieldCheck,
+  Zap
 } from 'lucide-react-native';
+import { useState } from 'react';
 import {
-    Alert,
-    Image,
-    Platform,
-    ScrollView,
-    StatusBar,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Image,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { INITIAL_PROFILE } from '../MockData/Mockdata';
 import { logout } from '../store/slices/authSlice';
-import { useState } from 'react';
-import * as ImagePicker from 'expo-image-picker';
 
 const ProfilePage = ({ subscription, onRenew }) => {
   const dispatch = useDispatch();
   const profile = INITIAL_PROFILE;
-  const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [profileImage, setProfileImage] = useState(profile.avatar);
+  const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -53,69 +54,69 @@ const ProfilePage = ({ subscription, onRenew }) => {
   };
 
   const handlePhotoPress = () => {
-    setShowPhotoModal(true);
+    setPhotoSheetVisible(true);
   };
 
-  const handleEditPhoto = () => {
-    Alert.alert(
-      'Change Profile Photo',
-      'Choose an option',
-      [
-        {
-          text: 'Camera',
-          onPress: () => openCamera(),
-        },
-        {
-          text: 'Gallery',
-          onPress: () => openGallery(),
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+  const handleRemovePhoto = () => {
+    setProfileImage(null);
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    if (names.length >= 2) {
+      return (names[0][0] + names[1][0]).toUpperCase();
+    }
+    return name[0].toUpperCase();
   };
 
   const openCamera = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission Required', 'Camera permission is required to take photos.');
-      return;
-    }
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'Camera permission is required to take photos.');
+        return;
+      }
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
-      setShowPhotoModal(false);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setProfileImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error opening camera:', error);
+      Alert.alert('Error', 'Failed to open camera. Please try again.');
     }
   };
 
   const openGallery = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission Required', 'Gallery permission is required to select photos.');
-      return;
-    }
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'Gallery permission is required to select photos.');
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
-      setShowPhotoModal(false);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setProfileImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error opening gallery:', error);
+      Alert.alert('Error', 'Failed to open gallery. Please try again.');
     }
   };
   return (
@@ -152,10 +153,33 @@ const ProfilePage = ({ subscription, onRenew }) => {
             marginBottom: 8,
           }}
         >
-          <Image
-            source={{ uri: profileImage }}
-            style={{ height: '100%', width: '100%', borderRadius: 46 }}
-          />
+          {profileImage ? (
+            <Image
+              source={{ uri: profileImage }}
+              style={{ height: '100%', width: '100%', borderRadius: 46 }}
+            />
+          ) : (
+            <View
+              style={{
+                height: '100%',
+                width: '100%',
+                borderRadius: 46,
+                backgroundColor: '#8B5CF6',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 32,
+                  fontWeight: '900',
+                  color: 'white',
+                }}
+              >
+                {getInitials(profile.name)}
+              </Text>
+            </View>
+          )}
           <View
             style={{
               position: 'absolute',
@@ -362,8 +386,122 @@ const ProfilePage = ({ subscription, onRenew }) => {
         </TouchableOpacity>
 
       </View>
+
+      {/* Photo Selection Bottom Sheet */}
+      <Modal
+        visible={photoSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPhotoSheetVisible(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          style={styles.sheetOverlay}
+          onPress={() => setPhotoSheetVisible(false)}
+        >
+          <View style={styles.bottomSheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Profile Photo</Text>
+            
+            <TouchableOpacity
+              style={styles.sheetBtn}
+              onPress={() => {
+                setPhotoSheetVisible(false);
+                openCamera();
+              }}
+            >
+              <Text style={styles.sheetBtnText}>📷 Camera</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.sheetBtn}
+              onPress={() => {
+                setPhotoSheetVisible(false);
+                openGallery();
+              }}
+            >
+              <Text style={styles.sheetBtnText}>🖼️ Gallery</Text>
+            </TouchableOpacity>
+            
+            {profileImage && (
+              <TouchableOpacity
+                style={[styles.sheetBtn, styles.removeBtn]}
+                onPress={() => {
+                  setPhotoSheetVisible(false);
+                  handleRemovePhoto();
+                }}
+              >
+                <Text style={[styles.sheetBtnText, styles.removeText]}>🗑️ Remove Photo</Text>
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity
+              style={[styles.sheetBtn, styles.cancelBtn]}
+              onPress={() => setPhotoSheetVisible(false)}
+            >
+              <Text style={[styles.sheetBtnText, styles.cancelText]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
+};
+
+const styles = {
+  // Photo Selection Bottom Sheet
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheet: {
+    backgroundColor: '#fff',
+    paddingTop: 12,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#d1d5db',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 16,
+    color: '#111827',
+  },
+  sheetBtn: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#f3f4f6',
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  sheetBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  cancelBtn: {
+    backgroundColor: '#fee2e2',
+  },
+  cancelText: {
+    color: '#b91c1c',
+  },
+  removeBtn: {
+    backgroundColor: '#fef3c7',
+  },
+  removeText: {
+    color: '#d97706',
+  },
 };
 
 export default ProfilePage;

@@ -5,13 +5,16 @@ import {
     Filter,
     Layout,
     MapPin,
-    Search
+    Plus,
+    Search,
+    X
 } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Platform } from 'react-native';
 import {
     Dimensions,
     ImageBackground,
+    Modal,
+    Platform,
     ScrollView,
     StatusBar,
     StyleSheet,
@@ -20,11 +23,14 @@ import {
     View
 } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const PROPERTY_STRUCTURE = {
-  Residential: { types: ['Apartment/Flats', 'Villa', 'Plot', 'Duplex'] },
-  Commercial: { types: ['Office Space', 'Shop', 'Showroom', 'Warehouse'] },
+  Residential: { types: ['Apartment/Flats', 'Builder Floor', 'House/Villa', 'Plot/Land', 'Farmhouse', 'Other'] },
+  Commercial: { types: ['Office', 'Shop/Showroom', 'Storage', 'Industry', 'Hospitality', 'Plot/Land', 'Other'] },
   Agriculture: { types: ['Farm Land', 'Farm House'] }
 };
 
@@ -37,10 +43,13 @@ const formatCurrency = (amount) => {
   }).format(numAmount || 0);
 };
 
-const InventoryPage = ({ properties = [], onSelect, onEdit }) => {
+const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => {
   const [listingFilter, setListingFilter] = useState('Sell');
   const [activeCategory, setActiveCategory] = useState('Residential');
   const [activeType, setActiveType] = useState('All');
+  const [activeBHK, setActiveBHK] = useState('All');
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const filteredProperties = useMemo(() => {
     if (!Array.isArray(properties)) return [];
@@ -49,9 +58,10 @@ const InventoryPage = ({ properties = [], onSelect, onEdit }) => {
       const matchListing = (p.listingType || 'Sell') === listingFilter;
       const matchCategory = (p.category || 'Residential') === activeCategory;
       const matchType = activeType === 'All' || p.type === activeType;
-      return matchListing && matchCategory && matchType;
+      const matchBHK = activeBHK === 'All' || p.bhk === activeBHK;
+      return matchListing && matchCategory && matchType && matchBHK;
     });
-  }, [properties, listingFilter, activeCategory, activeType]);
+  }, [properties, listingFilter, activeCategory, activeType, activeBHK]);
 
   return (
     <View style={styles.container}>
@@ -101,6 +111,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit }) => {
                     onPress={() => {
                       setActiveCategory(cat);
                       setActiveType('All');
+                      setActiveBHK('All');
                     }}
                     style={styles.categoryTab}
                   >
@@ -162,7 +173,10 @@ const InventoryPage = ({ properties = [], onSelect, onEdit }) => {
           <Text style={styles.resultCountText}>
             {filteredProperties.length} Properties found
           </Text>
-          <TouchableOpacity style={styles.filterButton}>
+          <TouchableOpacity 
+            style={styles.filterButton}
+            onPress={() => setShowFilterModal(true)}
+          >
             <Filter size={14} color="#111827" />
             <Text style={styles.filterButtonText}>Filters</Text>
           </TouchableOpacity>
@@ -248,6 +262,172 @@ const InventoryPage = ({ properties = [], onSelect, onEdit }) => {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilterModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filters</Text>
+              <TouchableOpacity 
+                onPress={() => setShowFilterModal(false)}
+                style={styles.closeButton}
+              >
+                <X size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalContent}>
+              {/* Property Category */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Property Category</Text>
+                <View style={styles.filterOptions}>
+                  {Object.keys(PROPERTY_STRUCTURE).map(cat => (
+                    <TouchableOpacity
+                      key={cat}
+                      onPress={() => {
+                        setActiveCategory(cat);
+                        setActiveType('All');
+                        setActiveBHK('All');
+                      }}
+                      style={[
+                        styles.filterOption,
+                        activeCategory === cat && styles.filterOptionActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.filterOptionText,
+                        activeCategory === cat && styles.filterOptionTextActive
+                      ]}>
+                        {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Property Type */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Property Type</Text>
+                <View style={styles.filterOptions}>
+                  <TouchableOpacity
+                    onPress={() => setActiveType('All')}
+                    style={[
+                      styles.filterOption,
+                      activeType === 'All' && styles.filterOptionActive
+                    ]}
+                  >
+                    <Text style={[
+                      styles.filterOptionText,
+                      activeType === 'All' && styles.filterOptionTextActive
+                    ]}>
+                      All Types
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {PROPERTY_STRUCTURE[activeCategory]?.types.map(type => (
+                    <TouchableOpacity
+                      key={type}
+                      onPress={() => setActiveType(type)}
+                      style={[
+                        styles.filterOption,
+                        activeType === type && styles.filterOptionActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.filterOptionText,
+                        activeType === type && styles.filterOptionTextActive
+                      ]}>
+                        {type}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* BHK Configuration (Only for Residential) */}
+              {activeCategory === 'Residential' && (
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterSectionTitle}>Configuration</Text>
+                  <View style={styles.filterOptions}>
+                    <TouchableOpacity
+                      onPress={() => setActiveBHK('All')}
+                      style={[
+                        styles.filterOption,
+                        activeBHK === 'All' && styles.filterOptionActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.filterOptionText,
+                        activeBHK === 'All' && styles.filterOptionTextActive
+                      ]}>
+                        All BHK
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    {['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'].map(bhk => (
+                      <TouchableOpacity
+                        key={bhk}
+                        onPress={() => setActiveBHK(bhk)}
+                        style={[
+                          styles.filterOption,
+                          activeBHK === bhk && styles.filterOptionActive
+                        ]}
+                      >
+                        <Text style={[
+                          styles.filterOptionText,
+                          activeBHK === bhk && styles.filterOptionTextActive
+                        ]}>
+                          {bhk}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Modal Footer */}
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                onPress={() => {
+                  setActiveCategory('Residential');
+                  setActiveType('All');
+                  setActiveBHK('All');
+                }}
+                style={styles.clearButton}
+              >
+                <Text style={styles.clearButtonText}>Clear All</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={() => setShowFilterModal(false)}
+                style={styles.applyButton}
+              >
+                <Text style={styles.applyButtonText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Floating Action Button */}
+      {onAddProperty && (
+        <TouchableOpacity
+          onPress={onAddProperty}
+          className="absolute right-[5vw] w-[15vw] h-[15vw] bg-gray-900 rounded-full items-center justify-center"
+          style={{ bottom: 30 + insets.bottom }}
+          activeOpacity={0.8}
+        >
+          <Plus size={28} color="white" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -338,6 +518,14 @@ const styles = StyleSheet.create({
   },
 
   chipsContainer: { paddingBottom: 8 },
+
+  filterLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6b7280',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
 
   chip: {
     paddingHorizontal: 16,
@@ -510,6 +698,126 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
     fontWeight: '600',
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f9fafb',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: 'white',
+  },
+  filterOptionActive: {
+    backgroundColor: '#111827',
+    borderColor: '#111827',
+  },
+  filterOptionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  filterOptionTextActive: {
+    color: 'white',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    gap: 12,
+  },
+  clearButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  applyButton: {
+    flex: 2,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#111827',
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+  },
+
+  // Floating Action Button
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 80,
+    width: 56,
+    height: 56,
+    backgroundColor: '#111827',
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
   },
 });
 

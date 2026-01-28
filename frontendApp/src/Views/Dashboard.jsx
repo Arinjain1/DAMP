@@ -174,7 +174,7 @@ const Dashboard = ({
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeaderRow}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
-                  <Briefcase size={20} color="#4f46e5" />
+                  <Briefcase size={20} color="#000000" />
                   <Text style={styles.sectionHeaderTitle}>Active Deals</Text>
                 </View>
                 <View style={styles.countBadge}>
@@ -234,7 +234,7 @@ const Dashboard = ({
               <Text style={styles.sectionHeaderTitle}>Today's Focus</Text>
               <TouchableOpacity onPress={() => onNavigate && onNavigate('/followups')} style={styles.viewAllButton}>
                 <Text style={styles.viewAllText}>View All</Text>
-                <ArrowRight size={14} color="#2563eb" />
+                <ArrowRight size={14} color="#968CE4" />
               </TouchableOpacity>
             </View>
             
@@ -494,7 +494,9 @@ const styles = StyleSheet.create({
   stageText: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: '#4f46e5',
+    color: '#FDB8D7',
+    
+    
   },
   dealCardBottom: {
     marginTop: 4,
@@ -525,7 +527,7 @@ const styles = StyleSheet.create({
   viewAllText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#2563eb',
+    color: '#968CE4',
   },
   taskCard: {
     backgroundColor: 'white',
@@ -553,13 +555,13 @@ const styles = StyleSheet.create({
   dateMonth: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: '#3b82f6',
+    color: '#6b7280',
     textTransform: 'uppercase',
   },
   dateDay: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#1e3a8a',
+    color: '#000000',
     lineHeight: 20,
   },
   taskTitle: {
