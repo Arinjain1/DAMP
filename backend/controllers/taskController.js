@@ -1,6 +1,4 @@
 import { query } from '../config/db.js';
-
-
 export const getTasks = async (req, res, next) => {
   const brokerId = req.user.id;
   const { status = 'pending' } = req.query; 
