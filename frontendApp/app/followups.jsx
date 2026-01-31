@@ -20,6 +20,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 
 // Components
+import WhatsAppIcon from '@/src/Components/WhatsAppIcon.jsx';
 import AddModal from '@/src/Modal and Sheets/AddModal';
 import { clearEditItem, setEditItem, setModalOpen, setModalType } from '@/src/store/slices/uiSlice';
 import FAB from '../src/Components/FAB.jsx';
@@ -30,7 +31,6 @@ import {
     updateFollowUp,
     updateFollowUpStatus
 } from '../src/store/slices/followUpsSlice';
-import WhatsAppIcon from '@/src/Components/WhatsAppIcon.jsx';
 
 // Helper for generating IDs if needed
 const generateId = () => Math.random().toString(36).substring(2, 11);

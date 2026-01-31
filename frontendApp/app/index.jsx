@@ -1,6 +1,21 @@
+import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { View } from "react-native";
-import { useDispatch, useSelector } from "react-redux";
+import { Text, View } from "react-native";
+import { useDispatch } from "react-redux";
+
+// 🔤 FONT LOADING
+import {
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
+} from "@expo-google-fonts/montserrat";
+import { useFonts } from "expo-font";
+
+import {
+    Lato_400Regular,
+    Lato_700Bold,
+} from "@expo-google-fonts/lato";
 
 // Views
 import Dashboard from "../src/Views/Dashboard";
@@ -37,7 +52,7 @@ import {
     clearActiveSiteVisit,
     clearShowFeedback,
     setShowFeedback,
-    updateFollowUp
+    updateFollowUp,
 } from "../src/store/slices/followUpsSlice";
 
 import {
@@ -48,7 +63,7 @@ import {
 
 import { activateSubscription } from "../src/store/slices/subscriptionSlice";
 
-import { useRouter } from "expo-router";
+import { useAppSelector } from "@/src/redux/hooks";
 import {
     clearEditItem,
     setCollabOpen,
@@ -61,34 +76,76 @@ export default function Index() {
   const dispatch = useDispatch();
   const router = useRouter();
 
+  // 🔤 LOAD FONTS
+  const [fontsLoaded] = useFonts({
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
+    Lato_400Regular,
+    Lato_700Bold,
+  });
+
+  // Redux state - Optimized selectors
+  const reduxState = useAppSelector((state) => ({
+    properties: state.properties.properties,
+    selectedProperty: state.properties.selectedProperty,
+    customers: state.customers.customers,
+    selectedCustomer: state.customers.selectedCustomer,
+    followUps: state.followUps.followUps,
+    activeSiteVisit: state.followUps.activeSiteVisit,
+    showFeedback: state.followUps.showFeedback,
+    deals: state.deals.deals,
+    selectedDeal: state.deals.selectedDeal,
+    unreadCount: state.notifications.unreadCount,
+    showPaywall: state.subscription.showPaywall,
+    modalOpen: state.ui.modalOpen,
+    modalType: state.ui.modalType,
+    editItem: state.ui.editItem,
+    collabOpen: state.ui.collabOpen,
+  }));
+
+  const {
+    properties,
+    selectedProperty,
+    customers,
+    selectedCustomer,
+    followUps,
+    activeSiteVisit,
+    showFeedback,
+    deals,
+    selectedDeal,
+    unreadCount,
+    showPaywall,
+    modalOpen,
+    modalType,
+    editItem,
+    collabOpen,
+  } = reduxState;
+
+  // ⛔ Show loading screen while fonts load
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f9fafb' }}>
+        <Text style={{ fontSize: 16, color: '#6b7280' }}>Loading...</Text>
+      </View>
+    );
+  }
+
   // Navigation handler
   const handleNavigation = (path) => {
     try {
       router.push(path);
     } catch (error) {
-      console.warn('Navigation error:', error);
+      console.warn("Navigation error:", error);
     }
   };
-
-  // Redux state
-  const { properties, selectedProperty } = useSelector((s) => s.properties);
-  const { customers, selectedCustomer } = useSelector((s) => s.customers);
-  const { followUps, activeSiteVisit, showFeedback } = useSelector(
-    (s) => s.followUps,
-  );
-  const { deals, selectedDeal } = useSelector((s) => s.deals);
-  const { unreadCount } = useSelector((s) => s.notifications);
-  const { showPaywall } = useSelector((s) => s.subscription);
-  const { modalOpen, modalType, editItem, collabOpen } = useSelector(
-    (s) => s.ui,
-  );
 
   // Utils
   const generateId = () => Math.random().toString(36).substring(2, 11);
 
-  // Modal handler for quick actions
+  // Modal handler
   const handleOpenModal = (type) => {
-    console.log('handleOpenModal called with type:', type);
     dispatch(clearEditItem());
     dispatch(setModalType(type));
     dispatch(setModalOpen(true));
@@ -118,7 +175,6 @@ export default function Index() {
   };
 
   const handleUpdate = (item) => {
-    console.log('handleUpdate called with:', { modalType, item });
     if (modalType === "Property") dispatch(updateProperty(item));
     if (modalType === "Customer") dispatch(updateCustomer(item));
     if (modalType === "FollowUp") dispatch(updateFollowUp(item));
@@ -152,7 +208,7 @@ export default function Index() {
       updateCustomerStatus({
         id: deal.customerId,
         status: "Closed",
-      }),
+      })
     );
   };
 
@@ -165,7 +221,8 @@ export default function Index() {
   const handleSubmitFeedback = (data) => {
     const deal = deals.find(
       (d) =>
-        d.customerId === data.customer.id && d.propertyId === data.property.id,
+        d.customerId === data.customer.id &&
+        d.propertyId === data.property.id
     );
 
     if (deal) {
@@ -178,14 +235,12 @@ export default function Index() {
               data.feedback.sentiment === "interested"
                 ? "Negotiation"
                 : data.feedback.sentiment === "hold"
-                  ? "Meeting"
-                  : "Dropped",
+                ? "Meeting"
+                : "Dropped",
             visits: [...(deal.visits || []), data.feedback],
           },
-        }),
+        })
       );
-    } else if (data.feedback.sentiment !== "not_interested") {
-      handleStartDeal(data.customer, data.property);
     }
 
     dispatch(clearShowFeedback());
@@ -196,26 +251,10 @@ export default function Index() {
     dispatch(activateSubscription({ plan }));
   };
 
-  // FollowUp handlers
-  const handleAddFollowUpFromCustomer = (customer) => {
-    dispatch(setEditItem({ customerId: customer.id }));
-    dispatch(setModalType('FollowUp'));
-    dispatch(setModalOpen(true));
-  };
-
-  const handleEditTask = (task) => {
-    console.log('handleEditTask called with:', task);
-    // Don't close customer detail sheet, just open modal on top
-    dispatch(setEditItem(task));
-    dispatch(setModalType('FollowUp'));
-    dispatch(setModalOpen(true));
-  };
-
   return (
     <View className="flex-1 bg-gray-50">
       <StatusBar style="dark" backgroundColor="white" />
 
-      {/* Dashboard */}
       <Dashboard
         properties={properties}
         customers={customers}
@@ -228,10 +267,8 @@ export default function Index() {
         onOpenModal={handleOpenModal}
       />
 
-      {/* FAB */}
       <FAB onPress={handleFABPress} />
 
-      {/* Sheets */}
       <SubscriptionSheet
         isOpen={showPaywall}
         onSubscribe={handleSubscribe}
@@ -266,8 +303,6 @@ export default function Index() {
           followUps={followUps}
           onClose={() => dispatch(clearSelectedCustomer())}
           onStartDeal={handleStartDeal}
-          onAddFollowUp={handleAddFollowUpFromCustomer}
-          onEditTask={handleEditTask}
         />
       )}
 
@@ -277,13 +312,7 @@ export default function Index() {
           properties={properties}
           customers={customers}
           onClose={() => dispatch(clearSelectedDeal())}
-          onUpdateDeal={(id, updated) =>
-            dispatch(updateDeal({ id, deal: updated }))
-          }
-          onCloseDeal={(deal) => handleCloseDeal(deal)}
-          onAddTask={(task) =>
-            dispatch(addFollowUp({ ...task, id: generateId() }))
-          }
+          onCloseDeal={handleCloseDeal}
         />
       )}
 

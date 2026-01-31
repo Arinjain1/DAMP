@@ -1,7 +1,5 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import {
     ArrowRight,
-    Bell,
     Briefcase,
     Clock,
     Handshake,
@@ -16,262 +14,165 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
 
-// Helper for currency formatting
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-IN', {
+import {
+    INITIAL_CUSTOMERS,
+    INITIAL_DEALS,
+    INITIAL_FOLLOWUPS,
+    INITIAL_PROFILE,
+    INITIAL_PROPERTIES,
+} from '../MockData/Mockdata';
+import { useMemo } from 'react';
+
+// Currency formatter
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(amount || 0);
-};
 
-const Dashboard = ({
-  properties = [],
-  customers = [],
-  followUps = [],
-  activeDeals = [],
-  unreadCount = 0,
-  onOpenCollab,
-  onOpenDeal,
-  onNavigate,
-  onOpenModal,
-}) => {
+const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
+  const properties = INITIAL_PROPERTIES;
+  const customers = INITIAL_CUSTOMERS;
+  const followUps = INITIAL_FOLLOWUPS;
+  const activeDeals = INITIAL_DEALS;
+  const unreadCount = 2;
 
-  const stats = {
-    active: properties.filter(p => p.status === 'Available').length,
-    leads: customers.length,
-    tasks: followUps.filter(f => f.status === 'Pending').length,
-    hotLeads: activeDeals.length,
-  };
+  // Memoize expensive calculations
+  const getStageBadgeStyle = useMemo(() => (stage) => {
+    const colors = {
+      Meeting: { bg: '#F3F1FF', text: '#5B4DFF' },
+      'Site Visit': { bg: '#F0ECFF', text: '#5B21B6' },
+      Negotiation: { bg: '#FDF2F8', text: '#9D174D' },
+      Agreement: { bg: '#E0F2FE', text: '#075985' },
+      Token: { bg: '#DCFCE7', text: '#047857' },
+    };
+    return colors[stage] || { bg: '#F3F4F6', text: '#374151' };
+  }, []);
 
-  // Function to get stage badge colors
-  const getStageBadgeStyle = (stage) => {
-    const stageColors = {
-  'Lead': {
-    bg: '#F3F1FF',      // very light purple
-    text: '#5B4DFF',
-  },
-
-  'Interested': {
-    bg: '#E9E6F7',      // app soft purple
-    text: '#4B3CFF',
-  },
-
-  'Follow-up': {
-    bg: '#EEEAFE',      // lavender
-    text: '#4338CA',
-  },
-
-  'Site Visit': {
-    bg: '#F0ECFF',
-    text: '#5B21B6',
-  },
-
-  'Negotiation': {
-    bg: '#FDF2F8',      // soft pink (still premium)
-    text: '#9D174D',
-  },
-
-  'Closing': {
-    bg: '#E0F2FE',      // calm blue (decision phase)
-    text: '#075985',
-  },
-
-  'Won': {
-    bg: '#DCFCE7',      // success green (keep semantic)
-    text: '#047857',
-  },
-
-  'Lost': {
-    bg: '#FEE2E2',      // error red (clear)
-    text: '#991B1B',
-  },
-};
-
-
-    return stageColors[stage] || { bg: '#F3F4F6', text: '#374151' }; // Default Gray
-  };
+  // Memoize filtered data
+  const pendingFollowUps = useMemo(() => 
+    followUps.filter(f => f.status === 'Pending').slice(0, 3),
+    [followUps]
+  );
 
   const NavItem = ({ icon: Icon, label, onPress }) => (
-    <TouchableOpacity 
-      onPress={onPress} 
-      style={styles.navItem}
-      activeOpacity={0.7}
-    >
-      <TouchableOpacity 
-        onPress={onPress}
-        style={styles.navIconContainer}
-        activeOpacity={0.8}
-      >
-        <Icon size={24} color="#374151" strokeWidth={2} />
-      </TouchableOpacity>
+    <TouchableOpacity style={styles.navItem} onPress={onPress}>
+      <View style={styles.navIconContainer}>
+        <Icon size={24} color="#1F2937" strokeWidth={1.5} />
+      </View>
       <Text style={styles.navLabel}>{label}</Text>
     </TouchableOpacity>
   );
 
-  // --- STAT BLOCK (From your code) ---
-  const StatBlock = ({ label, count, onPress }) => (
-    <TouchableOpacity style={styles.statInnerBox} onPress={onPress}>
+  const StatBlock = ({ label, count }) => (
+    <View style={styles.statInnerBox}>
       <Text style={styles.statCount}>{count}</Text>
       <Text style={styles.statLabel}>{label}</Text>
-    </TouchableOpacity>
+    </View>
   );
 
   return (
     <View style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
-        
-        {/* ===== GRADIENT HEADER ===== */}
-        <LinearGradient
-          colors={['#BFB7FD', '#E5E1FF', '#f9fafb']} 
-          locations={[0, 0.7, 1]}
-          style={styles.gradientHeader}
-        >
-          {/* Profile Row */}
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* ================= HEADER ================= */}
+        <View style={styles.header}>
+          <Image
+            source={require('../../assets/images/Group 1.png')}
+            style={styles.headerDecoration}
+          />
+
           <View style={styles.profileRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <Image
-                source={{ uri: 'https://i.pravatar.cc/150' }}
-                style={styles.avatar}
-              />
-              <View>
-                <Text style={styles.greetingText}>Welcome back,</Text>
-                <Text style={styles.userName}>Roberts Adams</Text>
+            <View style={styles.profileLeft}>
+              <Image source={{ uri: INITIAL_PROFILE.avatar }} style={styles.avatar} />
+              <View style={styles.nameRow}>
+                <Text style={styles.userName}>Manas Gangrade</Text>
+                <Image 
+                  source={require('../../assets/images/pajamas_partner-verified.png')} 
+                  style={styles.verificationBadge}
+                />
               </View>
             </View>
 
-            <TouchableOpacity
-              onPress={() => onNavigate && onNavigate('/notifications')}
-              style={styles.bellButton}
-            >
-              <Bell size={20} color="#111827" />
+            <TouchableOpacity style={styles.bellButton}>
+              <Image 
+                source={require('../../assets/images/famicons_notifications.png')} 
+                style={styles.notificationIcon}
+              />
               {unreadCount > 0 && <View style={styles.dot} />}
             </TouchableOpacity>
           </View>
 
-          {/* --- STATS BOX (From your code) --- */}
+          {/* Stats */}
           <View style={styles.statsOuterBox}>
-            <StatBlock 
-              label="Properties" 
-              count={stats.active} 
-              onPress={() => onNavigate && onNavigate('/properties')} 
-            />
-            <StatBlock 
-              label="Clients" 
-              count={stats.leads} 
-              onPress={() => onNavigate && onNavigate('/customers')} 
-            />
-            <StatBlock 
-              label="Tasks" 
-              count={stats.tasks} 
-              onPress={() => onNavigate && onNavigate('/followups')} 
-            />
-            <StatBlock 
-              label="Deals" 
-              count={stats.hotLeads} 
-              onPress={() => onNavigate && onNavigate('/deals')} 
-            />
+            <StatBlock label="Total Visitor" count={123} />
+            <StatBlock label="Total Sale" count={45} />
+            <StatBlock label="Pending" count={34} />
+            <StatBlock label="Rejected" count={14} />
           </View>
+        </View>
 
-        </LinearGradient>
-
-        {/* ===== MAIN CONTENT ===== */}
-        <View style={styles.mainBody}>
-
-          {/* --- QUICK ACTIONS --- */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
-            <View style={styles.navRow}>
-              <NavItem
-                icon={UserPlus}
-                label="New Lead"
-                onPress={() => onOpenModal && onOpenModal('Customer')}
-              />
-              <NavItem
-                icon={Plus}
-                label="Add Prop"
-                onPress={() => {
-                  console.log('Add Prop clicked - opening Property modal');
-                  onOpenModal && onOpenModal('Property');
-                }}
-              />
-              <NavItem
-                icon={Briefcase}
-                label="Deals"
-                onPress={() => onNavigate && onNavigate('/deals')}
-              />
-              <NavItem
-                icon={Handshake}
-                label="Collab"
-                onPress={onOpenCollab}
-              />
+        {/* ================= BODY ================= */}
+        <View style={styles.body}>
+          
+          <Text style={styles.sectionTitle} className=''>Quick Actions</Text>
+          
+          {/* --- MODIFIED BILL PAYMENTS CONTAINER --- */}
+          <View style={styles.billPaymentsWrapper}>
+            
+            {/* Left Side: The 4 Icons */}
+            <View style={styles.iconsGroup}>
+              <NavItem icon={UserPlus} label="New Lead" onPress={() => onOpenModal?.('Customer')} />
+              <NavItem icon={Plus} label="Add Prop" onPress={() => onOpenModal?.('Property')} />
+              <NavItem icon={Briefcase} label="Deal" onPress={() => onNavigate?.('/deals')} />
+              <NavItem icon={Handshake} label="Collab" onPress={onOpenCollab} />
             </View>
-          </View>
 
-          {/* --- ACTIVE DEALS (High Detail Version) --- */}
+            {/* Right Side: Broker Card (Touches Edge) */}
+            <TouchableOpacity style={styles.brokerBlock}>
+              <Text style={styles.brokerLabel}>Broker</Text>
+              <Text style={styles.brokerNumber}>99</Text>
+            </TouchableOpacity>
+
+          </View>
+          {/* -------------------------------------- */}
+
+          {/* Active Deals */}
           {activeDeals.length > 0 && (
-            <View style={styles.sectionContainer}>
-              <View style={styles.sectionHeaderRow}>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
-                  <Briefcase size={20} color="#000000" />
-                  <Text style={styles.sectionHeaderTitle}>Active Deals</Text>
-                </View>
-                <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{activeDeals.length}</Text>
-                </View>
-              </View>
-              
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                contentContainerStyle={{ gap: 16, paddingRight: 20 }}
-              >
-                {activeDeals.map(deal => {
+            <View style={{ marginTop: 24 }}>
+              <Text style={styles.sectionTitle}>Active Deals</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {activeDeals.map((deal) => {
                   const property = properties.find(p => p.id === deal.propertyId);
                   const customer = customers.find(c => c.id === deal.customerId);
-                  const stageColors = getStageBadgeStyle(deal.stage);
-                  
+                  const stage = getStageBadgeStyle(deal.stage);
+
                   return (
                     <TouchableOpacity
                       key={deal.id}
-                      onPress={() => onOpenDeal(deal)}
-                      activeOpacity={0.9}
                       style={styles.dealCard}
+                      onPress={() => onOpenDeal(deal)}
                     >
-                      <View style={styles.dealCardTop}>
-                        <View style={styles.dealInfoRow}>
-                          <Image 
-                            source={{ uri: property?.image || 'https://via.placeholder.com/100' }} 
-                            style={styles.dealImage}
-                          />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.dealTitle} numberOfLines={1}>
-                              {property?.title || 'Unknown Property'}
-                            </Text>
-                            <Text style={styles.dealSubtitle} numberOfLines={1}>
-                              {customer?.name || 'Unknown Client'}
-                            </Text>
-                          </View>
+                      <View style={styles.dealTop}>
+                        <Image source={{ uri: property?.image }} style={styles.dealImage} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.dealTitle}>{property?.title}</Text>
+                          <Text style={styles.dealSubtitle}>{customer?.name}</Text>
                         </View>
-                        <View style={[styles.stageBadge, { backgroundColor: stageColors.bg }]}>
-                          <Text style={[styles.stageText, { color: stageColors.text }]}>
+                      </View>
+
+                      <View style={styles.dealBottom}>
+                        <View style={[styles.stageBadge, { backgroundColor: stage.bg }]}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: stage.text }}>
                             {deal.stage}
                           </Text>
                         </View>
-                      </View>
-                      
-                      <View style={styles.dealCardBottom}>
-                        <Text style={styles.nextStepText}>Next: Meeting</Text>
-                        <Text style={styles.dealPriceText}>{formatCurrency(property?.price)}</Text>
+                        <Text style={styles.price}>{formatCurrency(property?.price)}</Text>
                       </View>
                     </TouchableOpacity>
                   );
@@ -280,360 +181,240 @@ const Dashboard = ({
             </View>
           )}
 
-          {/* --- TODAY'S FOCUS (High Detail Version) --- */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionHeaderTitle}>Today's Focus</Text>
-              <TouchableOpacity onPress={() => onNavigate && onNavigate('/followups')} style={styles.viewAllButton}>
+          {/* Today's Focus */}
+          <View style={{ marginTop: 24 }}>
+            <View style={styles.focusHeader}>
+              <Text style={styles.sectionTitle}>Today’s Focus</Text>
+              <TouchableOpacity style={styles.viewAll}>
                 <Text style={styles.viewAllText}>View All</Text>
                 <ArrowRight size={14} color="#968CE4" />
               </TouchableOpacity>
             </View>
-            
-            {followUps.filter(f => f.status === 'Pending').slice(0, 3).map((task) => {
-              const customer = customers.find(c => c.id === task.customerId);
-              const taskDate = new Date(task.date);
-              return (
-                <View key={task.id} style={styles.taskCard}>
-                  <View style={styles.dateBox}>
-                    <Text style={styles.dateMonth}>
-                      {taskDate.toLocaleString('default', { month: 'short' })}
-                    </Text>
-                    <Text style={styles.dateDay}>
-                      {taskDate.getDate()}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.taskTitle}>{customer?.name || 'Client Task'}</Text>
-                    <Text style={styles.taskNote} numberOfLines={1}>{task.note}</Text>
-                    <View style={styles.timeBadge}>
-                      <Clock size={10} color="#9ca3af" style={{marginRight: 4}} />
-                      <Text style={styles.timeText}>
-                        {taskDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+            {pendingFollowUps.map(task => {
+                const customer = customers.find(c => c.id === task.customerId);
+                const date = new Date(task.date);
+
+                return (
+                  <View key={task.id} style={styles.taskCard}>
+                    <View style={styles.dateBox}>
+                      <Text style={styles.dateMonth}>
+                        {date.toLocaleString('default', { month: 'short' })}
                       </Text>
+                      <Text style={styles.dateDay}>{date.getDate()}</Text>
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.taskTitle}>{customer?.name}</Text>
+                      <Text style={styles.taskNote} numberOfLines={1}>
+                        {task.note}
+                      </Text>
+                      <View style={styles.timeRow}>
+                        <Clock size={10} color="#9ca3af" />
+                        <Text style={styles.timeText}>
+                          {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                  
-                </View>
-              );
-            })}
-            
-            {followUps.filter(f => f.status === 'Pending').length === 0 && (
-               <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No tasks due today. All caught up!</Text>
-               </View>
-            )}
+                );
+              })}
           </View>
-
-        </View> 
-        {/* End of Main Body */}
-
+        </View>
       </ScrollView>
     </View>
   );
 };
 
-// --- STYLES ---
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  scrollContent: {
-    paddingBottom: 120,
-  },
+export default Dashboard;
 
-  // Gradient Header Styles
-  gradientHeader: {
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 60,
+/* ================= STYLES ================= */
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f9fafb' },
+
+  header: {
+    backgroundColor: '#BFB7FD',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 25 : 60,
     paddingHorizontal: 20,
-    paddingBottom: 32,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingBottom: 24,
+    overflow: 'hidden',
+  },
+  headerDecoration: {
+    position: 'absolute',
+    width: 245,
+    height: 245,
+    opacity: 0.95,
   },
   profileRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 52,
   },
+  profileLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     borderWidth: 2,
-    borderColor: 'white',
+    borderColor: '#fff',
   },
-  greetingText: {
-    fontSize: 12,
-    color: '#4b5563', 
-    fontWeight: '600',
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  bellButton: {
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    padding: 10,
-    borderRadius: 14,
-    position: 'relative',
-  },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  userName: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  verificationBadge: { width: 16, height: 16, resizeMode: 'contain' },
+  bellButton: { padding: 12, borderRadius: 16, position: 'relative' },
+  notificationIcon: { width: 24, height: 24, resizeMode: 'contain' },
   dot: {
     position: 'absolute',
-    top: 10,
+    top: 8,
     right: 10,
-    height: 8,
     width: 8,
+    height: 8,
     backgroundColor: '#ef4444',
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'white',
+    borderColor: '#fff',
   },
-
-  // --- STATS STYLES (From Your Code) ---
   statsOuterBox: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     borderRadius: 20,
+    flexDirection: 'row',
     padding: 12,
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    gap: 8,
   },
   statInnerBox: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F2F0FF',
     borderRadius: 14,
-    paddingVertical: 16,
     alignItems: 'center',
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    paddingVertical: 14,
   },
-  statCount: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginTop: 4,
-  },
-
-  // Main Content
-  mainBody: {
-    paddingHorizontal: 20,
-  },
-
-  // Section Common
-  sectionContainer: {
-    marginTop: 8, 
-    marginBottom: 18,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#9ca3af',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 16,
-  },
+  statCount: { fontSize: 14, fontWeight: '400' },
+  statLabel: { fontSize: 11, marginTop: 6 },
   
-  // Navigation Grid (Quick Actions)
-  navRow: {
+  // Body Padding is 20
+  body: { padding: 20 },
+  
+  sectionTitle: { fontFamily: 'MONTSERRAT_700' , fontSize: 16, fontWeight: '700', marginBottom: 15 , color:'#313131'},
+
+  /* --- MODIFIED BILL PAYMENTS STYLES --- */
+  
+  billPaymentsWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: -20, 
+    marginBottom: 4,
+  },
+
+  iconsGroup: {
+    flex: 1, 
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
+    paddingRight: 22, 
   },
-  navItem: {
-    flex: 1,
+
+  navItem: { 
     alignItems: 'center',
-    gap: 8,
+    minWidth: 50, 
   },
+
   navIconContainer: {
-    height: 56,
-    width: 56,
-    borderRadius: 20,
+    width: 54, 
+    height: 54,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  navLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-
-  // Active Deals (Detailed Look)
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  sectionHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
-  countBadge: {
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  countBadgeText: {
-    color: '#4f46e5',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  dealCard: {
-    width: 280,
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  dealCardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  dealInfoRow: {
-    flexDirection: 'row',
-    gap: 12,
-    flex: 1,
-  },
-  dealImage: {
-    height: 40,
-    width: 40,
-    borderRadius: 10,
-    backgroundColor: '#f3f4f6',
-  },
-  dealTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#111827',
     marginBottom: 2,
   },
-  dealSubtitle: {
+
+  navLabel: { 
+    fontSize: 11, 
+    fontWeight: '600',
+    color: '#111827',
+    textAlign: 'center' 
+  },
+
+  brokerBlock: {
+    backgroundColor: '#E9e6f7',
+    width: 80, 
+    height: 80, 
+    borderTopLeftRadius: 18,
+    borderBottomLeftRadius: 18,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+    
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  brokerLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 0,
+    fontFamily: 'MONTSERRAT_600',
   },
-  stageBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+
+  brokerNumber: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 1,
+    fontFamily: 'MONTSERRAT_600',
   },
-  stageText: {
-    fontSize: 10,
-    fontWeight: 'bold',
+  /* ------------------------------------ */
+
+  dealCard: {
+    width: 280,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    marginRight: 16,
+    marginTop: 8,
   },
-  dealCardBottom: {
-    marginTop: 4,
-    paddingTop: 12,
+  dealTop: { flexDirection: 'row', gap: 12 },
+  dealImage: { width: 40, height: 40, borderRadius: 10 },
+  dealTitle: { fontWeight: '500', fontSize: 13 },
+  dealSubtitle: { fontFamily: 'MONTSERRAT_400', fontSize: 11, color: '#6b7280' },
+  stageBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  dealBottom: {
+    marginTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f9fafb',
+    borderTopColor: '#f3f4f6',
+    paddingTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  nextStep: { fontSize: 12, color: '#9ca3af' },
+  price: { fontSize: 13, fontWeight: '800' },
+  focusHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  nextStepText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9ca3af',
-  },
-  dealPriceText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#111827',
-  },
-
-  // Task List (Detailed Look)
-  viewAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  viewAllText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#968CE4',
-  },
+  viewAll: { flexDirection: 'row',  gap: 4 , bottom:8},
+  viewAllText: { fontSize: 12, fontWeight: '700', color: '#968CE4' },
   taskCard: {
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 16,
-    marginBottom: 12,
+    marginTop: 12,
   },
   dateBox: {
-    backgroundColor: '#eff6ff',
     width: 48,
     height: 48,
     borderRadius: 12,
+    backgroundColor: '#eff6ff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dateMonth: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#6b7280',
-    textTransform: 'uppercase',
-  },
-  dateDay: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#000000',
-    lineHeight: 20,
-  },
-  taskTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  taskNote: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-  timeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginTop: 8,
-  },
-  timeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#9ca3af',
-  },
-  emptyState: {
-    alignItems: 'center', 
-    paddingVertical: 20, 
-    opacity: 0.6
-  },
-  emptyStateText: {
-    fontSize: 13, 
-    color: '#6b7280'
-  }
+  dateMonth: { fontSize: 10, fontWeight: '700', color: '#6b7280' },
+  dateDay: { fontSize: 18, fontWeight: '900' },
+  taskTitle: { fontWeight: '700' },
+  taskNote: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  timeRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
+  timeText: { fontSize: 10, fontWeight: '700', color: '#9ca3af' , bottom :3},
 });
-
-export default Dashboard;

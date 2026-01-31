@@ -1,11 +1,9 @@
-import * as LucideIcons from 'lucide-react-native';
 import { Briefcase, Building, Edit3, Layout, MapPin, Phone, Search, Sofa, Users, X } from 'lucide-react-native';
 import { useState } from 'react';
-import { Dimensions, Image, Linking, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import WhatsAppIcon from '../Components/WhatsAppIcon';
 import { getAmenitiesForType } from '../MockData/Mockdata';
 import DealSheet from './DealSheet';
-import WhatsAppIcon from '../Components/WhatsAppIcon';
-const { height } = Dimensions.get('window');
 
 // Helper: currency format
 const formatCurrency = (amount) =>
@@ -25,11 +23,20 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
   
   // Helper function to render Lucide icons
   const renderIcon = (iconName, size = 14, color = '#6b7280') => {
-    const IconComponent = LucideIcons[iconName];
-    if (IconComponent) {
-      return <IconComponent size={size} color={color} />;
-    }
-    return <LucideIcons.Star size={size} color={color} />; // Fallback icon
+    // Create a mapping of icon names to components
+    const iconMap = {
+      'Briefcase': Briefcase,
+      'Building': Building,
+      'Layout': Layout,
+      'MapPin': MapPin,
+      'Phone': Phone,
+      'Search': Search,
+      'Sofa': Sofa,
+      'Users': Users
+    };
+    
+    const IconComponent = iconMap[iconName];
+    return IconComponent ? <IconComponent size={size} color={color} /> : null;
   };
   
   if (!property) return null;

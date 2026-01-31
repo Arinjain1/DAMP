@@ -336,7 +336,7 @@ export const INITIAL_DEALS = [
     id: "d3",
     customerId: "c3",
     propertyId: "p4",
-    stage: "Documentation",
+    stage: "Agreement",
     startedAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
     meetings: [],
     visits: [
