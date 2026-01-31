@@ -264,32 +264,109 @@ export const INITIAL_CUSTOMERS = [
 ];
 
 export const INITIAL_FOLLOWUPS = [
+  // Today's Pending Tasks
   {
     id: "f1",
     customerId: "c1",
     propertyId: "p1",
     date: new Date().toISOString(),
-    note: "Schedule site visit",
+    note: "Schedule site visit for luxury apartment",
     status: "Pending",
-    type: "Visit",
+    type: "Site Visit",
   },
   {
     id: "f2",
     customerId: "c2",
     propertyId: "p2",
-    date: new Date(Date.now() + 86400000).toISOString(),
-    note: "Discuss final price",
+    date: new Date(new Date().setHours(14, 30, 0, 0)).toISOString(), // Today 2:30 PM
+    note: "Discuss final price and parking requirements",
     status: "Pending",
-    type: "Call",
+    type: "Meeting",
   },
   {
     id: "f3",
     customerId: "c3",
     propertyId: "p4",
-    date: new Date(Date.now() + 172800000).toISOString(),
-    note: "Follow up on rental agreement",
+    date: new Date(new Date().setHours(16, 0, 0, 0)).toISOString(), // Today 4:00 PM
+    note: "Follow up on rental agreement documentation",
     status: "Pending",
-    type: "Meeting",
+    type: "Call",
+  },
+  {
+    id: "f4",
+    customerId: "c1",
+    propertyId: "p3",
+    date: new Date(new Date().setHours(17, 30, 0, 0)).toISOString(), // Today 5:30 PM
+    note: "Show plot location and discuss investment potential",
+    status: "Pending",
+    type: "Site Visit",
+  },
+  {
+    id: "f5",
+    customerId: "c2",
+    propertyId: "p1",
+    date: new Date(new Date().setHours(18, 45, 0, 0)).toISOString(), // Today 6:45 PM
+    note: "Present alternative office space options",
+    status: "Pending",
+    type: "Presentation",
+  },
+
+  // Today's Completed Tasks
+  {
+    id: "f6",
+    customerId: "c1",
+    propertyId: "p1",
+    date: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(), // Today 9:00 AM
+    note: "Initial property inquiry call completed",
+    status: "Done",
+    type: "Call",
+  },
+  {
+    id: "f7",
+    customerId: "c3",
+    propertyId: "p4",
+    date: new Date(new Date().setHours(10, 30, 0, 0)).toISOString(), // Today 10:30 AM
+    note: "Sent property brochure and pricing details",
+    status: "Done",
+    type: "Email",
+  },
+  {
+    id: "f8",
+    customerId: "c2",
+    propertyId: "p2",
+    date: new Date(new Date().setHours(11, 15, 0, 0)).toISOString(), // Today 11:15 AM
+    note: "Completed virtual tour of office space",
+    status: "Done",
+    type: "Virtual Tour",
+  },
+  {
+    id: "f9",
+    customerId: "c1",
+    propertyId: "p3",
+    date: new Date(new Date().setHours(12, 0, 0, 0)).toISOString(), // Today 12:00 PM
+    note: "Verified plot documents and legal clearance",
+    status: "Done",
+    type: "Documentation",
+  },
+
+  // Tomorrow's Tasks
+  {
+    id: "f10",
+    customerId: "c2",
+    propertyId: "p2",
+    date: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+    note: "Final negotiation meeting with property owner",
+    status: "Pending",
+    type: "Negotiation",
+  },
+  {
+    id: "f11",
+    customerId: "c3",
+    propertyId: "p4",
+    date: new Date(Date.now() + 172800000).toISOString(), // Day after tomorrow
+    note: "Sign rental agreement and collect advance",
+    status: "Pending",
+    type: "Agreement",
   },
 ];
 
