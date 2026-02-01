@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
   },
   customerName: {
     fontFamily: 'Montserrat-600SemiBold',
-    fontSize: 14,
+    fontSize: 15,
     color: '#000000',
     fontWeight: '700',
     marginBottom: 4,
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontFamily: 'Lato-400Regular',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '100',
     flex: 1,
   },

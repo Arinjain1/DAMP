@@ -1,30 +1,28 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import {
-    Building,
-    Edit3,
-    Filter,
-    Layout,
-    MapPin,
-    Plus,
-    Search,
-    X
+  Building,
+  Edit3,
+  Filter,
+  Layout,
+  MapPin,
+  Plus,
+  Search,
+  X
 } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
-    Dimensions,
-    ImageBackground,
-    Modal,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  ImageBackground,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -72,14 +70,10 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      {/* 🔥 PURPLE TOP SHADE (NO BOX FEEL) */}
-      <LinearGradient
-        colors={['#BFB7FD', '#E5E1FF', '#f9fafb']} 
-        locations={[0, 0.7, 1]}
-        style={styles.headerGradient}
-      >
+      {/* HEADER SECTION */}
+      <View style={styles.headerContainer}>
         <View style={styles.headerContent}>
           <View style={styles.headerTopRow}>
             <View>
@@ -108,6 +102,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
             </View>
           </View>
 
+          {/* Category Tabs */}
           <View style={styles.categoryContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {Object.keys(PROPERTY_STRUCTURE).map(cat => {
@@ -135,6 +130,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
             </ScrollView>
           </View>
 
+          {/* CHIPS */}
           <View style={styles.chipsContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <TouchableOpacity
@@ -168,7 +164,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
             </ScrollView>
           </View>
         </View>
-      </LinearGradient>
+      </View>
 
       {/* CONTENT */}
       <ScrollView
@@ -210,10 +206,8 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
               style={styles.propertyImage}
               imageStyle={styles.propertyImageStyle}
             >
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.7)']}
-                style={styles.propertyImageOverlay}
-              >
+              <View style={{flex:1, backgroundColor:'rgba(0,0,0,0.1)'}}>
+                 <View style={styles.propertyImageOverlay}>
                 <View style={styles.propertyImageContent}>
                   <View style={styles.propertyBadges}>
                     <View style={getStatusBadgeStyle(property.status)}>
@@ -232,7 +226,8 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                     <Edit3 size={16} color="white" />
                   </TouchableOpacity>
                 </View>
-              </LinearGradient>
+                </View>
+              </View>
             </ImageBackground>
 
             <View style={styles.propertyInfo}>
@@ -279,7 +274,6 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            {/* Modal Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filters</Text>
               <TouchableOpacity 
@@ -291,7 +285,6 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
             </View>
 
             <ScrollView style={styles.modalContent}>
-              {/* Property Category */}
               <View style={styles.filterSection}>
                 <Text style={styles.filterSectionTitle}>Property Category</Text>
                 <View style={styles.filterOptions}>
@@ -319,7 +312,6 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                 </View>
               </View>
 
-              {/* Property Type */}
               <View style={styles.filterSection}>
                 <Text style={styles.filterSectionTitle}>Property Type</Text>
                 <View style={styles.filterOptions}>
@@ -358,7 +350,6 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                 </View>
               </View>
 
-              {/* BHK Configuration (Only for Residential) */}
               {activeCategory === 'Residential' && (
                 <View style={styles.filterSection}>
                   <Text style={styles.filterSectionTitle}>Configuration</Text>
@@ -400,7 +391,6 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
               )}
             </ScrollView>
 
-            {/* Modal Footer */}
             <View style={styles.modalFooter}>
               <TouchableOpacity
                 onPress={() => {
@@ -424,12 +414,10 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
         </View>
       </Modal>
 
-      {/* Floating Action Button */}
       {onAddProperty && (
         <TouchableOpacity
           onPress={onAddProperty}
-          className="absolute right-[5vw] w-[15vw] h-[15vw] bg-gray-900 rounded-full items-center justify-center"
-          style={{ bottom: 30 + insets.bottom }}
+          style={[styles.fab, { bottom: 30 + insets.bottom }]}
           activeOpacity={0.8}
         >
           <Plus size={28} color="white" />
@@ -442,8 +430,12 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
 
-  headerGradient: {
+  // --- HEADER SECTION ---
+  headerContainer: {
+    backgroundColor: '#ffffff',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 60,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6', 
   },
   headerContent: {
     paddingHorizontal: 20,
@@ -454,29 +446,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '900',
+    fontFamily: 'Montserrat_700Bold',
     color: '#3E3E3E',
   },
   headerSubtitle: {
     fontSize: 14,
+    fontFamily: 'Montserrat_400Regular',
     color: '#6b7280',
     marginTop: 4,
   },
 
   toggleContainer: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: '#F3F4F6', 
     padding: 4,
     borderRadius: 12,
     flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   toggleButton: {
     paddingHorizontal: 16,
@@ -486,24 +475,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonActive: {
-    backgroundColor: '#000000', 
-    shadowColor: '#6366f1',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: '#ffffff', 
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   toggleText: {
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: 'Montserrat_700Bold',
     color: '#6b7280',
   },
   toggleTextActive: {
-    color: '#ffffff',
+    color: '#111827',
+    fontFamily: 'Montserrat_700Bold',
   },
 
   categoryContainer: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   categoryTab: {
     marginRight: 24,
@@ -512,10 +503,12 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 14,
     fontWeight: '700',
+    fontFamily: 'Montserrat_700Bold',
     color: '#9ca3af',
   },
   categoryTextActive: {
     color: '#111827',
+    fontFamily: 'Montserrat_700Bold',
   },
   activeUnderline: {
     height: 2,
@@ -524,27 +517,44 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
 
-  chipsContainer: { paddingBottom: 8 },
+  // --- NEW CHIP DESIGN ---
+  chipsContainer: { paddingBottom: 1 },
 
   chip: {
     paddingHorizontal: 16,
     paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    marginRight: 8,
+    borderRadius: 12, 
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   chipActive: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
+    backgroundColor: '#B0A6F8', 
+    borderWidth: 0,
+    shadowColor: '#B0A6F8',
   },
   chipInactive: {
     backgroundColor: '#ffffff',
-    borderColor: '#e5e7eb',
+    borderWidth: 1,
+    borderColor: '#E5E7EB', 
   },
-  chipText: { fontSize: 12, fontWeight: '700' },
-  chipTextActive: { color: '#ffffff' },
-  chipTextInactive: { color: '#6b7280' },
+  chipText: { 
+    fontSize: 12, 
+    fontWeight: '500',
+    letterSpacing: 0.2,
+  },
+  chipTextActive: { 
+    color: '#ffffff',
+    fontWeight: '600',
+    //fontFamily: 'Montserrat_500Medium',
+  },
+  chipTextInactive: { 
+    color: '#6B7280',
+    //fontFamily: 'Montserrat_500Medium',
+    fontWeight: '500',
+  },
 
+  // --- SCROLL CONTENT ---
   scrollView: { flex: 1 },
   scrollContent: {
     paddingTop: 16,
@@ -560,16 +570,23 @@ const styles = StyleSheet.create({
   resultCountText: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: 'Montserrat_700Bold',
     color: '#9ca3af',
   },
   filterButton: {
     flexDirection: 'row',
     gap: 6,
     alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   filterButtonText: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: 'Montserrat_700Bold',
+    color: '#374151',
   },
 
   emptyState: {
@@ -579,24 +596,23 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: 'Montserrat_700Bold',
     marginTop: 12,
   },
   emptySubtitle: {
     fontSize: 14,
+    fontFamily: 'Montserrat_400Regular',
     color: '#9ca3af',
     marginTop: 4,
   },
 
-  // Property Cards
+  // --- PROPERTY CARDS ---
   propertyCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: 16,
+   borderWidth: 1,
+   borderColor: '#e5e7eb',
     overflow: 'hidden',
   },
   propertyImage: {
@@ -622,13 +638,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusBadge: {
-    backgroundColor: 'rgba(34, 197, 94, 0.9)', // Green for Available
+    backgroundColor: 'rgba(34, 197, 94, 0.95)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   statusBadgeSold: {
-    backgroundColor: 'rgba(239, 68, 68, 0.9)', // Red for Sold
+    backgroundColor: 'rgba(239, 68, 68, 0.95)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -637,9 +653,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 10,
     fontWeight: '700',
+    fontFamily: 'Montserrat_700Bold',
   },
   bhkBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.9)',
+    backgroundColor: 'rgba(59, 130, 246, 0.95)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -648,9 +665,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 10,
     fontWeight: '700',
+    fontFamily: 'Montserrat_700Bold',
   },
   editButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     padding: 8,
     borderRadius: 8,
   },
@@ -658,8 +676,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   propertyTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
+    fontFamily: 'Montserrat_700Bold',
     color: '#111827',
     marginBottom: 8,
   },
@@ -667,10 +686,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 12,
+    marginBottom: 2,
   },
   propertyLocationText: {
     fontSize: 12,
+    fontFamily: 'Montserrat_400Regular',
     color: '#6b7280',
     flex: 1,
   },
@@ -688,6 +708,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#6b7280',
     fontWeight: '600',
+    fontFamily: 'Montserrat_600SemiBold',
   },
   propertyFooter: {
     flexDirection: 'row',
@@ -697,15 +718,17 @@ const styles = StyleSheet.create({
   propertyPrice: {
     fontSize: 18,
     fontWeight: '900',
+    fontFamily: 'Montserrat_700Bold',
     color: '#111827',
   },
   propertyListingType: {
     fontSize: 12,
     color: '#6b7280',
     fontWeight: '600',
+    fontFamily: 'Montserrat_600SemiBold',
   },
 
-  // Modal Styles
+  // --- MODAL ---
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -728,6 +751,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: 'Montserrat_700Bold',
     color: '#111827',
   },
   closeButton: {
@@ -745,6 +769,7 @@ const styles = StyleSheet.create({
   filterSectionTitle: {
     fontSize: 14,
     fontWeight: '700',
+    fontFamily: 'Montserrat_700Bold',
     color: '#374151',
     marginBottom: 12,
   },
@@ -768,10 +793,12 @@ const styles = StyleSheet.create({
   filterOptionText: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'Montserrat_600SemiBold',
     color: '#6b7280',
   },
   filterOptionTextActive: {
     color: 'white',
+    fontFamily: 'Montserrat_600SemiBold',
   },
   modalFooter: {
     flexDirection: 'row',
@@ -791,6 +818,7 @@ const styles = StyleSheet.create({
   clearButtonText: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: 'Montserrat_600SemiBold',
     color: '#6b7280',
   },
   applyButton: {
@@ -803,8 +831,21 @@ const styles = StyleSheet.create({
   applyButtonText: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: 'Montserrat_600SemiBold',
     color: 'white',
   },
+  fab: {
+    position: 'absolute',
+    right: '5%',
+    width: 60,
+    height: 60,
+    backgroundColor: '#111827',
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    
+    
+  }
 });
 
 export default InventoryPage;

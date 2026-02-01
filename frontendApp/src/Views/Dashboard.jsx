@@ -372,6 +372,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginRight: 16,
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   dealTop: { flexDirection: 'row', gap: 12 },
   dealImage: { width: 40, height: 40, borderRadius: 10 },
@@ -402,6 +404,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 16,
     marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   dateBox: {
     width: 48,
