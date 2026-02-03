@@ -468,12 +468,12 @@ export const INITIAL_NOTIFICATIONS = [
 
 export const INITIAL_PROFILE = {
   id: "u1",
-  name: "Rajesh Sharma",
+  name: "Manas Gangrade",
   designation: "Senior Property Consultant",
   brokerId: "BROK-8821",
-  avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=200&q=80",
+  avatar: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=400&q=80",
   phone: "+91 98765 43210",
-  email: "rajesh.sharma@realestate.com",
+  email: "manasgangrade@gmail.com",
   experience: "8+ Years",
   location: "Bangalore, Karnataka",
   stats: {

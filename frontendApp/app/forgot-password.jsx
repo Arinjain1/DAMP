@@ -70,10 +70,8 @@ export default function ForgotPassword() {
 
           {/* HEADER */}
           <View style={styles.header}>
-            <Text style={styles.title}>Forgot{'\n'}Password?</Text>
-            <Text style={styles.subtitle}>
-              Don't worry! Enter your email and{'\n'}we'll send you a verification code
-            </Text>
+            <Text style={styles.title}>Forgot Password?</Text>
+            <Text style={styles.subtitle}>Don't worry! Enter your email and we'll send you a verification code</Text>
           </View>
 
           {/* FORM */}

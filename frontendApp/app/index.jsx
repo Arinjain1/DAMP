@@ -5,17 +5,31 @@ import { useDispatch } from "react-redux";
 
 // 🔤 FONT LOADING
 import {
-    Montserrat_400Regular,
-    Montserrat_500Medium,
-    Montserrat_600SemiBold,
-    Montserrat_700Bold,
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_600SemiBold,
+  Montserrat_700Bold,
 } from "@expo-google-fonts/montserrat";
 import { useFonts } from "expo-font";
 
 import {
-    Lato_400Regular,
-    Lato_700Bold,
+  Lato_400Regular,
+  Lato_700Bold,
 } from "@expo-google-fonts/lato";
+ import {
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import {
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+} from "@expo-google-fonts/manrope";
+
+
 
 // Views
 import Dashboard from "../src/Views/Dashboard";
@@ -33,43 +47,43 @@ import VisitFeedbackSheet from "../src/Modal and Sheets/VisitFeedbackSheet";
 
 // Redux
 import {
-    addCustomer,
-    clearSelectedCustomer,
-    updateCustomer,
-    updateCustomerStatus,
+  addCustomer,
+  clearSelectedCustomer,
+  updateCustomer,
+  updateCustomerStatus,
 } from "../src/store/slices/customersSlice";
 
 import {
-    addDeal,
-    clearSelectedDeal,
-    closeDeal,
-    setSelectedDeal,
-    updateDeal,
+  addDeal,
+  clearSelectedDeal,
+  closeDeal,
+  setSelectedDeal,
+  updateDeal,
 } from "../src/store/slices/dealsSlice";
 
 import {
-    addFollowUp,
-    clearActiveSiteVisit,
-    clearShowFeedback,
-    setShowFeedback,
-    updateFollowUp,
+  addFollowUp,
+  clearActiveSiteVisit,
+  clearShowFeedback,
+  setShowFeedback,
+  updateFollowUp,
 } from "../src/store/slices/followUpsSlice";
 
 import {
-    addProperty,
-    clearSelectedProperty,
-    updateProperty,
+  addProperty,
+  clearSelectedProperty,
+  updateProperty,
 } from "../src/store/slices/propertiesSlice";
 
 import { activateSubscription } from "../src/store/slices/subscriptionSlice";
 
 import { useAppSelector } from "@/src/redux/hooks";
 import {
-    clearEditItem,
-    setCollabOpen,
-    setEditItem,
-    setModalOpen,
-    setModalType,
+  clearEditItem,
+  setCollabOpen,
+  setEditItem,
+  setModalOpen,
+  setModalType,
 } from "../src/store/slices/uiSlice";
 
 export default function Index() {
@@ -84,6 +98,14 @@ export default function Index() {
     Montserrat_700Bold,
     Lato_400Regular,
     Lato_700Bold,
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
   });
 
   // Redux state - Optimized selectors
