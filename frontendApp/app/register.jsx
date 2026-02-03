@@ -1,21 +1,23 @@
+import { Lato_400Regular, Lato_700Bold } from '@expo-google-fonts/lato';
+import { Montserrat_400Regular, Montserrat_500Medium, Montserrat_600SemiBold, Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Location from 'expo-location';
 import { router } from 'expo-router';
-import * as Location from 'expo-location'; // Requires: npx expo install expo-location
-import { Calendar, Eye, EyeOff, Lock, Mail, MapPin, Phone, User, ArrowRight, UserPlus } from 'lucide-react-native';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  Alert,
-  ActivityIndicator
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 const { height } = Dimensions.get('window');
@@ -32,6 +34,17 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+
+  const [fontsLoaded] = useFonts({
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
+    Lato_400Regular,
+    Lato_700Bold,
+  });
+
+  if (!fontsLoaded) return null;
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -86,100 +99,87 @@ export default function Register() {
     }, 1200);
   };
 
-  // Theme Colors
-  const iconColor = "#BFB7FD"; 
-  const placeholderColor = "#9CA3AF";
-
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
+      {/* GRADIENT */}
       <LinearGradient
-        colors={['#BFB7FD', '#E5E1FF', '#ffffff']}
-        locations={[0, 0.25, 1]}
+        colors={['#DAD5FB', '#F3F4F6', '#FFFFFF']}
+        locations={[0, 0.55, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* HEADER (Compact) */}
-            <View style={styles.header}>
-              <View style={styles.logoContainer}>
-                <UserPlus size={48} color="#111827" />
-              </View>
-              <Text style={styles.title}>Broker 99</Text>
-              <Text style={styles.subtitle}>Create your account</Text>
-            </View>
+          {/* BACK */}
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <ArrowLeft size={22} color="#333" />
+          </TouchableOpacity>
 
-            {/* FORM (Compact & Transparent) */}
-            <View style={styles.form}>
-              
+          {/* HEADER */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Sign Up</Text>
+            <Text style={styles.subtitle}>Create your account</Text>
+          </View>
+
+          {/* FORM */}
+          <View style={styles.form}>
               {/* NAME */}
-              <View style={styles.inputBox}>
-                <User size={18} color={iconColor} />
-                <TextInput
-                  value={formData.name}
-                  onChangeText={(v) => handleChange('name', v)}
-                  placeholder="Full Name"
-                  placeholderTextColor={placeholderColor}
-                  style={styles.input}
-                />
-              </View>
+              <TextInput
+                style={styles.input}
+                value={formData.name}
+                onChangeText={(v) => handleChange('name', v)}
+                placeholder="Full Name"
+                placeholderTextColor="#9CA3AF"
+              />
 
               {/* EMAIL */}
-              <View style={styles.inputBox}>
-                <Mail size={18} color={iconColor} />
+              <TextInput
+                style={styles.input}
+                value={formData.email}
+                onChangeText={(v) => handleChange('email', v)}
+                placeholder="Email Address"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              {/* PHONE & AGE ROW */}
+              <View style={styles.rowContainer}>
                 <TextInput
-                  value={formData.email}
-                  onChangeText={(v) => handleChange('email', v)}
-                  placeholder="Email Address"
-                  placeholderTextColor={placeholderColor}
-                  keyboardType="email-address"
-                  style={styles.input}
+                  style={[styles.input, styles.halfInput]}
+                  value={formData.phone}
+                  onChangeText={(v) => handleChange('phone', v)}
+                  placeholder="Phone"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="phone-pad"
+                />
+                <TextInput
+                  style={[styles.input, styles.halfInput]}
+                  value={formData.age}
+                  onChangeText={(v) => handleChange('age', v)}
+                  placeholder="Age"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                  maxLength={2}
                 />
               </View>
 
-              {/* PHONE & AGE ROW */}
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <View style={[styles.inputBox, { flex: 2 }]}>
-                  <Phone size={18} color={iconColor} />
-                  <TextInput
-                    value={formData.phone}
-                    onChangeText={(v) => handleChange('phone', v)}
-                    placeholder="Phone"
-                    placeholderTextColor={placeholderColor}
-                    keyboardType="phone-pad"
-                    style={styles.input}
-                  />
-                </View>
-                <View style={[styles.inputBox, { flex: 1 }]}>
-                  <Calendar size={18} color={iconColor} />
-                  <TextInput
-                    value={formData.age}
-                    onChangeText={(v) => handleChange('age', v)}
-                    placeholder="Age"
-                    placeholderTextColor={placeholderColor}
-                    keyboardType="numeric"
-                    maxLength={2}
-                    style={styles.input}
-                  />
-                </View>
-              </View>
-
-              {/* LOCATION (With Native GPS Button) */}
-              <View style={styles.inputBox}>
-                <MapPin size={18} color={iconColor} />
+              {/* LOCATION */}
+              <View style={styles.locationContainer}>
                 <TextInput
+                  style={styles.locationInput}
                   value={formData.location}
                   onChangeText={(v) => handleChange('location', v)}
                   placeholder="City, State"
-                  placeholderTextColor={placeholderColor}
-                  style={styles.input}
+                  placeholderTextColor="#9CA3AF"
                 />
                 <TouchableOpacity 
                   onPress={handleGetLocation}
@@ -195,51 +195,57 @@ export default function Register() {
               </View>
 
               {/* PASSWORD */}
-              <View style={styles.inputBox}>
-                <Lock size={18} color={iconColor} />
+              <View style={styles.passwordContainer}>
                 <TextInput
+                  style={styles.passwordInput}
                   value={formData.password}
                   onChangeText={(v) => handleChange('password', v)}
                   placeholder="Password"
-                  placeholderTextColor={placeholderColor}
+                  placeholderTextColor="#9CA3AF"
                   secureTextEntry={!showPassword}
-                  style={styles.input}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  {showPassword ? <EyeOff size={18} color={iconColor} /> : <Eye size={18} color={iconColor} />}
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff size={20} color="#9CA3AF" />
+                  ) : (
+                    <Eye size={20} color="#9CA3AF" />
+                  )}
                 </TouchableOpacity>
               </View>
-
-              {/* TERMS */}
-              <Text style={styles.terms}>
-                Agreed to <Text style={styles.link}>Terms</Text> & <Text style={styles.link}>Privacy</Text>
-              </Text>
 
               {/* BUTTON */}
               <TouchableOpacity
+                style={[styles.continueBtn, loading && { opacity: 0.75 }]}
                 onPress={handleRegister}
                 disabled={loading}
-                activeOpacity={0.85}
-                style={[styles.registerBtn, loading && { opacity: 0.7 }]}
               >
-                <Text style={styles.registerText}>
-                  {loading ? 'Creating...' : 'Sign Up'}
+                <Text style={styles.continueText}>
+                  {loading ? 'Creating Account...' : 'Sign Up'}
                 </Text>
-                {!loading && <ArrowRight size={18} color="white" />}
               </TouchableOpacity>
 
               {/* LOGIN LINK */}
-              <View style={styles.footer}>
-                <Text style={styles.footerText}>Existing user?</Text>
+              <View style={styles.signupRow}>
+                <Text style={styles.signupText}>Already have an account?</Text>
                 <TouchableOpacity onPress={() => router.back()}>
-                  <Text style={styles.footerLink}>Log In</Text>
+                  <Text style={styles.signupLink}> Log In</Text>
                 </TouchableOpacity>
               </View>
-
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </LinearGradient>
+
+          {/* FOOTER */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              By signing up, you agree to the{' '}
+              <Text style={styles.footerLink}>Terms of Service</Text> and{' '}
+              <Text style={styles.footerLink}>Privacy Policy</Text>.
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -247,118 +253,188 @@ export default function Register() {
 const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
+    paddingHorizontal: 33,
+    paddingTop: 57,
+  },
+
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 20,
-  },
-
-  /* HEADER */
-  header: {
     alignItems: 'center',
-    marginBottom: 24, 
-    marginTop: height * 0.05, 
-  },
-  logoContainer: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#111827',
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginTop: 4,
-    fontWeight: '500',
-  },
-
-  /* FORM */
-  form: {
-    gap: 12, 
-  },
-  
-  // Glassmorphism Input
-  inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.5)', 
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 44, 
+    marginBottom: 30,
     borderWidth: 1,
-    borderColor: '#D6D3FF',
-    gap: 10,
-    
+    borderColor: '#15151520',
   },
+
+  header: {
+    marginBottom: 15,
+  },
+
+  title: {
+    fontSize: 42,
+    fontFamily: 'Montserrat_500Medium',
+    fontWeight: '400',
+    color: '#111827',
+    marginBottom: 30,
+  },
+
+  subtitle: {
+    fontSize: 15,
+    fontFamily: 'Montserrat_400Regular',
+    color: '#1A1D1B',
+  },
+
+  form: {
+    gap: 18,
+  },
+
   input: {
-    flex: 1,
-    fontSize: 14, 
-    fontWeight: '600',
+    height: 50,
+    borderRadius: 22,
+    paddingHorizontal: 22,
+    fontSize: 16,
+    fontFamily: 'Lato_400Regular',
+    borderWidth: 1.2,
+    borderColor: '#D1D5DB',
     color: '#111827',
-    height: '100%',
-    backgroundColor: 'transparent',
-  },
-  
-  // GPS Button
-  gpsButton: {
-    backgroundColor: '#111827',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  gpsText: {
-    color: '#BFB7FD',
-    fontSize: 10,
-    fontWeight: '800',
   },
 
-  /* TERMS */
-  terms: {
-    fontSize: 11,
-    textAlign: 'center',
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  link: {
-    color: '#111827',
-    fontWeight: '700',
-  },
-
-  /* BUTTON */
-  registerBtn: {
-    marginTop: 8,
-    backgroundColor: '#bfb7fd',
-    height: 48,
-    borderRadius: 12,
+  rowContainer: {
     flexDirection: 'row',
+    gap: 10,
+  },
+
+  halfInput: {
+    flex: 1,
+  },
+
+  locationContainer: {
+    position: 'relative',
+  },
+
+  locationInput: {
+    height: 50,
+    borderRadius: 22,
+    paddingHorizontal: 22,
+    paddingRight: 80,
+    fontSize: 16,
+    fontFamily: 'Lato_400Regular',
+    borderWidth: 1.2,
+    borderColor: '#D1D5DB',
+    color: '#111827',
+  },
+
+  gpsButton: {
+    position: 'absolute',
+    right: 7,
+    top: 6,
+    backgroundColor: '#C4B5FD',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    
-  },
-  registerText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.5,
   },
 
-  /* FOOTER */
-  footer: {
+  gpsText: {
+    color: '#111827',
+    fontSize: 12,
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+
+  passwordContainer: {
+    position: 'relative',
+  },
+
+  passwordInput: {
+    height: 50,
+    borderRadius: 22,
+    paddingHorizontal: 22,
+    paddingRight: 60,
+    fontSize: 16,
+    fontFamily: 'Lato_400Regular',
+    borderWidth: 1.2,
+    borderColor: '#D1D5DB',
+    color: '#111827',
+  },
+
+  eyeButton: {
+    position: 'absolute',
+    right: 20,
+    top: 14,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  terms: {
+    fontSize: 12,
+    textAlign: 'center',
+    color: '#6B7280',
+    fontFamily: 'Lato_400Regular',
+    marginTop: 8,
+  },
+
+  link: {
+    textDecorationLine: 'underline',
+    fontFamily: 'Lato_700Bold',
+    color: '#374151',
+  },
+
+  continueBtn: {
+    backgroundColor: '#C4B5FD',
+    height: 55,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 56,
+  },
+
+  continueText: {
+    fontSize: 16,
+    color: '#111827',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+
+  signupRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 4,
-    marginTop: 12,
+    alignItems: 'center',
+    marginTop: 2,
   },
+
+  signupText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontFamily: 'Montserrat_400Regular',
+  },
+
+  signupLink: {
+    fontSize: 14,
+    color: '#AFA0F8',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+
+  footer: {
+    marginTop: 'auto',
+    marginBottom: 28,
+    paddingHorizontal: 10,
+  },
+
   footerText: {
+    textAlign: 'center',
     fontSize: 12,
-    color: '#6b7280',
+    color: '#6B7280',
+    fontFamily: 'Lato_400Regular',
+    lineHeight: 18,
   },
+
   footerLink: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#4f46e5',
+    textDecorationLine: 'underline',
+    fontFamily: 'Lato_700Bold',
+    color: '#374151',
   },
 });

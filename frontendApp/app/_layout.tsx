@@ -21,6 +21,8 @@ LogBox.ignoreLogs([
 function AppNavigator() {
   const { isAuthenticated } = useSelector(state => state.auth);
 
+  console.log('AppNavigator: isAuthenticated =', isAuthenticated);
+
   if (!isAuthenticated) {
     return (
       <Stack screenOptions={{ headerShown: false }}>

@@ -1,15 +1,15 @@
+import { Lato_400Regular, Lato_700Bold, useFonts } from '@expo-google-fonts/lato';
+import {
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
+} from '@expo-google-fonts/montserrat';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import {
-    ArrowRight,
-    Eye,
-    EyeOff,
-    Lock,
-    Mail,
-} from 'lucide-react-native';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    Dimensions,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -18,151 +18,140 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../src/store/slices/authSlice';
-
-const { height } = Dimensions.get('window');
 
 export default function Login() {
   const dispatch = useDispatch();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async () => {
+  const [fontsLoaded] = useFonts({
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
+    Lato_400Regular,
+    Lato_700Bold,
+  });
+
+  if (!fontsLoaded) return null;
+
+  const handleLogin = () => {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      dispatch(
-        loginSuccess({
-          id: 1,
-          name: 'Rajesh Sharma',
-          email,
-          phone: '+91 98765 43210',
-        })
-      );
+      dispatch(loginSuccess({ id: 1, name: 'User', email }));
     }, 1200);
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
+      {/* GRADIENT */}
       <LinearGradient
-        colors={['#BFB7FD', '#E5E1FF', '#ffffff']}
-        locations={[0, 0.25, 1]}
+        colors={['#DAD5FB', '#F3F4F6', '#FFFFFF']}
+        locations={[0, 0.55, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* HEADER */}
-            <View style={styles.header}>
-              <View style={styles.logoContainer}>
-                <Text style={styles.brokerText}>BROKER</Text>
-                <View style={styles.numberBadge}>
-                  <Text style={styles.numberText}>99</Text>
-                </View>
-              </View>
+          {/* BACK */}
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <ArrowLeft size={22} color="#333" />
+          </TouchableOpacity>
 
-              <Text style={styles.title}>Welcome Back</Text>
-              <Text style={styles.subtitle}>Sign in to continue</Text>
-            </View>
+          {/* HEADER */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Login</Text>
+            <Text style={styles.subtitle}>Login with email & password</Text>
+          </View>
 
-            {/* FORM */}
-            <View style={styles.form}>
-              {/* EMAIL */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email</Text>
-                <View style={styles.inputBox}>
-                  <Mail size={16} color="#BFB7FD" strokeWidth={2.5} />
-                  <TextInput
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder="name@example.com"
-                    placeholderTextColor="#9ca3af"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    style={styles.input}
-                  />
-                </View>
-              </View>
+          {/* FORM */}
+          <View style={styles.form}>
+            {/* EMAIL */}
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholderTextColor="#9CA3AF"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
 
-              {/* PASSWORD */}
-              <View style={styles.inputGroup}>
-                <View style={styles.passwordRow}>
-                  <Text style={styles.label}>Password</Text>
-                  <TouchableOpacity onPress={() => router.push('/forgot-password')}>
-                    <Text style={styles.forgot}>Forgot?</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.inputBox}>
-                  <Lock size={16} color="#BFB7FD" strokeWidth={2.5} />
-                  <TextInput
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="Password"
-                    placeholderTextColor="#9ca3af"
-                    secureTextEntry={!showPassword}
-                    style={styles.input}
-                  />
-                  <TouchableOpacity
-                    onPress={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff size={16} color="#6b7280" strokeWidth={2.5} />
-                    ) : (
-                      <Eye size={16} color="#6b7280" strokeWidth={2.5} />
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* LOGIN BUTTON */}
+            {/* PASSWORD */}
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry={!showPassword}
+              />
               <TouchableOpacity
-                onPress={handleLogin}
-                disabled={loading}
-                activeOpacity={0.85}
-                style={[
-                  styles.loginBtn,
-                  loading && { opacity: 0.7 }
-                ]}
+                style={styles.eyeButton}
+                onPress={() => setShowPassword(!showPassword)}
               >
-                <LinearGradient
-                  colors={['#BFB7FD', '#A89EF8']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.gradientBtn}
-                >
-                  <Text style={styles.loginText}>
-                    {loading ? 'Signing In...' : 'Sign In'}
-                  </Text>
-                  {!loading && <ArrowRight size={18} color="#111827" strokeWidth={2.5} />}
-                </LinearGradient>
+                {showPassword ? (
+                  <EyeOff size={20} color="#9CA3AF" />
+                ) : (
+                  <Eye size={20} color="#9CA3AF" />
+                )}
               </TouchableOpacity>
-
-              {/* REGISTER */}
-              <View style={styles.footer}>
-                <Text style={styles.footerText}>
-                  Don't have an account?
-                </Text>
-                <TouchableOpacity onPress={() => router.push('/register')}>
-                  <Text style={styles.footerLink}>Create Account</Text>
-                </TouchableOpacity>
-              </View>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </LinearGradient>
+
+            {/* FORGOT PASSWORD */}
+            <TouchableOpacity 
+              style={styles.forgotWrap}
+              onPress={() => router.push('/forgot-password')}
+            >
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </TouchableOpacity>
+
+            {/* CONTINUE BUTTON */}
+            <TouchableOpacity
+              style={[styles.continueBtn, loading && { opacity: 0.75 }]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              <Text style={styles.continueText}>
+                {loading ? 'Processing...' : 'Continue'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* SIGN UP ROW */}
+            <View style={styles.signupRow}>
+              <Text style={styles.signupText}>Don’t have an account?</Text>
+              <TouchableOpacity onPress={() => router.push('/register')}>
+                <Text style={styles.signupLink}> Sign up</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* FOOTER */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              By logging in, you agree to the{' '}
+              <Text style={styles.link}>Terms of Service</Text> and{' '}
+              <Text style={styles.link}>Privacy Policy</Text>.
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -170,127 +159,143 @@ export default function Login() {
 const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingHorizontal: 33,
+    paddingTop: 60,
   },
 
-  /* HEADER */
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 40,
+    borderWidth: 1,
+    borderColor: '#15151520',
+  },
+
   header: {
-    alignItems: 'center',
-    marginBottom: 28,
-    marginTop: height * 0.06,
+    marginBottom: 20,
   },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 14,
-  },
-  brokerText: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#111827',
-    letterSpacing: 0.8,
-  },
-  numberBadge: {
-    backgroundColor: '#BFB7FD',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  numberText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#111827',
-  },
+
   title: {
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: 42,
+    fontFamily: 'Montserrat_500Medium',
+    fontWeight: '400',
     color: '#111827',
+    marginBottom: 60,
   },
+
   subtitle: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginTop: 5,
-    fontWeight: '500',
-  },
-
-  /* FORM */
-  form: {
-    gap: 14,
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  passwordRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#374151',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 48,
-    borderWidth: 1.5,
-    borderColor: 'rgba(191, 183, 253, 0.3)',
-    gap: 10,
-  },
-  input: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  forgot: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#9F95F5',
-  },
-
-  /* BUTTON */
-  loginBtn: {
-    marginTop: 6,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  gradientBtn: {
-    height: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  loginText: {
-    color: '#111827',
     fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontFamily: 'Montserrat_400Regular',
+    color: '#1A1D1B',
   },
 
-  /* FOOTER */
-  footer: {
+  form: {
+    gap: 18,
+  },
+
+  input: {
+    height: 60,
+    borderRadius: 22,
+    paddingHorizontal: 22,
+    fontSize: 16,
+    fontFamily: 'Lato_400Regular',
+    borderWidth: 1.2,
+    borderColor: '#D1D5DB',
+    color: '#111827',
+    
+  },
+
+  passwordContainer: {
+    position: 'relative',
+  },
+
+  passwordInput: {
+    height: 60,
+    borderRadius: 22,
+    paddingHorizontal: 22,
+    paddingRight: 60,
+    fontSize: 16,
+    fontFamily: 'Lato_400Regular',
+    borderWidth: 1.2,
+    borderColor: '#D1D5DB',
+    color: '#111827',
+  },
+
+  eyeButton: {
+    position: 'absolute',
+    right: 20,
+    top: 20,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  forgotWrap: {
+    alignSelf: 'flex-end',
+    marginTop: -10,
+  },
+
+  forgotText: {
+    fontSize: 13,
+    color: '#AFA0F8',
+    fontFamily: 'Montserrat_500Medium',
+  },
+
+  continueBtn: {
+    backgroundColor: '#C4B5FD',
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 66,
+  },
+
+  continueText: {
+    fontSize: 16,
+    color: '#111827',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+
+  signupRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 4,
-    marginTop: 14,
+    alignItems: 'center',
+    marginTop: 2,
   },
+
+  signupText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontFamily: 'Montserrat_400Regular',
+  },
+
+  signupLink: {
+    fontSize: 14,
+    color: '#AFA0F8',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+
+  footer: {
+    marginTop: 'auto',
+    marginBottom: 28,
+    paddingHorizontal: 10,
+  },
+
   footerText: {
-    fontSize: 13,
-    color: '#6b7280',
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: 'Lato_400Regular',
+    lineHeight: 18,
   },
-  footerLink: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#9F95F5',
+
+  link: {
+    textDecorationLine: 'underline',
+    fontFamily: 'Lato_700Bold',
+    color: '#374151',
   },
 });
