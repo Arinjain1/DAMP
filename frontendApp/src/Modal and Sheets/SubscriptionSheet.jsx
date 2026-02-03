@@ -1,17 +1,16 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Platform,
-  StyleSheet,
-  StatusBar
-} from 'react-native';
-import { ArrowRight, Check, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ArrowRight, Check, X } from 'lucide-react-native';
+import { useState } from 'react';
+import {
+    ActivityIndicator,
+    Modal,
+    Platform,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 
 // Mock Data
 const SUBSCRIPTION_PLANS = [
@@ -25,9 +24,9 @@ const SUBSCRIPTION_PLANS = [
   { 
     id: 2, 
     name: 'Yearly', 
-    price: '0.00', 
+    price: '1100.00', 
     period: 'Free 1 Week Trial',
-    save: 'Save $40.00',
+    save: 'Save ₹46.00',
     isBestValue: true 
   },
 ];
@@ -59,38 +58,34 @@ const SubscriptionSheet = ({ isOpen, onClose, onSubscribe }) => {
       animationType="slide"
       onRequestClose={onClose}
       statusBarTranslucent
+      presentationStyle="fullScreen"
     >
       <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="transparent" />
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
         
-        {/* === HEADER GRADIENT (Updated Color) === */}
+        {/* === HEADER GRADIENT (Full Page) === */}
         <LinearGradient
           colors={['#BFB7FD', '#E5E1FF', '#FFFFFF']}
-          locations={[0, 0.6, 1]}
+          locations={[0, 0.4, 1]}
           style={styles.headerGradient}
         >
           {/* Top Bar */}
           <View style={styles.topBar}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={20} color="#374151" />
+              <X size={24} color="#374151" />
             </TouchableOpacity>
             <TouchableOpacity>
               <Text style={styles.restoreText}>Restore</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Title Section (Compact) */}
+          {/* Title Section */}
           <View style={styles.titleContainer}>
             <Text style={styles.title}>Broker 99</Text>
             <Text style={styles.subtitle}>Deal Karo, Pocket Bharo</Text>
           </View>
-        </LinearGradient>
 
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent} 
-          showsVerticalScrollIndicator={false}
-        >
-          {/* === FEATURES LIST (Compact) === */}
+          {/* === FEATURES LIST === */}
           <View style={styles.featuresContainer}>
             {FEATURES.map((feature, index) => (
               <View key={index} style={styles.featureRow}>
@@ -100,7 +95,7 @@ const SubscriptionSheet = ({ isOpen, onClose, onSubscribe }) => {
             ))}
           </View>
 
-          {/* === PLAN CARDS (Smaller) === */}
+          {/* === PLAN CARDS === */}
           <View style={styles.plansContainer}>
             {SUBSCRIPTION_PLANS.map((plan) => {
               const isSelected = selectedPlan.id === plan.id;
@@ -123,7 +118,7 @@ const SubscriptionSheet = ({ isOpen, onClose, onSubscribe }) => {
 
                   <View>
                     <Text style={styles.planName}>{plan.name}</Text>
-                    <Text style={styles.planPrice}>${plan.price}</Text>
+                    <Text style={styles.planPrice}>₹{plan.price}</Text>
                     
                     {plan.save && (
                       <Text style={styles.saveText}>{plan.save}</Text>
@@ -136,27 +131,26 @@ const SubscriptionSheet = ({ isOpen, onClose, onSubscribe }) => {
             })}
           </View>
 
-        </ScrollView>
+          {/* === BOTTOM ACTION === */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              onPress={handlePayment}
+              disabled={loading}
+              style={styles.subscribeButton}
+              activeOpacity={0.9}
+            >
+              {loading ? (
+                <ActivityIndicator color="#1F2937" />
+              ) : (
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                  <Text style={styles.subscribeButtonText}>Subscribe</Text>
+                  <ArrowRight size={16} color="#1F2937" />
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
 
-        {/* === BOTTOM ACTION === */}
-        <View style={styles.footer}>
-          <TouchableOpacity
-            onPress={handlePayment}
-            disabled={loading}
-            style={styles.subscribeButton}
-            activeOpacity={0.9}
-          >
-            {loading ? (
-              <ActivityIndicator color="#1F2937" />
-            ) : (
-              <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-                <Text style={styles.subscribeButtonText}>Subscribe</Text>
-                <ArrowRight size={18} color="#1F2937" />
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
+        </LinearGradient>
       </View>
     </Modal>
   );
@@ -165,56 +159,55 @@ const SubscriptionSheet = ({ isOpen, onClose, onSubscribe }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#BFB7FD',
   },
   
-  // Header
+  // Header - Full Page
   headerGradient: {
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 50,
-    paddingBottom: 30, // Reduced padding
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 60,
     paddingHorizontal: 20,
+    paddingBottom: 40,
+    justifyContent: 'space-between',
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20, // Reduced margin
+    marginBottom: 40,
   },
   closeButton: {
-    padding: 4,
+    padding: 8,
   },
   restoreText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
+    fontFamily: 'Poppins_600SemiBold',
   },
   titleContainer: {
     alignItems: 'center',
+    marginBottom: 40,
   },
   title: {
-    fontSize: 26, // Smaller Title
+    fontSize: 32,
     fontWeight: '900',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: 6,
     letterSpacing: -0.5,
+    fontFamily: 'Poppins_700Bold',
   },
   subtitle: {
-    fontSize: 13, // Smaller Subtitle
+    fontSize: 14,
     color: '#4B5563',
     fontWeight: '500',
+    fontFamily: 'Lato_400Regular',
   },
 
-  // Content
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
-  
   // Features
   featuresContainer: {
-    marginTop: 20,
-    marginBottom: 30,
-    gap: 14, // Reduced gap
+    marginBottom: 40,
+    gap: 16,
   },
   featureRow: {
     flexDirection: 'row',
@@ -222,38 +215,40 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   featureText: {
-    fontSize: 13, // Smaller text
+    fontSize: 15,
     fontWeight: '600',
     color: '#374151',
+    fontFamily: 'Montserrat_600SemiBold',
   },
 
   // Plans
   plansContainer: {
     flexDirection: 'row',
     gap: 12,
+    marginBottom: 40,
   },
   planCard: {
     flex: 1,
     backgroundColor: 'white',
     borderRadius: 16,
-    padding: 16, // Reduced padding inside card
-    borderWidth: 1,
-    borderColor: '#9CA3AF',
-    height: 150, // Reduced Height
+    padding: 18,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    height: 140,
     justifyContent: 'space-between',
     position: 'relative',
   },
   planCardSelected: {
     borderColor: '#111827',
-    borderWidth: 1.5,
+    borderWidth: 2,
     backgroundColor: '#fff',
   },
   checkmarkBadge: {
     position: 'absolute',
-    top: -8,
-    right: -8,
+    top: -10,
+    right: -10,
     backgroundColor: '#10B981', 
-    width: 20, // Smaller Badge
+    width: 20,
     height: 20,
     borderRadius: 10,
     alignItems: 'center',
@@ -263,42 +258,40 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   planName: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 4,
+    marginBottom: 6,
+    fontFamily: 'Poppins_600SemiBold',
   },
   planPrice: {
-    fontSize: 24, // Smaller Price
-    fontWeight: '900',
+    fontSize: 24,
+    fontWeight: '200',
     color: '#111827',
-    letterSpacing: -0.5,
+    letterSpacing: -0.2,
+    fontFamily: 'Lato_700Bold',
   },
   saveText: {
     fontSize: 10,
     fontWeight: '800',
     color: '#111827',
-    marginTop: 2,
+    marginTop: 3,
+    fontFamily: 'Poppins_700Bold',
   },
   planPeriod: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
     color: '#4B5563',
+    fontFamily: 'Lato_400Regular',
   },
 
   // Footer
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    paddingBottom: 30,
-    backgroundColor: 'white',
+    paddingHorizontal: 0,
   },
   subscribeButton: {
-    backgroundColor: '#C7D2FE', // Matching Button Color
-    paddingVertical: 14, // Slimmer Button
+    backgroundColor: '#C7D2FE',
+    paddingVertical: 14,
     borderRadius: 24, 
     alignItems: 'center',
     justifyContent: 'center',
@@ -307,6 +300,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#1F2937',
+    fontFamily: 'Poppins_700Bold',
   },
 });
 

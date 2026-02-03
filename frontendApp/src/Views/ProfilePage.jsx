@@ -23,7 +23,7 @@ import { useDispatch } from 'react-redux';
 import { INITIAL_PROFILE } from '../MockData/Mockdata';
 import { logout } from '../store/slices/authSlice';
 
-const ProfilePage = () => {
+const ProfilePage = ({ subscription, onRenew }) => {
   const dispatch = useDispatch();
   const profile = INITIAL_PROFILE;
   const [profileImage, setProfileImage] = useState(profile.avatar);
@@ -95,6 +95,14 @@ const ProfilePage = () => {
     setPhotoSheetVisible(false);
   }; 
 
+  const handleSubscriptionPress = () => {
+    // Subscription page open karne ka logic
+    console.log('Opening subscription page...');
+    if (onRenew) {
+      onRenew();
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert(
       'Sign Out',
@@ -123,7 +131,7 @@ const ProfilePage = () => {
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 100 }}
+      contentContainerStyle={{ paddingBottom: 60 }}
       style={{ flex: 1, backgroundColor: '#ffffff' }}
     >
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
@@ -171,8 +179,8 @@ const ProfilePage = () => {
           style={{ position: 'relative', marginBottom: 6 }}
         >
           <View style={{
-            width: 86,
-            height: 86,
+            width: 88,
+            height: 88,
             borderRadius: 42,
             backgroundColor: 'white',
             padding: 2,
@@ -180,9 +188,9 @@ const ProfilePage = () => {
             alignItems: 'center'
           }}>
             <View style={{
-              width: 80,
-              height: 80,
-              borderRadius: 40,
+              width: 86,
+              height: 86,
+              borderRadius: 42,
               overflow: 'hidden',
               backgroundColor: '#f3f4f6'
             }}>
@@ -228,10 +236,10 @@ const ProfilePage = () => {
 
         {/* Name and Email */}
         <Text style={{ 
-          fontSize: 19, 
+          fontSize: 18, 
           fontWeight: '700', 
           color: '#1f2937f3', 
-          marginBottom: 2,
+          marginBottom: 0,
           fontFamily: 'Poppins_700Bold'
         }}>
           {profile.name}
@@ -246,37 +254,41 @@ const ProfilePage = () => {
         </Text>
 
         {/* Subscription Card */}
-        <View style={{
-          width: '100%',
-          backgroundColor: '#DAD5FB', // Slightly different purple for contrast
-          borderRadius: 16,
-          padding: 20,
-          marginBottom: 16,
-          // If you have LinearGradient, wrap this view in it
-        }}>
+        <TouchableOpacity 
+          onPress={handleSubscriptionPress}
+          style={{
+            width: '100%',
+            backgroundColor: '#DAD5FB', // Slightly different purple for contrast
+            borderRadius: 16,
+            padding: 20,
+            marginBottom: 16,
+            // If you have LinearGradient, wrap this view in it
+          }}
+          activeOpacity={0.8}
+        >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <View>
               <Text style={{ 
-                fontSize: 13, 
+                fontSize: 14, 
                 fontWeight: '800', 
                 color: colors.textPrimary, 
-                marginBottom: 4, 
+                marginBottom: 2, 
                 letterSpacing: 0.5,
                 fontFamily: 'Poppins_700Bold'
               }}>
                 SUBSCRIPTION
               </Text>
               <Text style={{ 
-                fontSize: 13, 
+                fontSize: 12, 
                 color: '#4b5563', 
                 fontWeight: '500',
                 fontFamily: 'Manrope_500Medium'
               }}>
-                SHDSJDJGSJDG
+                {subscription?.active ? subscription.plan || 'PREMIUM PLAN' : 'SHDSJDJGSJDG'}
               </Text>
             </View>
             <View style={{
-              backgroundColor: '#8b5cf6',
+              backgroundColor: subscription?.active ? '#10b981' : '#8b5cf6',
               paddingHorizontal: 10,
               paddingVertical: 6,
               borderRadius: 8
@@ -287,11 +299,14 @@ const ProfilePage = () => {
                 color: '#ffffff',
                 fontFamily: 'Poppins_700Bold'
               }}>
-                FOR SALE
+                {subscription?.active ? 'ACTIVE' : 'FOR SALE'}
               </Text>
             </View>
           </View>
-        </View>
+          
+          {/* Tap to manage hint */}
+          
+        </TouchableOpacity>
 
         {/* Account Details Label */}
         <View style={{ width: '100%', marginBottom: 20 }}>
@@ -468,10 +483,10 @@ const styles = {
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 14,
     borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#eaecf0',
     backgroundColor: '#FFFFFF'
@@ -484,20 +499,20 @@ const styles = {
     borderColor: '#eaecf0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12
+    marginRight: 12,
+    
   },
   menuTitle: {
-    fontSize: 14,
-    fontWeight: '400',
+    fontSize: 15,
+    fontWeight: '600',
     color: '#1F2937',
-    fontFamily: 'Manrope_500Medium',
-    marginBottom:-1,
+    fontFamily: 'Poppins_600SemiBold'
   },
   menuSubtitle: {
     fontSize: 12,
     color: '#6B7280',
     fontFamily: 'Manrope_400Regular',
-    marginBottom:2,
+    bottom: 6,
   },
   // Purple Section Styles
   purpleItem: {
@@ -508,7 +523,7 @@ const styles = {
   purpleItemText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1f2937e2',
+    color: '#1f2937f2',
     fontFamily: 'Poppins_600SemiBold'
   },
   // Photo Selection Bottom Sheet

@@ -57,7 +57,7 @@ const SiteVisitSheet = ({ activeVisit, onClose, onFinish }) => {
         {/* 🌈 GRADIENT TOP (Dashboard style) */}
         <LinearGradient
           colors={['#BFB7FD', '#E5E1FF', '#f9fafb']}
-          locations={[0, 0.65, 1]}
+          locations={[0, 0.55, 1]}
           style={{
             paddingTop: Platform.OS === 'android'
               ? StatusBar.currentHeight + 20
