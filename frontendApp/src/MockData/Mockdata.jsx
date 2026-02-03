@@ -494,6 +494,147 @@ export const INITIAL_PROFILE = {
   ]
 };
 
+export const INITIAL_COLLABORATORS = [
+  {
+    id: "col1",
+    name: "Rahul Sharma",
+    designation: "Property Consultant",
+    location: "Indore, MP",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
+    phone: "+91 98765 12345",
+    email: "rahul.sharma@realty.com",
+    properties: 12,
+    deals: 8,
+    rating: 4.6,
+    connected: true,
+    collaboratedDeals: 3,
+    totalCommission: "₹2.8L",
+    specialization: "Residential",
+    experience: "5+ Years"
+  },
+  {
+    id: "col2",
+    name: "Priya Verma",
+    designation: "Senior Broker",
+    location: "Bhopal, MP",
+    avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?auto=format&fit=crop&w=400&q=80",
+    phone: "+91 87654 32109",
+    email: "priya.verma@homes.com",
+    properties: 18,
+    deals: 15,
+    rating: 4.8,
+    connected: true,
+    collaboratedDeals: 7,
+    totalCommission: "₹5.2L",
+    specialization: "Commercial",
+    experience: "7+ Years"
+  },
+  {
+    id: "col3",
+    name: "Amit Singh",
+    designation: "Property Advisor",
+    location: "Dewas, MP",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&q=80",
+    phone: "+91 76543 21098",
+    email: "amit.singh@properties.com",
+    properties: 15,
+    deals: 12,
+    rating: 4.7,
+    connected: true,
+    collaboratedDeals: 5,
+    totalCommission: "₹3.9L",
+    specialization: "Luxury Homes",
+    experience: "6+ Years"
+  },
+  {
+    id: "col4",
+    name: "Sneha Gupta",
+    designation: "Real Estate Agent",
+    location: "Ujjain, MP",
+    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&q=80",
+    phone: "+91 65432 10987",
+    email: "sneha.gupta@realestate.com",
+    properties: 10,
+    deals: 6,
+    rating: 4.5,
+    connected: true,
+    collaboratedDeals: 2,
+    totalCommission: "₹1.8L",
+    specialization: "Affordable Housing",
+    experience: "4+ Years"
+  },
+  {
+    id: "col5",
+    name: "Vikram Patel",
+    designation: "Property Consultant",
+    location: "Indore, MP",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
+    phone: "+91 54321 09876",
+    email: "vikram.patel@consultant.com",
+    properties: 20,
+    deals: 18,
+    rating: 4.9,
+    connected: true,
+    collaboratedDeals: 9,
+    totalCommission: "₹7.1L",
+    specialization: "Premium Properties",
+    experience: "9+ Years"
+  },
+  {
+    id: "col6",
+    name: "Anjali Mehta",
+    designation: "Property Specialist",
+    location: "Bhopal, MP",
+    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80",
+    phone: "+91 43210 98765",
+    email: "anjali.mehta@specialist.com",
+    properties: 8,
+    deals: 5,
+    rating: 4.4,
+    connected: true,
+    collaboratedDeals: 1,
+    totalCommission: "₹1.2L",
+    specialization: "Rental Properties",
+    experience: "3+ Years"
+  }
+];
+
+export const PENDING_REQUESTS = [
+  {
+    id: "req1",
+    name: "Rohit Kumar",
+    designation: "Property Consultant",
+    location: "Indore, MP",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
+    brokerId: "BROK-5678",
+    phone: "+91 98765 54321",
+    requestDate: "2024-02-01",
+    status: "pending"
+  },
+  {
+    id: "req2",
+    name: "Kavya Sharma",
+    designation: "Real Estate Agent",
+    location: "Bhopal, MP",
+    avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?auto=format&fit=crop&w=400&q=80",
+    brokerId: "BROK-9012",
+    phone: "+91 87654 32198",
+    requestDate: "2024-02-02",
+    status: "pending"
+  },
+  {
+    id: "req3",
+    name: "Arjun Patel",
+    designation: "Senior Broker",
+    location: "Ujjain, MP",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&q=80",
+    brokerId: "BROK-3456",
+    phone: "+91 76543 21087",
+    requestDate: "2024-02-03",
+    status: "pending"
+  }
+];
+
 export const formatCurrency = (value) => {
   if (!value) return "0";
   if (value >= 10000000) return `${(value / 10000000).toFixed(2)}Cr`;

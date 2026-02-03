@@ -10,6 +10,7 @@ import {
 import { useState } from 'react';
 import {
   Alert,
+  Dimensions,
   Image,
   Modal,
   Platform,
@@ -22,6 +23,10 @@ import {
 import { useDispatch } from 'react-redux';
 import { INITIAL_PROFILE } from '../MockData/Mockdata';
 import { logout } from '../store/slices/authSlice';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CONTAINER_PADDING = 20;
+const MAX_CONTENT_WIDTH = 500;
 
 const ProfilePage = ({ subscription, onRenew }) => {
   const dispatch = useDispatch();
@@ -96,7 +101,6 @@ const ProfilePage = ({ subscription, onRenew }) => {
   }; 
 
   const handleSubscriptionPress = () => {
-    // Subscription page open karne ka logic
     console.log('Opening subscription page...');
     if (onRenew) {
       onRenew();
@@ -121,308 +125,343 @@ const ProfilePage = ({ subscription, onRenew }) => {
     );
   };
 
-  // Helper for text colors to make them lighter than black
   const colors = {
-    textPrimary: '#232c38e5', // Softer Dark Gray
-    textSecondary: '#6B7280', // Medium Gray
-    purpleBg: '#BFB7FD',
+    textPrimary: '#232c38e5',
+    textSecondary: '#6B7280',
+    purpleBg: '#DAD5FB',
   };
+
+  // Calculate responsive width
+  const contentWidth = Math.min(SCREEN_WIDTH - (CONTAINER_PADDING * 2), MAX_CONTENT_WIDTH);
 
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 60 }}
-      style={{ flex: 1, backgroundColor: '#ffffff' }}
+      contentContainerStyle={{ 
+        paddingBottom: 60,
+        minHeight: '100%'
+      }}
+      style={{ 
+        flex: 1, 
+        backgroundColor: '#ffffff' 
+      }}
     >
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
-      {/* Header - Centered Title */}
+      {/* Centered Content Container */}
       <View style={{
-        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 22 : 44,
-        paddingHorizontal: 20,
-        paddingBottom: 16,
-        flexDirection: 'row',
+        width: '100%',
         alignItems: 'center',
-        justifyContent: 'space-between', // Keeps Bell on right
-        backgroundColor: '#ffffff',
-        position: 'relative'
+        paddingHorizontal: CONTAINER_PADDING
       }}>
-        {/* Empty View to balance the flex layout if needed, but Absolute positioning is better for centering */}
-        <View style={{ width: 20 }} /> 
-
-        {/* Absolutely Centered Title */}
-        <Text style={{ 
-          fontSize: 20, 
-          fontWeight: '700', 
-          color: colors.textPrimary,
-          position: 'absolute',
-          left: 0, 
-          right: 0,
-          textAlign: 'center',
-          bottom: 16,
-          fontFamily: 'Poppins_700Bold'
-        }}>
-          Profile
-        </Text>
-
-        <TouchableOpacity>
-          <Bell size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Profile Section */}
-      <View style={{ alignItems: 'center', paddingHorizontal: 16, marginBottom: 20 }}>
-        
-        {/* Profile Image */}
-        <TouchableOpacity 
-          onPress={handlePhotoPress}
-          style={{ position: 'relative', marginBottom: 6 }}
-        >
-          <View style={{
-            width: 88,
-            height: 88,
-            borderRadius: 42,
-            backgroundColor: 'white',
-            padding: 2,
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}>
-            <View style={{
-              width: 86,
-              height: 86,
-              borderRadius: 42,
-              overflow: 'hidden',
-              backgroundColor: '#f3f4f6'
-            }}>
-              {profileImage ? (
-                <Image
-                  source={{ uri: profileImage }}
-                  style={{ width: '100%', height: '100%' }}
-                />
-              ) : (
-                <View style={{
-                  width: '100%',
-                  height: '100%',
-                  backgroundColor: '#8B5CF6',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}>
-                  <Text style={{
-                    fontSize: 28,
-                    fontWeight: '700',
-                    color: 'white',
-                    fontFamily: 'Montserrat_700Bold'
-                  }}>
-                    {getInitials(profile.name)}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-          {/* Camera Icon */}
-          <View style={{
-            position: 'absolute',
-            bottom: 4,
-            right: 4,
-            backgroundColor: '#8B5CF6',
-            borderRadius: 12,
-            padding: 4,
-            borderWidth: 2,
-            borderColor: 'white'
-          }}>
-            <Camera size={12} color="white" />
-          </View>
-        </TouchableOpacity>
-
-        {/* Name and Email */}
-        <Text style={{ 
-          fontSize: 18, 
-          fontWeight: '700', 
-          color: '#1f2937f3', 
-          marginBottom: 0,
-          fontFamily: 'Poppins_700Bold'
-        }}>
-          {profile.name}
-        </Text>
-        <Text style={{ 
-          fontSize: 14, 
-          color: '#6B7280', 
-          marginBottom: 20,
-          fontFamily: 'Manrope_400Regular'
-        }}>
-          {profile.email}
-        </Text>
-
-        {/* Subscription Card */}
-        <TouchableOpacity 
-          onPress={handleSubscriptionPress}
-          style={{
-            width: '100%',
-            backgroundColor: '#DAD5FB', // Slightly different purple for contrast
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 16,
-            // If you have LinearGradient, wrap this view in it
-          }}
-          activeOpacity={0.8}
-        >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <View>
-              <Text style={{ 
-                fontSize: 14, 
-                fontWeight: '800', 
-                color: colors.textPrimary, 
-                marginBottom: 2, 
-                letterSpacing: 0.5,
-                fontFamily: 'Poppins_700Bold'
-              }}>
-                SUBSCRIPTION
-              </Text>
-              <Text style={{ 
-                fontSize: 12, 
-                color: '#4b5563', 
-                fontWeight: '500',
-                fontFamily: 'Manrope_500Medium'
-              }}>
-                {subscription?.active ? subscription.plan || 'PREMIUM PLAN' : 'SHDSJDJGSJDG'}
-              </Text>
-            </View>
-            <View style={{
-              backgroundColor: subscription?.active ? '#10b981' : '#8b5cf6',
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-              borderRadius: 8
-            }}>
-              <Text style={{ 
-                fontSize: 11, 
-                fontWeight: '700', 
-                color: '#ffffff',
-                fontFamily: 'Poppins_700Bold'
-              }}>
-                {subscription?.active ? 'ACTIVE' : 'FOR SALE'}
-              </Text>
-            </View>
-          </View>
+        <View style={{ width: '100%', maxWidth: MAX_CONTENT_WIDTH }}>
           
-          {/* Tap to manage hint */}
-          
-        </TouchableOpacity>
-
-        {/* Account Details Label */}
-        <View style={{ width: '100%', marginBottom: 20 }}>
-          <Text style={{ 
-            fontSize: 15, 
-            fontWeight: '700', 
-            color: colors.textPrimary, 
-            marginBottom: 16, 
-            paddingHorizontal: 16,
-            fontFamily: 'Poppins_700Bold'
-          }}>
-            Account Details
-          </Text>
-
-          {/* Profile Information Item */}
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.iconContainer}>
-              <User size={18} color="#6b7280" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.menuTitle}>Profile Information</Text>
-              <Text style={styles.menuSubtitle}>Manage account details</Text>
-            </View>
-            <ChevronRight size={18} color="#9ca3af" />
-          </TouchableOpacity>
-
-          {/* Identity Verification Item */}
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.iconContainer}>
-              <Shield size={18} color="#6b7280" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                <Text style={styles.menuTitle}>Identity Verification</Text>
-                <View style={{
-                  backgroundColor: '#dcfce7',
-                  paddingHorizontal: 6,
-                  paddingVertical: 2,
-                  borderRadius: 4,
-                  marginLeft: 8
-                }}>
-                  <Text style={{ 
-                  fontSize: 10, 
-                  fontWeight: '700', 
-                  color: '#166534',
-                  fontFamily: 'Manrope_700Bold'
-                }}>Verified</Text>
-                </View>
-              </View>
-              <Text style={styles.menuSubtitle}>Check your verified status</Text>
-            </View>
-            <ChevronRight size={18} color="#9ca3af" />
-          </TouchableOpacity>
-
-          {/* Support Section (The Purple Grid) */}
+          {/* Header - Centered Title */}
           <View style={{
-            backgroundColor: '#DAD5FB',
-            marginTop:6,
-            borderRadius: 16,
-            paddingHorizontal: 16,
-            marginBottom: 16,
-            overflow: 'hidden' // Ensures image doesn't bleed out
+            paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 14 : 48,
+            paddingBottom: 20,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: '#ffffff',
+            position: 'relative'
           }}>
-            {/* 1. Support Hub */}
-            <TouchableOpacity style={styles.purpleItem}>
-              <Text style={styles.purpleItemText}>Support Hub</Text>
-            </TouchableOpacity>
+            <View style={{ width: 24 }} /> 
 
-            {/* Separator Image 1 */}
-            <Image 
-                source={require('../../assets/images/Line 3.png')} 
-                style={{ width: '100%', height: 1, opacity: 0.6 }} 
-                resizeMode="cover"
-            />
-
-            {/* 2. Terms */}
-            <TouchableOpacity style={styles.purpleItem}>
-              <Text style={styles.purpleItemText}>Terms & Conditions</Text>
-            </TouchableOpacity>
-
-            {/* Separator Image 2 */}
-            <Image 
-                source={require('../../assets/images/Line 3.png')} 
-                style={{ width: '100%', height: 1, opacity: 0.6 }} 
-                resizeMode="cover"
-            />
-
-            {/* 3. Data Privacy */}
-            <TouchableOpacity style={styles.purpleItem}>
-              <Text style={styles.purpleItemText}>Data Privacy</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Logout Button */}
-          <TouchableOpacity
-            onPress={handleLogout}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingVertical: 14,
-              backgroundColor: '#FEF2F2',
-              borderRadius: 12,
-              gap: 8
-            }}
-          >
-            <LogOut size={18} color="#EF4444" />
             <Text style={{ 
-              fontSize: 15, 
+              fontSize: 20, 
               fontWeight: '700', 
-              color: '#EF4444',
+              color: colors.textPrimary,
+              position: 'absolute',
+              left: 0, 
+              right: 0,
+              textAlign: 'center',
+              bottom: 8,
               fontFamily: 'Poppins_700Bold'
             }}>
-              Sign Out
+              Profile
             </Text>
-          </TouchableOpacity>
+
+            <TouchableOpacity>
+              <Bell size={22} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Profile Section */}
+          <View style={{ 
+            alignItems: 'center', 
+            marginBottom: 24,
+            marginTop: 8
+          }}>
+            
+            {/* Profile Image */}
+            <TouchableOpacity 
+              onPress={handlePhotoPress}
+              style={{ position: 'relative', marginBottom: 12 }}
+            >
+              <View style={{
+                width: 96,
+                height: 96,
+                borderRadius: 48,
+                backgroundColor: 'white',
+                padding: 3,
+                justifyContent: 'center',
+                alignItems: 'center',
+                
+                
+                
+                
+                
+              }}>
+                <View style={{
+                  width: 90,
+                  height: 90,
+                  borderRadius: 45,
+                  overflow: 'hidden',
+                  backgroundColor: '#f3f4f6'
+                }}>
+                  {profileImage ? (
+                    <Image
+                      source={{ uri: profileImage }}
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  ) : (
+                    <View style={{
+                      width: '100%',
+                      height: '100%',
+                      backgroundColor: '#8B5CF6',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}>
+                      <Text style={{
+                        fontSize: 32,
+                        fontWeight: '700',
+                        color: 'white',
+                        fontFamily: 'Montserrat_700Bold'
+                      }}>
+                        {getInitials(profile.name)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              {/* Camera Icon */}
+              <View style={{
+                position: 'absolute',
+                bottom: 2,
+                right: 2,
+                backgroundColor: '#8B5CF6',
+                borderRadius: 14,
+                padding: 6,
+                borderWidth: 3,
+                borderColor: 'white'
+              }}>
+                <Camera size={14} color="white" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Name and Email */}
+            <Text style={{ 
+              fontSize: 20, 
+              fontWeight: '700', 
+              color: '#1f2937', 
+              marginBottom: 1,
+              fontFamily: 'Poppins_700Bold'
+            }}>
+              {profile.name}
+            </Text>
+            <Text style={{ 
+              fontSize: 14, 
+              color: '#6B7280', 
+              marginBottom: 24,
+              fontFamily: 'Manrope_400Regular'
+            }}>
+              {profile.email}
+            </Text>
+
+            {/* Subscription Card */}
+            <TouchableOpacity 
+              onPress={handleSubscriptionPress}
+              style={{
+                width: '100%',
+                minHeight: 95,
+                backgroundColor: colors.purpleBg,
+                borderRadius: 16,
+                padding: 20,
+                marginBottom: 16,
+                justifyContent:'center',
+                
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'space-between', 
+                alignItems: 'flex-start' 
+              }}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={{ 
+                    fontSize: 14, 
+                    fontWeight: '800', 
+                    color: colors.textPrimary, 
+                    marginBottom: 4, 
+                    letterSpacing: 0.5,
+                    fontFamily: 'Poppins_700Bold'
+                  }}>
+                    SUBSCRIPTION
+                  </Text>
+                  <Text style={{ 
+                    fontSize: 12, 
+                    color: '#4b5563', 
+                    fontWeight: '500',
+                    fontFamily: 'Manrope_500Medium'
+                  }}>
+                    {subscription?.active ? subscription.plan || 'PREMIUM PLAN' : 'No Active Plan'}
+                  </Text>
+                </View>
+                <View style={{
+                  backgroundColor: subscription?.active ? '#10b981' : '#8b5cf6',
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  minWidth: 80,
+                  alignItems: 'center'
+                }}>
+                  <Text style={{ 
+                    fontSize: 11, 
+                    fontWeight: '700', 
+                    color: '#ffffff',
+                    fontFamily: 'Poppins_700Bold'
+                  }}>
+                    {subscription?.active ? 'ACTIVE' : 'UPGRADE'}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            {/* Account Details Label */}
+            <View style={{ width: '100%' }}>
+              <Text style={{ 
+                fontSize: 16, 
+                fontWeight: '700', 
+                color: colors.textPrimary, 
+                marginBottom: 16,
+                fontFamily: 'Poppins_700Bold',
+                left:16,
+              }}>
+                Account Details
+              </Text>
+
+              {/* Profile Information Item */}
+              <TouchableOpacity style={styles.menuItem}>
+                <View style={styles.iconContainer}>
+                  <User size={18} color="#6b7280" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.menuTitle}>Profile Information</Text>
+                  <Text style={styles.menuSubtitle}>Manage account details</Text>
+                </View>
+                <ChevronRight size={18} color="#9ca3af" />
+              </TouchableOpacity>
+
+              {/* Identity Verification Item */}
+              <TouchableOpacity style={styles.menuItem}>
+                <View style={styles.iconContainer}>
+                  <Shield size={18} color="#6b7280" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ 
+                    flexDirection: 'row', 
+                    alignItems: 'center', 
+                    marginBottom: 4,
+                    flexWrap: 'wrap'
+                  }}>
+                    <Text style={styles.menuTitle}>Identity Verification</Text>
+                    <View style={{
+                      backgroundColor: '#dcfce7',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 5,
+                      marginLeft: 8
+                    }}>
+                      <Text style={{ 
+                        fontSize: 10, 
+                        fontWeight: '700', 
+                        color: '#166534',
+                        fontFamily: 'Manrope_700Bold'
+                      }}>Verified</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.menuSubtitle}>Check your verified status</Text>
+                </View>
+                <ChevronRight size={18} color="#9ca3af" />
+              </TouchableOpacity>
+
+              {/* Support Section (The Purple Grid) */}
+              <View style={{
+                backgroundColor: colors.purpleBg,
+                marginTop: 12,
+                borderRadius: 16,
+                marginBottom: 24,
+                overflow: 'hidden',
+              }}>
+                {/* 1. Support Hub */}
+                <TouchableOpacity style={styles.purpleItem}>
+                  <Text style={styles.purpleItemText}>Support Hub</Text>
+                </TouchableOpacity>
+
+                {/* Separator Image 1 */}
+                <Image 
+                  source={require('../../assets/images/Line 3.png')} 
+                  style={{ width: '100%', height: 1, opacity: 0.6 }} 
+                  resizeMode="cover"
+                />
+
+                {/* 2. Terms */}
+                <TouchableOpacity style={styles.purpleItem}>
+                  <Text style={styles.purpleItemText}>Terms & Conditions</Text>
+                </TouchableOpacity>
+
+                {/* Separator Image 2 */}
+                <Image 
+                  source={require('../../assets/images/Line 3.png')} 
+                  style={{ width: '100%', height: 1, opacity: 0.6 }} 
+                  resizeMode="cover"
+                />
+
+                {/* 3. Data Privacy */}
+                <TouchableOpacity style={styles.purpleItem}>
+                  <Text style={styles.purpleItemText}>Data Privacy</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Logout Button */}
+              <TouchableOpacity
+                onPress={handleLogout}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 16,
+                  backgroundColor: '#FEF2F2',
+                  borderRadius: 12,
+                  gap: 10,
+                  minHeight: 52
+                }}
+              >
+                <LogOut size={18} color="#EF4444" />
+                <Text style={{ 
+                  fontSize: 15, 
+                  fontWeight: '700', 
+                  color: '#EF4444',
+                  fontFamily: 'Poppins_700Bold'
+                }}>
+                  Sign Out
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
         </View>
       </View>
 
@@ -438,7 +477,11 @@ const ProfilePage = ({ subscription, onRenew }) => {
           style={styles.sheetOverlay}
           onPress={() => setPhotoSheetVisible(false)}
         >
-          <View style={styles.bottomSheet}>
+          <View style={[styles.bottomSheet, { 
+            maxWidth: MAX_CONTENT_WIDTH,
+            width: '100%',
+            alignSelf: 'center'
+          }]}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Profile Photo</Text>
             
@@ -478,67 +521,69 @@ const ProfilePage = ({ subscription, onRenew }) => {
   );
 };
 
-// Extracted styles for cleaner code and reusability
 const styles = {
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#eaecf0',
-    backgroundColor: '#FFFFFF'
+    backgroundColor: '#FFFFFF',
+    minHeight: 72
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#eaecf0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-    
+    marginRight: 14,
   },
   menuTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
-    fontFamily: 'Poppins_600SemiBold'
+    color: '#1E1E2D',
+    fontFamily: 'Poppins_500Medium',
+    marginBottom: 0
   },
   menuSubtitle: {
     fontSize: 12,
     color: '#6B7280',
     fontFamily: 'Manrope_400Regular',
-    bottom: 6,
+    bottom:4,
   },
-  // Purple Section Styles
   purpleItem: {
-    paddingVertical: 12, // Increased padding for equal spacing
+    height: 57,
     justifyContent: 'center',
-    paddingHorizontal:10,
+    alignItems:'start',
+    paddingHorizontal: 20,
+    marginTop:1,
   },
   purpleItemText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1f2937f2',
-    fontFamily: 'Poppins_600SemiBold'
+    color: '#1E1E2D',
+    fontFamily: 'Poppins_600SemiBold',
+    textAlign: 'left',
   },
-  // Photo Selection Bottom Sheet
   sheetOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   bottomSheet: {
     backgroundColor: '#fff',
-    paddingTop: 12,
-    paddingBottom: 24,
+    paddingTop: 16,
+    paddingBottom: 34,
     paddingHorizontal: 20,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    minHeight: 300
   },
   sheetHandle: {
     width: 40,
@@ -546,22 +591,23 @@ const styles = {
     borderRadius: 2,
     backgroundColor: '#d1d5db',
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   sheetTitle: {
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
     color: '#111827',
     fontFamily: 'Poppins_700Bold'
   },
   sheetBtn: {
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 16,
+    borderRadius: 12,
     backgroundColor: '#f3f4f6',
     marginBottom: 12,
     alignItems: 'center',
+    minHeight: 52
   },
   sheetBtnText: {
     fontSize: 16,

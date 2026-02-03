@@ -1,7 +1,6 @@
-import { loginSuccess } from '@/src/store/slices/authSlice';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowLeft, Shield } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
     KeyboardAvoidingView,
@@ -13,15 +12,13 @@ import {
     TextInput,
     TouchableOpacity,
     View,
-    Dimensions,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
-
-const { height } = Dimensions.get('window');
+import { loginSuccess } from '../src/store/slices/authSlice';
 
 export default function OTP() {
   const dispatch = useDispatch();
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
@@ -48,7 +45,7 @@ export default function OTP() {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    if (value && index < 5) {
+    if (value && index < 3) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -61,7 +58,7 @@ export default function OTP() {
 
   const handleVerify = async () => {
     const otpCode = otp.join('');
-    if (otpCode.length !== 6) return;
+    if (otpCode.length !== 4) return;
 
     setLoading(true);
     setTimeout(() => {
@@ -79,7 +76,7 @@ export default function OTP() {
   const handleResend = () => {
     setTimer(60);
     setCanResend(false);
-    setOtp(['', '', '', '', '', '']);
+    setOtp(['', '', '', '']);
     console.log('Resending OTP...');
   };
 
@@ -90,120 +87,96 @@ export default function OTP() {
   const isOtpComplete = otp.every(digit => digit !== '');
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
       
+      {/* GRADIENT */}
       <LinearGradient
-        colors={['#BFB7FD', '#E5E1FF', '#ffffff']}
+        colors={['#DAD5FB', '#F3F4F6', '#FFFFFF']}
         locations={[0, 0.55, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* BACK BUTTON */}
-            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-              <ArrowLeft size={22} color="#111827" strokeWidth={2.5} />
-            </TouchableOpacity>
+          {/* BACK BUTTON */}
+          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+            <ArrowLeft size={22} color="#333" />
+          </TouchableOpacity>
 
-            {/* HEADER */}
-            <View style={styles.header}>
-              <View style={styles.logoContainer}>
-                <Text style={styles.brokerText}>BROKER</Text>
-                <View style={styles.numberBadge}>
-                  <Text style={styles.numberText}>99</Text>
-                </View>
-              </View>
+          {/* HEADER */}
+          <View style={styles.header}>
+            <Text style={styles.title}>OTP</Text>
+            <Text style={styles.subtitle}>Enter code</Text>
+          </View>
 
-              <View style={styles.iconWrapper}>
-                <Shield size={28} color="#BFB7FD" strokeWidth={2.5} />
-              </View>
-
-              <Text style={styles.title}>Verify Your Phone</Text>
-              <Text style={styles.subtitle}>
-                We've sent a 6-digit code to{'\n'}
-                <Text style={styles.phoneNumber}>+91 98765 43210</Text>
-              </Text>
+          {/* FORM */}
+          <View style={styles.form}>
+            {/* OTP INPUT */}
+            <View style={styles.otpInputContainer}>
+              {otp.map((digit, index) => (
+                <TextInput
+                  key={index}
+                  ref={(ref) => (inputRefs.current[index] = ref)}
+                  value={digit}
+                  onChangeText={(value) => handleOtpChange(value, index)}
+                  onKeyPress={(e) => handleKeyPress(e, index)}
+                  style={[
+                    styles.otpInput,
+                    digit && styles.otpInputFilled
+                  ]}
+                  keyboardType="numeric"
+                  maxLength={1}
+                  textAlign="center"
+                  selectTextOnFocus
+                />
+              ))}
             </View>
 
-            {/* FORM */}
-            <View style={styles.form}>
-              {/* OTP INPUT */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Verification Code</Text>
-                
-                <View style={styles.otpInputContainer}>
-                  {otp.map((digit, index) => (
-                    <TextInput
-                      key={index}
-                      ref={(ref) => (inputRefs.current[index] = ref)}
-                      value={digit}
-                      onChangeText={(value) => handleOtpChange(value, index)}
-                      onKeyPress={(e) => handleKeyPress(e, index)}
-                      style={[
-                        styles.otpInput,
-                        digit && styles.otpInputFilled
-                      ]}
-                      keyboardType="numeric"
-                      maxLength={1}
-                      textAlign="center"
-                      selectTextOnFocus
-                    />
-                  ))}
-                </View>
-              </View>
-
-              {/* TIMER */}
-              <View style={styles.timerContainer}>
-                {!canResend ? (
-                  <Text style={styles.timerText}>
-                    Resend code in {timer}s
-                  </Text>
-                ) : (
-                  <TouchableOpacity onPress={handleResend}>
-                    <Text style={styles.resendText}>Resend Code</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* VERIFY BUTTON */}
-              <TouchableOpacity 
-                onPress={handleVerify}
-                disabled={!isOtpComplete || loading}
-                activeOpacity={0.85}
-                style={[
-                  styles.verifyBtn,
-                  (!isOtpComplete || loading) && { opacity: 0.5 }
-                ]}
-              >
-                <LinearGradient
-                  colors={['#BFB7FD', '#A89EF8']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.gradientBtn}
-                >
-                  <Text style={styles.verifyText}>
-                    {loading ? 'Verifying...' : 'Verify & Continue'}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              {/* FOOTER */}
-              <View style={styles.footer}>
-                <Text style={styles.footerText}>Didn't receive the code?</Text>
-                <TouchableOpacity>
-                  <Text style={styles.footerLink}>Contact Support</Text>
+            {/* RESEND */}
+            <View style={styles.resendContainer}>
+              {canResend ? (
+                <TouchableOpacity onPress={handleResend}>
+                  <Text style={styles.resendText}>Resend code</Text>
                 </TouchableOpacity>
-              </View>
+              ) : (
+                <Text style={styles.timerText}>
+                  Resend code in {timer}s
+                </Text>
+              )}
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </LinearGradient>
+
+            {/* CONTINUE BUTTON */}
+            <TouchableOpacity 
+              onPress={handleVerify}
+              disabled={!isOtpComplete || loading}
+              style={[
+                styles.continueBtn,
+                (!isOtpComplete || loading) && { opacity: 0.75 }
+              ]}
+            >
+              <Text style={styles.continueText}>
+                {loading ? 'Processing...' : 'Continue'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* FOOTER */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              By signing up, you agree to the{' '}
+              <Text style={styles.link}>Terms of Service</Text> and{' '}
+              <Text style={styles.link}>Privacy Policy</Text>.
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -211,162 +184,117 @@ export default function OTP() {
 const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingHorizontal: 33,
+    paddingTop: 60,
   },
 
   /* BACK BUTTON */
   backButton: {
-    position: 'absolute',
-    top: Platform.OS === 'android' ? StatusBar.currentHeight + 16 : 50,
-    left: 24,
-    zIndex: 10,
-    padding: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 40,
+    borderWidth: 1,
+    borderColor: '#15151520',
   },
 
   /* HEADER */
   header: {
-    alignItems: 'center',
-    marginTop: height * 0.08,
-    marginBottom: 28,
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
-  },
-  brokerText: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#111827',
-    letterSpacing: 0.8,
-  },
-  numberBadge: {
-    backgroundColor: '#BFB7FD',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  numberText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#111827',
-  },
-  iconWrapper: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-    borderWidth: 1.5,
-    borderColor: 'rgba(191, 183, 253, 0.4)',
+    marginBottom: 20,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: 42,
+    fontFamily: 'Montserrat_500Medium',
+    fontWeight: '400',
     color: '#111827',
+    marginBottom: 60,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginTop: 5,
-    fontWeight: '500',
-    textAlign: 'center',
-    lineHeight: 19,
-  },
-  phoneNumber: {
-    fontWeight: '700',
-    color: '#111827',
+    fontSize: 15,
+    fontFamily: 'Montserrat_500Medium',
+    fontWeight:600,
+    color: 'black',
   },
 
   /* FORM */
   form: {
-    gap: 14,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#374151',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    textAlign: 'center',
+    gap: 18,
   },
   otpInputContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
+    gap: 12,
+    marginTop: 20,
   },
   otpInput: {
-    width: 44,
-    height: 52,
-    borderWidth: 1.5,
-    borderColor: 'rgba(191, 183, 253, 0.3)',
-    borderRadius: 10,
-    fontSize: 18,
-    fontWeight: '700',
+    flex: 1,
+    height: 60,
+    borderWidth: 1.2,
+    borderColor: '#D1D5DB',
+    borderRadius: 22,
+    fontSize: 20,
+    fontWeight: '600',
     color: '#111827',
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: 'transparent',
+    fontFamily: 'Montserrat_600SemiBold',
   },
   otpInputFilled: {
-    borderColor: '#BFB7FD',
-    backgroundColor: 'rgba(191, 183, 253, 0.15)',
+    borderColor: '#C4B5FD',
+    backgroundColor: 'rgba(196, 181, 253, 0.1)',
   },
 
-  /* TIMER */
-  timerContainer: {
-    alignItems: 'center',
-    marginTop: 4,
+  /* RESEND */
+  resendContainer: {
+    alignItems:'center',
+    marginTop: 58,
   },
   timerText: {
-    fontSize: 12,
-    color: '#6b7280',
-    fontWeight: '500',
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '400',
+    fontFamily: 'Montserrat_400Regular',
   },
   resendText: {
-    fontSize: 12,
-    color: '#9F95F5',
-    fontWeight: '700',
+    fontSize: 13,
+    color: '#EF4444',
+    fontWeight: '500',
+    fontFamily: 'Montserrat_500Medium',
   },
 
   /* BUTTON */
-  verifyBtn: {
-    marginTop: 6,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  gradientBtn: {
-    height: 50,
-    alignItems: 'center',
+  continueBtn: {
+    backgroundColor: '#C4B5FD',
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
   },
-  verifyText: {
+  continueText: {
+    fontSize: 16,
     color: '#111827',
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontFamily: 'Montserrat_600SemiBold',
   },
 
   /* FOOTER */
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 4,
-    marginTop: 14,
+    marginTop: 'auto',
+    marginBottom: 28,
+    paddingHorizontal: 10,
   },
   footerText: {
-    fontSize: 13,
-    color: '#6b7280',
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: 'Lato_400Regular',
+    lineHeight: 18,
   },
-  footerLink: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#9F95F5',
+  link: {
+    textDecorationLine: 'underline',
+    fontFamily: 'Lato_700Bold',
+    color: '#374151',
   },
 });

@@ -1,23 +1,25 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowLeft, CheckCircle } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
     KeyboardAvoidingView,
     Platform,
+    ScrollView,
     StatusBar,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
+
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../src/store/slices/authSlice';
 
 export default function ResetOTP() {
   const dispatch = useDispatch();
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
@@ -44,8 +46,7 @@ export default function ResetOTP() {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto focus next input
-    if (value && index < 5) {
+    if (value && index < 3) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -58,13 +59,11 @@ export default function ResetOTP() {
 
   const handleVerify = async () => {
     const otpCode = otp.join('');
-    if (otpCode.length !== 6) return;
+    if (otpCode.length !== 4) return;
 
     setLoading(true);
-    // Simulate API call
     setTimeout(() => {
       setLoading(false);
-      // Mock user data - password reset successful
       const userData = {
         id: 1,
         name: 'Rajesh Sharma',
@@ -78,8 +77,7 @@ export default function ResetOTP() {
   const handleResend = () => {
     setTimer(60);
     setCanResend(false);
-    setOtp(['', '', '', '', '', '']);
-    // Simulate resend API call
+    setOtp(['', '', '', '']);
     console.log('Resending Reset OTP...');
   };
 
@@ -90,262 +88,213 @@ export default function ResetOTP() {
   const isOtpComplete = otp.every(digit => digit !== '');
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-      style={styles.container}
-    >
-      <StatusBar barStyle="light-content" backgroundColor="#8B5CF6" />
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
       
-      {/* Background Gradient */}
+      {/* GRADIENT */}
       <LinearGradient
-        colors={['#8B5CF6', '#BFB7FD', '#E5E1FF']}
-        locations={[0, 0.6, 1]}
-        style={styles.gradient}
+        colors={['#DAD5FB', '#F3F4F6', '#FFFFFF']}
+        locations={[0, 0.55, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
-        
-        {/* Header Section */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <ArrowLeft size={24} color="white" />
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* BACK BUTTON */}
+          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+            <ArrowLeft size={22} color="#333" />
           </TouchableOpacity>
 
-          <View style={styles.iconContainer}>
-            <View style={styles.iconWrapper}>
-              <CheckCircle size={40} color="white" />
-            </View>
+          {/* HEADER */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Reset OTP</Text>
+            <Text style={styles.subtitle}>Enter code</Text>
           </View>
-          
-          <Text style={styles.title}>Verify Reset Code</Text>
-          <Text style={styles.subtitle}>
-            We've sent a 6-digit verification code to{'\n'}
-            <Text style={styles.emailText}>your registered email</Text>
-          </Text>
-        </View>
 
-        {/* Form Section */}
-        <View style={styles.formContainer}>
+          {/* FORM */}
           <View style={styles.form}>
-            
-            {/* OTP Input */}
-            <View style={styles.otpContainer}>
-              <Text style={styles.otpLabel}>Enter Verification Code</Text>
-              
-              <View style={styles.otpInputContainer}>
-                {otp.map((digit, index) => (
-                  <TextInput
-                    key={index}
-                    ref={(ref) => (inputRefs.current[index] = ref)}
-                    value={digit}
-                    onChangeText={(value) => handleOtpChange(value, index)}
-                    onKeyPress={(e) => handleKeyPress(e, index)}
-                    style={[
-                      styles.otpInput,
-                      digit && styles.otpInputFilled
-                    ]}
-                    keyboardType="numeric"
-                    maxLength={1}
-                    textAlign="center"
-                    selectTextOnFocus
-                  />
-                ))}
-              </View>
+            {/* OTP INPUT */}
+            <View style={styles.otpInputContainer}>
+              {otp.map((digit, index) => (
+                <TextInput
+                  key={index}
+                  ref={(ref) => (inputRefs.current[index] = ref)}
+                  value={digit}
+                  onChangeText={(value) => handleOtpChange(value, index)}
+                  onKeyPress={(e) => handleKeyPress(e, index)}
+                  style={[
+                    styles.otpInput,
+                    digit && styles.otpInputFilled
+                  ]}
+                  keyboardType="numeric"
+                  maxLength={1}
+                  textAlign="center"
+                  selectTextOnFocus
+                />
+              ))}
             </View>
 
-            {/* Timer */}
-            <View style={styles.timerContainer}>
-              {!canResend ? (
+            {/* RESEND */}
+            <View style={styles.resendContainer}>
+              {canResend ? (
+                <TouchableOpacity onPress={handleResend}>
+                  <Text style={styles.resendText}>Resend code</Text>
+                </TouchableOpacity>
+              ) : (
                 <Text style={styles.timerText}>
                   Resend code in {timer}s
                 </Text>
-              ) : (
-                <TouchableOpacity onPress={handleResend}>
-                  <Text style={styles.resendText}>Resend Code</Text>
-                </TouchableOpacity>
               )}
             </View>
 
-            {/* Verify Button */}
+            {/* CONTINUE BUTTON */}
             <TouchableOpacity 
               onPress={handleVerify}
-              style={[
-                styles.verifyButton, 
-                (!isOtpComplete || loading) && styles.verifyButtonDisabled
-              ]}
               disabled={!isOtpComplete || loading}
+              style={[
+                styles.continueBtn,
+                (!isOtpComplete || loading) && { opacity: 0.75 }
+              ]}
             >
-              <Text style={styles.verifyButtonText}>
-                {loading ? 'Verifying...' : 'Verify & Reset Password'}
+              <Text style={styles.continueText}>
+                {loading ? 'Processing...' : 'Continue'}
               </Text>
             </TouchableOpacity>
-
-            {/* Success Message */}
-            <View style={styles.successContainer}>
-              <Text style={styles.successText}>
-                After verification, your password will be reset and you'll be logged in automatically.
-              </Text>
-            </View>
-
-            {/* Help Text */}
-            <View style={styles.helpContainer}>
-              <Text style={styles.helpText}>
-                Didn't receive the code?{' '}
-                <Text style={styles.helpLink}>Contact Support</Text>
-              </Text>
-            </View>
-
           </View>
-        </View>
 
-      </LinearGradient>
-    </KeyboardAvoidingView>
+          {/* FOOTER */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              By resetting your password, you agree to the{' '}
+              <Text style={styles.link}>Terms of Service</Text> and{' '}
+              <Text style={styles.link}>Privacy Policy</Text>.
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: 33,
+    paddingTop: 60,
   },
-  gradient: {
-    flex: 1,
-  },
-  header: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 60,
-    paddingHorizontal: 24,
-  },
+
+  /* BACK BUTTON */
   backButton: {
-    position: 'absolute',
-    top: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 60,
-    left: 24,
-    padding: 8,
-  },
-  iconContainer: {
-    marginBottom: 32,
-  },
-  iconWrapper: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    marginBottom: 40,
+    borderWidth: 1,
+    borderColor: '#15151520',
+  },
+
+  /* HEADER */
+  header: {
+    marginBottom: 20,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: 'white',
-    marginBottom: 12,
-    textAlign: 'center',
+    fontSize: 42,
+    fontFamily: 'Montserrat_500Medium',
+    fontWeight: '400',
+    color: '#111827',
+    marginBottom: 60,
   },
   subtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
-    fontWeight: '500',
-    textAlign: 'center',
-    lineHeight: 22,
+    fontSize: 15,
+    fontFamily: 'Montserrat_400Regular',
+    color: '#1A1D1B',
   },
-  emailText: {
-    fontWeight: '700',
-    color: 'white',
-  },
-  formContainer: {
-    flex: 1.2,
-    backgroundColor: 'white',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingTop: 32,
-    paddingHorizontal: 24,
-  },
+
+  /* FORM */
   form: {
-    flex: 1,
-  },
-  otpContainer: {
-    marginBottom: 32,
-  },
-  otpLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 20,
-    textAlign: 'center',
+    gap: 18,
   },
   otpInputContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
+    gap: 12,
+    marginTop: 20,
   },
   otpInput: {
-    width: 48,
-    height: 56,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
+    flex: 1,
+    height: 60,
+    borderWidth: 1.2,
+    borderColor: '#D1D5DB',
+    borderRadius: 22,
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#111827',
-    backgroundColor: '#f9fafb',
+    backgroundColor: 'transparent',
+    fontFamily: 'Montserrat_600SemiBold',
   },
   otpInputFilled: {
-    borderColor: '#8B5CF6',
-    backgroundColor: '#f3f4f6',
+    borderColor: '#C4B5FD',
+    backgroundColor: 'rgba(196, 181, 253, 0.1)',
   },
-  timerContainer: {
-    alignItems: 'center',
-    marginBottom: 32,
+
+  /* RESEND */
+  resendContainer: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
   },
   timerText: {
-    fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '500',
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '400',
+    fontFamily: 'Montserrat_400Regular',
   },
   resendText: {
-    fontSize: 14,
-    color: '#8B5CF6',
-    fontWeight: '600',
-  },
-  verifyButton: {
-    backgroundColor: '#111827',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  verifyButtonDisabled: {
-    opacity: 0.5,
-  },
-  verifyButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  successContainer: {
-    backgroundColor: '#f0f9ff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#0ea5e9',
-  },
-  successText: {
     fontSize: 13,
-    color: '#0369a1',
+    color: '#EF4444',
+    fontWeight: '500',
+    fontFamily: 'Montserrat_500Medium',
+  },
+
+  /* BUTTON */
+  continueBtn: {
+    backgroundColor: '#C4B5FD',
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 66,
+  },
+  continueText: {
+    fontSize: 16,
+    color: '#111827',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+
+  /* FOOTER */
+  footer: {
+    marginTop: 'auto',
+    marginBottom: 28,
+    paddingHorizontal: 10,
+  },
+  footerText: {
     textAlign: 'center',
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: 'Lato_400Regular',
     lineHeight: 18,
   },
-  helpContainer: {
-    alignItems: 'center',
-  },
-  helpText: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-  helpLink: {
-    color: '#8B5CF6',
-    fontWeight: '600',
+  link: {
+    textDecorationLine: 'underline',
+    fontFamily: 'Lato_700Bold',
+    color: '#374151',
   },
 });
