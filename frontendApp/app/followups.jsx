@@ -243,9 +243,9 @@ export default function FollowUps() {
                const isFirst = index === 0;
                const isPendingFirst = filter === 'Pending' && isFirst;
                const cardStyle = isPendingFirst ? styles.cardPurple : styles.cardWhite;
-               const textPrimary = isPendingFirst ? '#FFF' : '#1f2937';
-               const textSecondary = isPendingFirst ? 'rgba(255,255,255,0.7)' : '#6b7280';
-               const iconColor = isPendingFirst ? 'rgba(255,255,255,0.8)' : '#9ca3af';
+               const textPrimary = isPendingFirst ? '#374151' : '#1f2937'; // Dark grey for purple card
+               const textSecondary = isPendingFirst ? '#4b5563' : '#6b7280'; // Darker grey for purple card
+               const iconColor = isPendingFirst ? '#6b7280' : '#9ca3af'; // Dark grey icons for purple card
 
                return (
                   <View key={task.id} style={styles.timelineRow}>
@@ -272,11 +272,11 @@ export default function FollowUps() {
                               <Edit3 size={14} color={textPrimary} />
                            </TouchableOpacity>
                            <TouchableOpacity onPress={() => handleDeleteTask(task.id)}>
-                              <Trash2 size={14} color={filter === 'Done' ? 'rgba(255,255,255,0.8)' : '#ef4444'} />
+                              <Trash2 size={14} color={isPendingFirst ? '#dc2626' : '#ef4444'} />
                            </TouchableOpacity>
                            {filter !== 'Done' && (
                               <TouchableOpacity onPress={() => handleUpdateStatus(task.id, 'Done')}>
-                                 <CheckCircle size={16} color={filter === 'Done' ? 'rgba(255,255,255,0.8)' : '#10b981'} />
+                                 <CheckCircle size={16} color={isPendingFirst ? '#059669' : '#10b981'} />
                               </TouchableOpacity>
                            )}
                         </View>
@@ -317,31 +317,62 @@ export default function FollowUps() {
                         styles.actionContainer,
                         filter === 'Done' && styles.actionContainerNoBorder
                      ]}>
-                        {(task.type === 'Site Visit' || task.type === 'Visit') && filter === 'Pending' && property ? (
-                           <TouchableOpacity 
-                              onPress={() => handleStartVisit({ 
-                                 id: generateId(), 
-                                 customer, 
-                                 property, 
-                                 taskId: task.id 
-                              })}
-                              style={styles.startVisitButton}
-                           >
-                              <Map size={12} color="#fbbf24" />
-                              <Text style={styles.startVisitText}>Start Visit</Text>
-                           </TouchableOpacity>
-                        ) : filter === 'Pending' && !isPendingFirst ? (
-                           <View style={styles.contactButtonsRow}>
-                              <TouchableOpacity onPress={() => handleCall(customer?.phone)} style={styles.miniBtn}>
-                                 <Phone size={12} color="#15803d" />
-                                 <Text style={[styles.miniBtnText, { color: '#15803d' }]}>Call</Text>
+                        {isPendingFirst ? (
+                           // Purple card actions based on task type
+                           (task.type === 'Site Visit' || task.type === 'Visit') ? (
+                              <TouchableOpacity 
+                                 onPress={() => handleStartVisit({ 
+                                    id: generateId(), 
+                                    customer, 
+                                    property, 
+                                    taskId: task.id 
+                                 })}
+                                 style={styles.startVisitButton}
+                              >
+                                 <Map size={12} color="#fbbf24" />
+                                 <Text style={styles.startVisitText}>Visit Site</Text>
                               </TouchableOpacity>
-                              <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone)} style={styles.miniBtn}>
-                                 <WhatsAppIcon size={12} color="#25D366" />
-                                 <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
+                           ) : (
+                              // For Meeting, Call, Follow-up etc. - show Call & Msg buttons
+                              <View style={styles.contactButtonsRow}>
+                                 <TouchableOpacity onPress={() => handleCall(customer?.phone)} style={styles.miniBtn}>
+                                    <Phone size={12} color="#4b5563" />
+                                    <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
+                                 </TouchableOpacity>
+                                 <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone)} style={styles.miniBtn}>
+                                    <WhatsAppIcon size={12} color="#4b5563" />
+                                    <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
+                                 </TouchableOpacity>
+                              </View>
+                           )
+                        ) : (
+                           // Non-purple cards (white cards)
+                           (task.type === 'Site Visit' || task.type === 'Visit') && filter === 'Pending' && property ? (
+                              <TouchableOpacity 
+                                 onPress={() => handleStartVisit({ 
+                                    id: generateId(), 
+                                    customer, 
+                                    property, 
+                                    taskId: task.id 
+                                 })}
+                                 style={styles.startVisitButton}
+                              >
+                                 <Map size={12} color="#fbbf24" />
+                                 <Text style={styles.startVisitText}>Start Visit</Text>
                               </TouchableOpacity>
-                           </View>
-                        ) : null}
+                           ) : filter === 'Pending' ? (
+                              <View style={styles.contactButtonsRow}>
+                                 <TouchableOpacity onPress={() => handleCall(customer?.phone)} style={styles.miniBtn}>
+                                    <Phone size={12} color="#4b5563" />
+                                    <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
+                                 </TouchableOpacity>
+                                 <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone)} style={styles.miniBtn}>
+                                    <WhatsAppIcon size={12} color="#4b5563" />
+                                    <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
+                                 </TouchableOpacity>
+                              </View>
+                           ) : null
+                        )}
                      </View>
                   </TouchableOpacity>
                </View>
@@ -658,7 +689,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#00000000',
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: 'rgba(0,0,0,0.05)', // Same as partition border color
   },
   miniBtnText: {
     fontSize: 10,

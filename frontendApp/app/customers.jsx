@@ -1,6 +1,5 @@
 import { View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import FAB from '../src/Components/FAB.jsx';
 import AddModal from '../src/Modal and Sheets/AddModal';
 import CustomerDetailSheet from '../src/Modal and Sheets/CustomerDetailSheet';
 import DealSheet from '../src/Modal and Sheets/DealSheet';
@@ -26,7 +25,10 @@ export default function Customers() {
   const handleAddCustomer = () => {
     dispatch(clearEditItem());
     dispatch(setModalType('Customer'));
-    dispatch(setModalOpen(true));
+    // Add a small delay to ensure smooth animation
+    setTimeout(() => {
+      dispatch(setModalOpen(true));
+    }, 50);
   };
 
   const handleAdd = (data) => {
@@ -96,8 +98,6 @@ export default function Customers() {
         onSelect={(customer) => dispatch(setSelectedCustomer(customer))} 
         onAddCustomer={handleAddCustomer}
       />
-
-      <FAB onPress={handleAddCustomer} />
 
       <AddModal 
         isOpen={modalOpen} 

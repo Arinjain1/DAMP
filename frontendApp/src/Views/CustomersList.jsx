@@ -116,17 +116,17 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer }) => {
               // First stage always uses Front Bg
               backgroundImage = require('../../assets/images/Front Bg (2).png');
             } else if (isLastStage) {
-              // Last stage uses Done last bg if completed, otherwise regular Middle Bg
+              // Last stage uses Done last bg if completed or current, otherwise regular Last Bg
               if (isCompleted || currentIndex === index) {
                 backgroundImage = require('../../assets/images/Done last bg.png');
               } else {
                 backgroundImage = require('../../assets/images/Last Bg.png');
               }
-            } else if (isCompleted) {
-              // Middle completed stages use Done middle Bg
+            } else if (isCompleted || currentIndex === index) {
+              // Middle stages use Done middle Bg if completed or current
               backgroundImage = require('../../assets/images/Done middle Bg.png');
             } else {
-              // Regular middle stages use Middle Bg
+              // Future middle stages use regular Middle Bg
               backgroundImage = require('../../assets/images/Middle Bg.png');
             }
             
@@ -134,13 +134,16 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer }) => {
               <View key={stage.id} style={styles.stageWrapper}>
                 <ImageBackground
                   source={backgroundImage}
-                  style={styles.stageArrow}
+                  style={[
+                    styles.stageArrow,
+                    (stage.isFirst || isLastStage) && styles.stageArrowSpecial
+                  ]}
                   resizeMode="stretch"
                 >
                   <View style={styles.stageContent}>
                     <Text style={[
                       styles.stageText,
-                      isCompleted && { color: '#7B6FDA' } // Purple text for completed stages
+                      (isCompleted || currentIndex === index) && { color: '#7B6FDA' } // Purple text for completed and current stages
                     ]}>
                       {stage.label}
                     </Text>
@@ -360,14 +363,18 @@ const styles = StyleSheet.create({
   },
   stageWrapper: {
     marginRight: 0, // Gap between stages
-    height: 24,
+    height: 32,
   },
   stageArrow: {
-    height: 32,
-    minWidth: 92, 
+    height: 36,
+    minWidth: 100, 
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
+  },
+  stageArrowSpecial: {
+    
+    height:38, // More padding for better text fit
   },
   stageContent: {
     justifyContent: 'center',
@@ -375,8 +382,8 @@ const styles = StyleSheet.create({
   },
   stageText: {
     //fontFamily:'Poppins_400Regular',
-    fontSize: 12,
-    fontWeight: '400',
+    fontSize: 11,
+    fontWeight: '500',
     textAlign: 'center',
     color: '#4b5563',
     
