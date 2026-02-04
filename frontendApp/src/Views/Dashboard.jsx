@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  userName: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  userName: { fontSize: 18, fontWeight: '700', color: '#313131' },
   verificationBadge: { width: 16, height: 16, resizeMode: 'contain' },
   bellButton: { padding: 12, borderRadius: 16, position: 'relative' },
   notificationIcon: { width: 24, height: 24, resizeMode: 'contain' },

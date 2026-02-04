@@ -23,7 +23,7 @@ export default function Customers() {
 
   const generateId = () => Math.random().toString(36).substring(2, 11);
 
-  const handleFABClick = () => {
+  const handleAddCustomer = () => {
     dispatch(clearEditItem());
     dispatch(setModalType('Customer'));
     dispatch(setModalOpen(true));
@@ -94,9 +94,10 @@ export default function Customers() {
       <CustomersList 
         customers={customers} 
         onSelect={(customer) => dispatch(setSelectedCustomer(customer))} 
+        onAddCustomer={handleAddCustomer}
       />
 
-      <FAB onPress={handleFABClick} />
+      <FAB onPress={handleAddCustomer} />
 
       <AddModal 
         isOpen={modalOpen} 

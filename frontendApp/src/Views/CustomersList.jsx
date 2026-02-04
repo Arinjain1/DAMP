@@ -1,16 +1,25 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronRight, Phone, Search } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, ChevronUp, CirclePlus, Phone, Search } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    Dimensions, Linking, Platform, ScrollView, StatusBar, StyleSheet, Text,
+    ImageBackground, Linking, Platform, ScrollView, StatusBar, StyleSheet, Text,
     TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+// --- 1. UPDATED STAGES LIST ---
+const SALES_STAGES = [
+  { id: 'New', label: 'New', isFirst: true },
+  { id: 'Contacted', label: 'Contacted', isFirst: false },
+  { id: 'Interested', label: 'Interested', isFirst: false },
+  { id: 'Site Visit', label: 'Site Visit', isFirst: false },
+  { id: 'Meeting', label: 'Meeting', isFirst: false },
+  { id: 'Negotiation', label: 'Negotiation', isFirst: false },
+  { id: 'Token', label: 'Token', isFirst: false },
+  { id: 'Agreement', label: 'Agreement', isFirst: false },
+  { id: 'Completed', label: 'Completed', isFirst: false },
+];
 
-// Helper for currency formatting
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -19,7 +28,6 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-// Helper for random background colors for avatars
 const getRandomColor = (char) => {
   const colors = ['#e0f2fe', '#fce7f3', '#dcfce7', '#fef3c7', '#f3e8ff'];
   const textColors = ['#0284c7', '#db2777', '#16a34a', '#d97706', '#9333ea'];
@@ -27,49 +35,157 @@ const getRandomColor = (char) => {
   return { bg: colors[index], text: textColors[index] };
 };
 
-const CustomersList = ({ customers = [], onSelect }) => {
+const CustomersList = ({ customers = [], onSelect, onAddCustomer }) => {
   const [query, setQuery] = useState('');
+  const [expandedCards, setExpandedCards] = useState(new Set());
 
   const filteredCustomers = customers.filter((c) =>
     c.name.toLowerCase().includes(query.toLowerCase())
   );
 
-  // Call handler
   const handleCall = (phone, customerName) => {
     if (phone) {
       Linking.openURL(`tel:${phone}`);
     } else {
-      console.log(`No phone number available for ${customerName}`);
+      console.log(`No phone available`);
     }
+  };
+
+  const toggleCardExpansion = (customerId) => {
+    setExpandedCards(prevExpanded => {
+      const newExpanded = new Set(prevExpanded);
+      if (newExpanded.has(customerId)) {
+        newExpanded.delete(customerId);
+      } else {
+        newExpanded.add(customerId);
+      }
+      return newExpanded;
+    });
+  };
+
+  // Mock current tasks for each customer
+  const getCurrentTask = (customerId) => {
+    const tasks = {
+      'c1': { 
+        title: 'Schedule site visit', 
+        time: 'Today 2:30 PM',
+        type: 'Site Visit'
+      },
+      'c2': { 
+        title: 'Token payment follow-up', 
+        time: 'Tomorrow 11:00 AM',
+        type: 'Follow-up'
+      },
+      'c3': { 
+        title: 'Initial contact call', 
+        time: 'Today 4:00 PM',
+        type: 'Call'
+      },
+      'c4': { 
+        title: 'Document handover', 
+        time: 'Completed',
+        type: 'Documentation'
+      },
+    };
+    return tasks[customerId] || {
+      title: 'Follow up required',
+      time: 'Pending',
+      type: 'General'
+    };
+  };
+
+  // --- STAGE INDICATOR COMPONENT ---
+  const StageIndicator = ({ currentStage }) => {
+    const currentIndex = SALES_STAGES.findIndex(s => s.id === currentStage);
+    const lastStageIndex = SALES_STAGES.length - 1;
+    
+    return (
+      <View style={styles.stageContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.stageScrollContent}
+        >
+          {SALES_STAGES.map((stage, index) => {
+            const isCompleted = currentIndex > index;
+            const isLastStage = index === lastStageIndex;
+            
+            // Choose background image based on stage status
+            let backgroundImage;
+            if (stage.isFirst) {
+              // First stage always uses Front Bg
+              backgroundImage = require('../../assets/images/Front Bg (2).png');
+            } else if (isLastStage) {
+              // Last stage uses Done last bg if completed, otherwise regular Middle Bg
+              if (isCompleted || currentIndex === index) {
+                backgroundImage = require('../../assets/images/Done last bg.png');
+              } else {
+                backgroundImage = require('../../assets/images/Last Bg.png');
+              }
+            } else if (isCompleted) {
+              // Middle completed stages use Done middle Bg
+              backgroundImage = require('../../assets/images/Done middle Bg.png');
+            } else {
+              // Regular middle stages use Middle Bg
+              backgroundImage = require('../../assets/images/Middle Bg.png');
+            }
+            
+            return (
+              <View key={stage.id} style={styles.stageWrapper}>
+                <ImageBackground
+                  source={backgroundImage}
+                  style={styles.stageArrow}
+                  resizeMode="stretch"
+                >
+                  <View style={styles.stageContent}>
+                    <Text style={[
+                      styles.stageText,
+                      isCompleted && { color: '#7B6FDA' } // Purple text for completed stages
+                    ]}>
+                      {stage.label}
+                    </Text>
+                  </View>
+                </ImageBackground>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
-      {/* 🔮 GRADIENT HEADER */}
-      <LinearGradient
-        colors={['#BFB7FD', '#E5E1FF', '#f9fafb']}
-        locations={[0, 0.7, 1]}
-        style={styles.headerContainer}
-      >
-        {/* Title */}
+      {/* HEADER */}
+      <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Leads</Text>
-
-        {/* 🔍 CLEAN & SLIM SEARCH BAR */}
-        <View style={styles.searchBar}>
-          <Search size={16} color="#6b7280" />
-          <TextInput
-            placeholder="Search leads..."
-            placeholderTextColor="#9ca3af"
-            value={query}
-            onChangeText={setQuery}
-            style={styles.searchInput}
-          />
+        
+        {/* Search Bar and Add Button Row */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBar}>
+            <Search size={16} color="#6b7280" />
+            <TextInput
+              placeholder="Search leads..."
+              placeholderTextColor="#9ca3af"
+              value={query}
+              onChangeText={setQuery}
+              style={styles.searchInput}
+            />
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={onAddCustomer}
+          >
+            <CirclePlus size={16} color="#000000" />
+            <Text style={styles.addButtonText}>Add Clients</Text>
+          </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </View>
 
-      {/* 📜 GRID LIST */}
+      {/* LIST */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -84,68 +200,83 @@ const CustomersList = ({ customers = [], onSelect }) => {
           <View style={styles.gridContainer}>
             {filteredCustomers.map((customer) => {
               const colorTheme = getRandomColor(customer.name.charAt(0));
+              const isExpanded = expandedCards.has(customer.id);
+              const currentTask = getCurrentTask(customer.id);
               
               return (
-                <TouchableOpacity
+                <View
                   key={customer.id}
-                  onPress={() => onSelect(customer)}
-                  activeOpacity={0.8}
                   style={styles.card}
                 >
-                  {/* Header: Status Badge */}
+                  {/* Header Info */}
                   <View style={styles.cardHeader}>
-                    <View style={[
-                      styles.statusBadge, 
-                      { backgroundColor: customer.status === 'Hot' ? '#fee2e2' : '#f3f4f6' }
-                    ]}>
-                      <Text style={[
-                        styles.statusText,
-                        { color: customer.status === 'Hot' ? '#ef4444' : '#4b5563' }
-                      ]}>
-                        {customer.status || 'New'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Avatar & Info */}
-                  <View style={styles.cardBody}>
                     <View style={[styles.avatar, { backgroundColor: colorTheme.bg }]}>
                       <Text style={[styles.avatarText, { color: colorTheme.text }]}>
                         {customer.name.charAt(0)}
                       </Text>
                     </View>
+                    <View style={styles.headerInfo}>
+                      <Text style={styles.nameText} numberOfLines={1}>{customer.name}</Text>
+                      <Text style={styles.budgetText}>{formatCurrency(customer.budget)}</Text>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: customer.status === 'Hot' ? '#fee2e2' : '#f3f4f6' }]}>
+                      <Text style={[styles.statusText, { color: customer.status === 'Hot' ? '#ef4444' : '#4b5563' }]}>
+                        {customer.status || 'New'}
+                      </Text>
+                    </View>
                     
-                    <Text style={styles.nameText} numberOfLines={1}>
-                      {customer.name}
-                    </Text>
-                    
-                    <Text style={styles.budgetText}>
-                      {formatCurrency(customer.budget)}
-                    </Text>
+                    {/* Dropdown Arrow */}
+                    <TouchableOpacity 
+                      style={styles.dropdownButton}
+                      onPress={() => toggleCardExpansion(customer.id)}
+                    >
+                      {isExpanded ? (
+                        <ChevronUp size={20} color="#6b7280" />
+                      ) : (
+                        <ChevronDown size={20} color="#6b7280" />
+                      )}
+                    </TouchableOpacity>
                   </View>
 
-                  {/* Footer Actions */}
-                  <View style={styles.cardFooter}>
-                    <TouchableOpacity 
-                      style={styles.iconButton}
-                      onPress={(e) => {
-                        e.stopPropagation(); // Prevent card selection
-                        handleCall(customer.phone, customer.name);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                       <Phone size={14} color="#22c55e" />
-                    </TouchableOpacity>
-                    <View style={styles.divider} />
-                    <TouchableOpacity 
-                      style={styles.iconButton}
-                      onPress={() => onSelect(customer)}
-                      activeOpacity={0.7}
-                    >
-                       <ChevronRight size={16} color="#9ca3af" />
-                    </TouchableOpacity>
+                  {/* Stage Scroll Section */}
+                  <View style={styles.stageSection}>
+                    <StageIndicator currentStage={customer.stage || 'New'} />
                   </View>
-                </TouchableOpacity>
+
+                  {/* Expanded Task Section */}
+                  {isExpanded && currentTask && (
+                    <View style={styles.taskSection}>
+                      <Text style={styles.taskName}>{currentTask.title}</Text>
+                      <View style={styles.taskDetails}>
+                        <Text style={styles.taskType}>{currentTask.type}</Text>
+                        <Text style={styles.taskTime}>{currentTask.time}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Actions - Only show when expanded */}
+                  {isExpanded && (
+                    <View style={styles.cardActions}>
+                      <TouchableOpacity 
+                        style={styles.actionButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleCall(customer.phone, customer.name);
+                        }}
+                      >
+                        <Phone size={18} color="#22c55e" />
+                        <Text style={styles.actionText}>Call</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.actionButton, styles.actionButtonPrimary]}
+                        onPress={() => onSelect(customer)}
+                      >
+                        <Text style={styles.actionTextPrimary}>View Details</Text>
+                        <ChevronRight size={18} color="#7c3aed" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
               );
             })}
           </View>
@@ -155,153 +286,155 @@ const CustomersList = ({ customers = [], onSelect }) => {
   );
 };
 
-// --- STYLES ---
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  
-  // Header
+  container: { flex: 1, backgroundColor: '#f9fafb' },
   headerContainer: {
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) + 16 : 64,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingHorizontal: 20, paddingBottom: 24,
+    borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
+    backgroundColor: '#ffffff',
+    alignItems:'center'
   },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#3E3E3E',
-    marginBottom: 16,
+  headerTitle: { fontSize: 24, fontWeight: '700', color: '#3E3E3E', marginBottom: 16 },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   searchBar: {
+    flex: 1,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 2,
+    borderWidth: 1, borderColor: '#e5e7eb',
+    height: 50,
+  },
+  addButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
     backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    height: 50,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: '#e5e7eb'
   },
-  searchInput: {
-    marginLeft: 10,
-    flex: 1,
+  addButtonText: {
     fontSize: 14,
-    color: '#111827',
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#3E3E3E',
+  },
+  searchInput: { marginLeft: 10, flex: 1, fontSize: 16, color: '#111827', fontWeight: '500', alignItems:'center' },
+  scrollView: { flex: 1 , backgroundColor: '#ffffff',},
+  scrollContent: { paddingTop: 4, paddingBottom: 100, paddingHorizontal: 20 },
+  gridContainer: { gap: 10 },
+  card: {
+    backgroundColor: 'white', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: '#e5e7eb',
+     marginBottom: 12,
+  },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
+  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 20, fontWeight: 'bold' },
+  headerInfo: { flex: 1 },
+  nameText: { fontSize: 15, fontWeight: 'bold', color: '#3E3E3E', marginBottom: 1 },
+  budgetText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  statusText: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  
+  // --- STAGE SCROLL STYLES ---
+  stageSection: {
+    marginBottom: 6,
+    paddingVertical: 8,
+    
+    borderRadius: 12,
+  },
+  stageContainer: {
+    height: 46, // Fixed height for the scroll area
+  },
+  stageScrollContent: {
+    paddingHorizontal: 2,
+    alignItems: 'center',
+    paddingRight: 20, // Extra padding at end for easier scrolling
+  },
+  stageWrapper: {
+    marginRight: 0, // Gap between stages
+    height: 24,
+  },
+  stageArrow: {
+    height: 32,
+    minWidth: 92, 
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  stageContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stageText: {
+    //fontFamily:'Poppins_400Regular',
+    fontSize: 12,
+    fontWeight: '400',
+    textAlign: 'center',
+    color: '#4b5563',
+    
   },
 
-  // Content
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 20,
-    paddingBottom: 100,
-    paddingHorizontal: 20,
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12, // Gap between rows
-  },
-  
-  // Card Design
-  card: {
-    width: (SCREEN_WIDTH - 52) / 2, // 2 Columns with padding calculation
-    backgroundColor: 'white',
-    borderRadius: 16,
+  // Task Section Styles
+  taskSection: {
+    
+    borderRadius: 12,
     padding: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-    marginBottom: 4,
-  },
-  cardHeader: {
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  cardBody: {
-    alignItems: 'center',
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  avatarText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  nameText: {
+  taskName: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#111827',
-    textAlign: 'center',
-    marginBottom: 2,
-  },
-  budgetText: {
-    fontSize: 12,
     fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 6,
+  },
+  taskDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  taskType: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    color: '#6b7280',
+    backgroundColor: '#e5e7eb',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    textAlign: 'center',
+  },
+  taskTime: {
+    fontSize: 12,
+    fontWeight: '500',
     color: '#6b7280',
   },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    paddingTop: 8,
-  },
-  iconButton: {
-    padding: 8,
-    borderRadius: 8,
-  },
-  divider: {
-    width: 1,
-    height: 12,
-    backgroundColor: '#e5e7eb',
-    marginHorizontal: 12,
-  },
 
-  // Empty State
-  emptyState: {
-    alignItems: 'center',
-    marginTop: 80,
+  // Actions
+  cardActions: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f3f4f6',
   },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#9ca3af',
+  actionButton: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10,
+    backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb',
   },
+  actionButtonPrimary: { backgroundColor: '#f3e8ff', borderColor: '#e9d5ff' },
+  actionText: { fontSize: 13, fontWeight: '600', color: '#22c55e' },
+  actionTextPrimary: { fontSize: 13, fontWeight: '700', color: '#7c3aed' },
+  emptyState: { alignItems: 'center', marginTop: 80 },
+  emptyText: { marginTop: 16, fontSize: 16, fontWeight: '600', color: '#9ca3af' },
 });
 
 export default CustomersList;
