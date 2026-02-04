@@ -179,7 +179,7 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer }) => {
             style={styles.addButton}
             onPress={onAddCustomer}
           >
-            <CirclePlus size={16} color="#000000" />
+            <CirclePlus size={16} color="#ffffff" />
             <Text style={styles.addButtonText}>Add Clients</Text>
           </TouchableOpacity>
         </View>
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#000000',
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 12,
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   addButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#3E3E3E',
+    color: '#ffffff',
   },
   searchInput: { marginLeft: 10, flex: 1, fontSize: 16, color: '#111827', fontWeight: '500', alignItems:'center' },
   scrollView: { flex: 1 , backgroundColor: '#ffffff',},
