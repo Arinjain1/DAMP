@@ -12,7 +12,7 @@ const formatCurrency = (amount) =>
 // Badge Component
 const Badge = ({ children, className }) => (
   <View className={`px-3 py-1.5 rounded-lg ${className}`}>
-    <Text className="text-white text-xs font-bold uppercase tracking-wide">{children}</Text>
+    <Text style={{ fontFamily: 'Montserrat_700Bold' }} className="text-white text-xs uppercase tracking-wider">{children}</Text>
   </View>
 );
 
@@ -92,19 +92,19 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
           </View>
 
           {/* Hero Image (Increased Size) */}
-          <View className="h-64 w-full relative">
+          <View className="h-72 w-full relative">
             <Image source={{ uri: property.image }} className="w-full h-full" resizeMode="cover" />
             <View className="absolute inset-0 bg-black/20" />
             <View className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
               <View className="flex-row justify-between items-end">
                 <View>
                   <View className="bg-white/95 self-start px-3 py-1 rounded-md mb-2 shadow-sm">
-                    <Text className="text-gray-900 text-xs font-extrabold uppercase tracking-wider">For {property.listingType || 'Sell'}</Text>
+                    <Text style={{ fontWeight:600, letterSpacing: 1.2 }} className="text-gray-900 text-xs uppercase tracking-wider">For {property.listingType || 'Sell'}</Text>
                   </View>
-                  <Text className="text-3xl font-black text-white tracking-tight leading-tight">{formatCurrency(property.price)}</Text>
+                  <Text style={{ fontFamily: 'Montserrat_700Bold', letterSpacing: -0.5 }} className="text-3xl text-white tracking-tight leading-tight">{formatCurrency(property.price)}</Text>
                   <View className="flex-row items-center mt-2">
                     <MapPin size={14} color="rgba(255,255,255,0.9)" />
-                    <Text className="text-white/95 text-sm font-medium ml-1.5">{property.location}</Text>
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold' }} className="text-white/95 text-sm ml-1.5">{property.location}</Text>
                   </View>
                 </View>
                 <Badge className="bg-emerald-500 shadow-sm mb-1">{property.status}</Badge>
@@ -117,11 +117,11 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
             
             {/* Title & Type */}
             <View className="mb-6">
-              <Text className="text-2xl font-black text-gray-900 leading-tight mb-3">{property.title}</Text>
+              <Text style={{ fontFamily: 'Lato_700Bold' }} className="text-2xl text-gray-900 leading-tight mb-3">{property.title}</Text>
               <View className="flex-row items-center">
                 <View className="flex-row items-center bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
                   <Briefcase size={14} color="#6b7280" />
-                  <Text className="text-xs font-bold text-gray-600 ml-2">{property.category} • {property.type}</Text>
+                  <Text style={{ fontFamily: 'Manrope_600SemiBold' }} className="text-xs text-gray-600 ml-2">{property.category} • {property.type}</Text>
                 </View>
               </View>
             </View>
@@ -130,29 +130,29 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
             <View className="flex-row justify-between gap-4 mb-8">
               <View className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-100 items-center shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
                 <Layout size={20} color="#374151" style={{ marginBottom: 6 }} />
-                <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Area</Text>
-                <Text className="text-base font-bold text-gray-900">{property.size} <Text className="text-xs font-medium text-gray-500">sqft</Text></Text>
+                <Text style={{ fontFamily: 'Manrope_600SemiBold' }} className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">Area</Text>
+                <Text style={{ fontFamily: 'Montserrat_700Bold' }} className="text-base text-gray-900">{property.size} <Text style={{ fontFamily: 'Poppins_500Medium' }} className="text-xs text-gray-500">sqft</Text></Text>
               </View>
 
               {property.bhk && (
                 <View className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-100 items-center shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
                   <Building size={20} color="#374151" style={{ marginBottom: 6 }} />
-                  <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Config</Text>
-                  <Text className="text-base font-bold text-gray-900">{property.bhk}</Text>
+                  <Text style={{ fontFamily: 'Manrope_600SemiBold' }} className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">Config</Text>
+                  <Text style={{ fontFamily: 'Montserrat_700Bold' }} className="text-base text-gray-900">{property.bhk}</Text>
                 </View>
               )}
 
               <View className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-100 items-center shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
                 <Sofa size={20} color="#374151" style={{ marginBottom: 6 }} />
-                <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Furnish</Text>
-                <Text className="text-base font-bold text-gray-900" numberOfLines={1}>{property.furnishing || 'N/A'}</Text>
+                <Text style={{ fontFamily: 'Manrope_600SemiBold' }} className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">Furnish</Text>
+                <Text style={{ fontFamily: 'Montserrat_700Bold' }} className="text-base text-gray-900" numberOfLines={1}>{property.furnishing || 'N/A'}</Text>
               </View>
             </View>
 
             {/* Amenities Section */}
             {property.amenities && property.amenities.length > 0 && (
               <View className="mb-8">
-                <Text className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 ml-1">Amenities</Text>
+                <Text style={{ fontFamily: 'Manrope_500Medium' }} className="text-xs text-gray-400 uppercase tracking-widest mb-4 ml-1">Amenities</Text>
                 <View className="flex-row flex-wrap gap-2">
                   {(() => {
                     const typeAmenities = getAmenitiesForType(property.type);
@@ -163,7 +163,7 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
                     return selectedAmenities.map((amenity) => (
                       <View key={amenity.id} className="bg-white border border-gray-200 rounded-xl px-3 py-2 flex-row items-center gap-1.5">
                         {renderIcon(amenity.icon, 14, '#6b7280')}
-                        <Text className="text-xs font-semibold text-gray-700">{amenity.name}</Text>
+                        <Text style={{ fontFamily: 'Poppins_600SemiBold' }} className="text-xs text-gray-700">{amenity.name}</Text>
                       </View>
                     ));
                   })()}
@@ -178,8 +178,8 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
                 style={{ backgroundColor: '#E9E6F7', borderColor: '#BFB7FD' }}
               >
                 <View className="flex-1 pr-4">
-                  <Text className="text-gray-800 text-base font-bold mb-1">Have a buyer?</Text>
-                  <Text className="text-gray-500 text-xs font-medium leading-relaxed">Start a deal immediately for this property.</Text>
+                  <Text style={{ fontFamily: 'Montserrat_700Bold' }} className="text-gray-800 text-base mb-1">Have a buyer?</Text>
+                  <Text style={{ fontFamily: 'Poppins_400Regular' }} className="text-gray-500 text-xs leading-relaxed">Start a deal immediately for this property.</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => setShowProposeModal(true)}
@@ -187,7 +187,7 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
                   style={{ backgroundColor: '#BFB7FD' }}
                 >
                   <Users size={16} color="white" />
-                  <Text className="text-white font-bold text-xs">Propose</Text>
+                  <Text style={{ fontFamily: 'Montserrat_700Bold' }} className="text-white text-xs">Propose</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -195,9 +195,9 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
             {/* Owner Details */}
             <View className="bg-gray-50 p-5 rounded-3xl border border-gray-100 flex-row items-center justify-between">
               <View>
-                <Text className="text-[10px] text-gray-400 font-bold uppercase mb-1 tracking-widest">Owner</Text>
-                <Text className="font-bold text-gray-900 text-lg">{property.owner}</Text>
-                <Text className="text-xs text-gray-500 font-medium mt-0.5">{property.ownerPhone}</Text>
+                <Text style={{ fontFamily: 'Manrope_600SemiBold' }} className="text-[10px] text-gray-400 uppercase mb-1 tracking-widest">Owner</Text>
+                <Text style={{ fontFamily: 'Montserrat_700Bold' }} className="text-gray-900 text-lg">{property.owner}</Text>
+                <Text style={{ fontFamily: 'Poppins_500Medium' }} className="text-xs text-gray-500 mt-0.5">{property.ownerPhone}</Text>
               </View>
               <View className="flex-row gap-3">
                 <TouchableOpacity onPress={handleCall} className="bg-white p-3 rounded-xl shadow-sm border border-gray-200 active:bg-gray-50">
@@ -221,8 +221,8 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
               
               <View className="p-6 border-b border-gray-100 flex-row justify-between items-center">
                 <View>
-                  <Text className="text-xl font-bold text-gray-900">Select Customer</Text>
-                  <Text className="text-xs text-gray-500 mt-1">Propose this property to a lead</Text>
+                  <Text style={{ fontFamily: 'Montserrat_700Bold' }} className="text-xl text-gray-900">Select Customer</Text>
+                  <Text style={{ fontFamily: 'Poppins_400Regular' }} className="text-xs text-gray-500 mt-1">Propose this property to a lead</Text>
                 </View>
                 <TouchableOpacity onPress={() => setShowProposeModal(false)} className="bg-gray-100 p-2.5 rounded-full">
                   <X size={20} color="#6b7280" />
@@ -236,6 +236,8 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
                     value={customerSearchText}
                     onChangeText={setCustomerSearchText}
                     placeholder="Search customers..."
+                    placeholderTextColor="#d1d5db"
+                    style={{ fontFamily: 'Poppins_400Regular' }}
                     className="flex-1 ml-3 text-sm text-gray-800"
                   />
                 </View>
@@ -245,7 +247,7 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
                 {filteredCustomers.length === 0 ? (
                   <View className="items-center justify-center py-12">
                     <Users size={40} color="#e5e7eb" />
-                    <Text className="text-gray-400 text-sm font-medium mt-4">No customers found</Text>
+                    <Text style={{ fontFamily: 'Poppins_500Medium' }} className="text-gray-400 text-sm mt-4">No customers found</Text>
                   </View>
                 ) : (
                   filteredCustomers.map((customer) => (
@@ -255,15 +257,15 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
                       className="bg-white border border-gray-200 rounded-2xl p-4 mb-3 shadow-sm active:bg-gray-50 flex-row items-center gap-4"
                     >
                       <View className="w-10 h-10 bg-indigo-50 rounded-full items-center justify-center border border-indigo-100">
-                        <Text className="text-indigo-700 font-bold text-sm">{customer.name.charAt(0)}</Text>
+                        <Text style={{ fontFamily: 'Montserrat_700Bold' }} className="text-indigo-700 text-sm">{customer.name.charAt(0)}</Text>
                       </View>
                       <View className="flex-1">
-                        <Text className="text-sm font-bold text-gray-900 mb-0.5">{customer.name}</Text>
-                        <Text className="text-xs text-gray-500">Looking for: <Text className="font-semibold text-gray-700">{customer.type}</Text></Text>
+                        <Text style={{ fontFamily: 'Montserrat_700Bold' }} className="text-sm text-gray-900 mb-0.5">{customer.name}</Text>
+                        <Text style={{ fontFamily: 'Poppins_400Regular' }} className="text-xs text-gray-500">Looking for: <Text style={{ fontFamily: 'Poppins_600SemiBold' }} className="text-gray-700">{customer.type}</Text></Text>
                       </View>
                       <View className="items-end">
-                        <Text className="text-xs font-bold text-gray-900">{formatCurrency(customer.budget)}</Text>
-                        <Text className="text-[10px] text-gray-400 mt-0.5">{customer.status}</Text>
+                        <Text style={{ fontFamily: 'Montserrat_700Bold' }} className="text-xs text-gray-900">{formatCurrency(customer.budget)}</Text>
+                        <Text style={{ fontFamily: 'Manrope_500Medium' }} className="text-[10px] text-gray-400 mt-0.5">{customer.status}</Text>
                       </View>
                     </TouchableOpacity>
                   ))
