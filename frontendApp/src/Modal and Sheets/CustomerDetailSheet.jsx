@@ -7,6 +7,7 @@ import {
   FileText,
   Handshake,
   MapPin,
+  MessageCircle,
   Phone,
   Plus,
   Search,
@@ -19,6 +20,7 @@ import {
 import { useState } from 'react';
 import {
   Image,
+  ImageBackground,
   Linking,
   Modal,
   Platform,
@@ -119,6 +121,8 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
   const [showPropertyPicker, setShowPropertyPicker] = useState(false);
   const [selectedPropertyIds, setSelectedPropertyIds] = useState(customer.selectedProperties || []);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showMapView, setShowMapView] = useState(false);
+  const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
 
   if (!customer) return null;
 
@@ -208,6 +212,39 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
               </View>
             )}
 
+            {/* Customer Contact Card - Show only for New stage */}
+            {customer.stage === 'New' && (
+              <View style={styles.section}>
+                <View style={styles.contactCard}>
+                  <View style={styles.contactInfoSection}>
+                    <View style={styles.contactAvatar}>
+                      <Text style={styles.contactAvatarText}>{customer.name.charAt(0)}</Text>
+                    </View>
+                    <View style={styles.contactDetails}>
+                      <Text style={styles.contactName}>{customer.name}</Text>
+                      <Text style={styles.contactPhone}>{customer.phone}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.contactButtonRow}>
+                    <TouchableOpacity 
+                      style={styles.contactActionBtn}
+                      onPress={() => Linking.openURL(`tel:${customer.phone}`)}
+                    >
+                      <Phone size={18} color="#16a34a" />
+                      <Text style={styles.contactActionText}>Call</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.contactActionBtn}
+                      onPress={() => Linking.openURL(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}`)}
+                    >
+                      <MessageCircle size={18} color="#25D366" />
+                      <Text style={styles.contactActionText}>WhatsApp</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
+
             {/* Select Properties Section - Show only for Contacted stage */}
             {customer.stage === 'Contacted' && (
               <View style={styles.section}>
@@ -291,10 +328,10 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                             {!hasDeal ? (
                               <TouchableOpacity 
                                 onPress={() => onStartDeal(customer, prop)}
-                                style={styles.smallDealBtn}
+                                style={styles.visitBtn}
                               >
-                                <Handshake size={14} color="white" />
-                                <Text style={styles.smallDealText}>Start</Text>
+                                <MapPin size={14} color="white" />
+                                <Text style={styles.visitBtnText}>Visit</Text>
                               </TouchableOpacity>
                             ) : (
                               <View style={styles.dealStartedBadge}>
@@ -510,7 +547,123 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
           )}
 
         </View>
+
+        {/* Fixed Bottom Button - Show only for Site Visit stage */}
+        {customer.stage === 'Site Visit' && selectedPropertyIds.length > 0 && (
+          <View style={styles.fixedBottomContainer}>
+            <TouchableOpacity 
+              style={styles.visitSitesButton}
+              onPress={() => setShowMapView(true)}
+            >
+              <MapPin size={20} color="white" />
+              <Text style={styles.visitSitesButtonText}>Visit Sites ({selectedPropertyIds.length})</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
+
+      {/* Map View Modal */}
+      {showMapView && (
+        <Modal
+          visible={true}
+          transparent={false}
+          animationType="slide"
+          onRequestClose={() => setShowMapView(false)}
+          statusBarTranslucent
+        >
+          <View style={styles.mapViewContainer}>
+            {/* Background Map Image */}
+            <Image 
+              source={require('../../assets/images/Rectangle.png')} 
+              style={styles.mapImage}
+              resizeMode="cover"
+            />
+            
+            {/* Close Button */}
+            <TouchableOpacity 
+              style={styles.mapCloseButton}
+              onPress={() => setShowMapView(false)}
+            >
+              <X size={24} color="white" />
+            </TouchableOpacity>
+
+            {/* Properties Horizontal Scroll */}
+            <View style={styles.propertiesScrollContainer}>
+              <ScrollView 
+                horizontal 
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={(event) => {
+                  const index = Math.round(event.nativeEvent.contentOffset.x / 320);
+                  setCurrentPropertyIndex(index);
+                }}
+                contentContainerStyle={styles.propertiesScrollContent}
+              >
+                {selectedPropertyIds.map((propId, index) => {
+                  const prop = properties.find(p => p.id === propId);
+                  if (!prop) return null;
+                  
+                  return (
+                    <View key={prop.id} style={styles.propertyScrollCard}>
+                      <Image source={{ uri: prop.image }} style={styles.propertyScrollImageSmall} />
+                      <View style={styles.propertyScrollInfo}>
+                        <Text style={styles.propertyScrollTitle} numberOfLines={2}>{prop.title}</Text>
+                        <View style={styles.propertyScrollLocation}>
+                          <MapPin size={16} color="#6b7280" />
+                          <Text style={styles.propertyScrollLocationText} numberOfLines={1}>{prop.location}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Fixed Bottom Component */}
+            {selectedPropertyIds.length > 0 && (
+              <View style={styles.fixedBottomCard}>
+                <View style={styles.deliverySection}>
+                  <MapPin size={24} color="#a78bfa" />
+                  <View style={styles.deliveryInfo}>
+                    <Text style={styles.deliveryLabel}>Address</Text>
+                    <Text style={styles.deliveryAddress} numberOfLines={2}>
+                      {properties.find(p => p.id === selectedPropertyIds[currentPropertyIndex])?.location || ''}
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity 
+                  style={styles.navigateButtonFixed}
+                  onPress={() => {
+                    const prop = properties.find(p => p.id === selectedPropertyIds[currentPropertyIndex]);
+                    if (prop) {
+                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                    }
+                  }}
+                >
+                  <MapPin size={16} color="white" />
+                  <Text style={styles.navigateButtonFixedText}>Navigate to Property</Text>
+                </TouchableOpacity>
+
+                <View style={styles.feedbackButtonsFixed}>
+                  <TouchableOpacity style={[styles.feedbackBtnFixed, styles.rejectedBtnFixed]}>
+                    <X size={18} color="#ef4444" />
+                    <Text style={styles.rejectedTextFixed}>Rejected</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.feedbackBtnFixed, styles.interestedBtnFixed]}>
+                    <ThumbsUp size={18} color="#16a34a" />
+                    <Text style={styles.interestedTextFixed}>Interested</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.feedbackBtnFixed, styles.holdBtnFixed]}>
+                    <Text style={styles.holdIconFixed}>⏸</Text>
+                    <Text style={styles.holdTextFixed}>Hold</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </Modal>
+      )}
     </Modal>
   );
 };
@@ -762,6 +915,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
   },
+  visitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#111827',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  visitBtnText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
   dealStartedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -955,6 +1122,70 @@ const styles = StyleSheet.create({
     color: 'white', // White Text
   },
 
+  // Customer Contact Card Styles
+  contactCard: {
+    backgroundColor: 'white',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    
+  },
+  contactInfoSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 12,
+  },
+  contactAvatar: {
+    width: 46,
+    height: 46,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactAvatarText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#6b7280',
+  },
+  contactDetails: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 3,
+  },
+  contactPhone: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  contactButtonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  contactActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  contactActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+  },
+
   // Select Properties Styles
   formLabel: {
     fontSize: 13,
@@ -1054,6 +1285,211 @@ const styles = StyleSheet.create({
   checkboxCircleSelected: {
     backgroundColor: '#a78bfa',
     borderColor: '#a78bfa',
+  },
+
+  // Fixed Bottom Button
+  fixedBottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingBottom: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    shadowColor: '#000',
+    
+    
+  },
+  visitSitesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 15,
+    backgroundColor: '#bfb7fd',
+    paddingVertical: 16,
+    borderRadius: 14,
+    
+  },
+  visitSitesButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'white',
+  },
+
+  // Map View Styles
+  mapViewContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  mapImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  mapCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 44,
+    height: 44,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    
+  },
+  propertiesScrollContainer: {
+    position: 'absolute',
+    bottom: 200,
+    left: 0,
+    right: 0,
+    paddingVertical: 20,
+    paddingHorizontal: 10,
+  },
+  propertiesScrollContent: {
+    paddingHorizontal: 2,
+    gap: 3,
+  },
+  propertyScrollCard: {
+    width: 330,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 16,
+    marginHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    
+  },
+  propertyScrollImageSmall: {
+    width: 70,
+    height: 70,
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
+  },
+  propertyScrollInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  propertyScrollTitle: {
+    fontFamily: 'Lato_700Bold',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  propertyScrollLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  propertyScrollLocationText: {
+    //fontFamily: 'Lato_400Regular',
+    fontFamily:'Manrope_600SemiBold',
+    
+    fontSize: 15,
+    color: '#6b7280',
+    flex: 1,
+  },
+  
+  // Fixed Bottom Card
+  fixedBottomCard: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderTopLeftRadius:50,
+    borderTopRightRadius: 50,
+    padding: 20,
+    paddingBottom: 15,
+    
+  },
+  deliverySection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 8,
+    marginLeft:16,
+  },
+  deliveryInfo: {
+    flex: 1,
+  },
+  deliveryLabel: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  deliveryAddress: {
+    fontSize: 14,
+    fontWeight:500,
+    color: '#6b7280',
+    lineHeight: 18,
+  },
+  navigateButtonFixed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#bfb7fd',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  navigateButtonFixedText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: 'white',
+  },
+  feedbackButtonsFixed: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  feedbackBtnFixed: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  rejectedBtnFixed: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+  },
+  rejectedTextFixed: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ef4444',
+  },
+  interestedBtnFixed: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#bbf7d0',
+  },
+  interestedTextFixed: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#16a34a',
+  },
+  holdBtnFixed: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#fde68a',
+  },
+  holdTextFixed: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#d97706',
+  },
+  holdIconFixed: {
+    fontSize: 16,
+  },
+  holdIcon: {
+    fontSize: 14,
   },
 });
 

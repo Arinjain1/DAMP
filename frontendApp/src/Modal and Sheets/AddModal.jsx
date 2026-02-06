@@ -22,7 +22,7 @@ import * as LucideIcons from 'lucide-react-native';
 import { getAmenitiesForType } from '../MockData/Mockdata';
 
 const PROPERTY_STRUCTURE = {
-    Residential: { types: ['Apartment/Flats', 'Builder Floor', 'House/Villa', 'Plot/Land', 'Farmhouse', 'Other'] },
+    Residential: { types: ['Apartment/Flats', 'Builder Floor', 'House/Villa', 'Plot', 'Farmhouse', 'Other'] },
     Commercial: { types: ['Office', 'Shop/Showroom', 'Storage', 'Industry', 'Hospitality', 'Plot/Land', 'Other'] },
     Agriculture: { types: ['Farm Land', 'Farm House'] }
 };
@@ -64,6 +64,8 @@ const AddModal = ({
 
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
     const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
+    const [showPriceUnitPicker, setShowPriceUnitPicker] = useState(false);
+    const [showSizeUnitPicker, setShowSizeUnitPicker] = useState(false);
     const [propertySearchText, setPropertySearchText] = useState('');
     const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
     const [showStateDropdown, setShowStateDropdown] = useState(false);
@@ -268,6 +270,10 @@ const AddModal = ({
                     location: '',
                     priceMin: 10000,
                     priceMax: 5000000,
+                    priceValue: '',
+                    priceUnit: 'Thousands',
+                    sizeValue: '',
+                    sizeUnit: 'Sq. Ft.',
                     size: '',
                     owner: '',
                     ownerName: '',
@@ -622,8 +628,9 @@ const AddModal = ({
                                         </View>
                                     )}
 
-                                    {/* Furnishing - UPDATED WITH BORDER (excluding Plot/Land and Farmhouse) */}
-                                    {formData.category === 'Residential' && formData.type !== 'Plot/Land' && formData.type !== 'Farmhouse' && (
+                                    {/* Furnishing (Residential excluding Plot and Farmhouse, Commercial only for Office and Shop/Showroom excluding Bareshell Office) */}
+                                    {((formData.category === 'Residential' && formData.type !== 'Plot' && formData.type !== 'Farmhouse') || 
+                                      (formData.category === 'Commercial' && (formData.type === 'Office' || formData.type === 'Shop/Showroom') && formData.commercialConfig !== 'Bareshell Office')) && (
                                         <View style={styles.section}>
                                             <Text style={styles.inputLabel}>Furnishing</Text>
                                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.furnishingScrollContainer}>
@@ -703,60 +710,135 @@ const AddModal = ({
                                         <TextInput value={formData.owner || ''} onChangeText={(t) => handleChange('owner', t)} placeholder="Complete address" style={styles.textInputStyled} />
                                     </View>
 
-                                    {/* Price Range */}
+                                    {/* Price */}
                                     <View style={styles.section}>
-                                        <Text style={styles.inputLabel}>Price Range</Text>
-                                        <View style={styles.budgetContainer}>
-                                            <Text style={styles.budgetLabel}>
-                                                {formatPrice(priceRange.min)} - {formatPrice(priceRange.max)}
-                                            </Text>
-                                            
-                                            {/* Draggable Price Range Slider */}
-                                            <View style={styles.budgetSliderContainer}>
-                                                <TouchableOpacity 
-                                                    style={styles.budgetSlider}
-                                                    activeOpacity={1}
-                                                    onPress={(evt) => handleTrackPress(evt, 'price')}
-                                                >
-                                                    {/* Background track */}
-                                                    <View style={styles.budgetSliderTrack} />
-                                                    
-                                                    {/* Active range track */}
-                                                    <View style={[styles.budgetTrack, {
-                                                        left: priceToPosition(priceRange.min),
-                                                        width: priceToPosition(priceRange.max) - priceToPosition(priceRange.min)
-                                                    }]} />
-                                                    
-                                                    {/* Min thumb (draggable) */}
-                                                    <View 
-                                                        style={[styles.budgetThumb, {
-                                                            left: priceToPosition(priceRange.min) - 8
-                                                        }]}
-                                                        {...minPricePanResponder.panHandlers}
-                                                    />
-                                                    
-                                                    {/* Max thumb (draggable) */}
-                                                    <View 
-                                                        style={[styles.budgetThumb, {
-                                                            left: priceToPosition(priceRange.max) - 8
-                                                        }]}
-                                                        {...maxPricePanResponder.panHandlers}
-                                                    />
-                                                </TouchableOpacity>
+                                        <Text style={styles.inputLabel}>Price</Text>
+                                        <View style={styles.rowInputs}>
+                                            <View style={styles.priceInputContainer}>
+                                                <TextInput 
+                                                    keyboardType="numeric" 
+                                                    value={String(formData.priceValue || '')} 
+                                                    onChangeText={(t) => handleChange('priceValue', t)} 
+                                                    placeholder="Enter price" 
+                                                    style={styles.textInputStyled} 
+                                                />
                                             </View>
-                                            
-                                            <View style={styles.budgetRangeLabels}>
-                                                <Text style={styles.budgetRangeText}>{formatPrice(minPrice)}</Text>
-                                                <Text style={styles.budgetRangeText}>{formatPrice(maxPrice)}+</Text>
+                                            <View style={styles.priceUnitContainer}>
+                                                <TouchableOpacity 
+                                                    style={styles.dropdownStyled}
+                                                    onPress={() => setShowPriceUnitPicker(!showPriceUnitPicker)}
+                                                >
+                                                    <Text style={formData.priceUnit ? styles.dropdownSelected : styles.dropdownPlaceholder}>
+                                                        {formData.priceUnit || 'Unit'}
+                                                    </Text>
+                                                    <ChevronDown size={18} color="#9ca3af" />
+                                                </TouchableOpacity>
+                                                {showPriceUnitPicker && (
+                                                    <View style={styles.dropdownOptions}>
+                                                        {['Thousands', 'Lakh', 'Crore'].map((unit) => (
+                                                            <TouchableOpacity 
+                                                                key={unit}
+                                                                style={styles.dropdownOption}
+                                                                onPress={() => {
+                                                                    handleChange('priceUnit', unit);
+                                                                    setShowPriceUnitPicker(false);
+                                                                }}
+                                                            >
+                                                                <Text style={styles.dropdownOptionText}>{unit}</Text>
+                                                            </TouchableOpacity>
+                                                        ))}
+                                                    </View>
+                                                )}
                                             </View>
                                         </View>
                                     </View>
 
-                                    {/* Size */}
+                                    {/* Bond - Only for Rent */}
+                                    {formData.listingType === 'Rent' && (
+                                        <View style={styles.section}>
+                                            <Text style={styles.inputLabel}>Bond</Text>
+                                            <TextInput 
+                                                keyboardType="numeric" 
+                                                value={String(formData.bond || '')} 
+                                                onChangeText={(t) => handleChange('bond', t)} 
+                                                placeholder="Enter bond" 
+                                                style={styles.textInputStyled} 
+                                            />
+                                        </View>
+                                    )}
+
+                                    {/* Size with Unit */}
                                     <View style={styles.section}>
-                                        <Text style={styles.inputLabel}>Size (sqft)</Text>
-                                        <TextInput keyboardType="numeric" value={String(formData.size || '')} onChangeText={(t) => handleChange('size', t)} placeholder="0" style={styles.textInputStyled} />
+                                        <Text style={styles.inputLabel}>Size</Text>
+                                        <View style={styles.rowInputs}>
+                                            <View style={styles.priceInputContainer}>
+                                                <TextInput 
+                                                    keyboardType="numeric" 
+                                                    value={String(formData.sizeValue || '')} 
+                                                    onChangeText={(t) => handleChange('sizeValue', t)} 
+                                                    placeholder="Enter size" 
+                                                    style={styles.textInputStyled} 
+                                                />
+                                            </View>
+                                            <View style={styles.priceUnitContainer}>
+                                                <TouchableOpacity 
+                                                    style={styles.dropdownStyled}
+                                                    onPress={() => setShowSizeUnitPicker(!showSizeUnitPicker)}
+                                                >
+                                                    <Text style={formData.sizeUnit ? styles.dropdownSelected : styles.dropdownPlaceholder}>
+                                                        {formData.sizeUnit || 'Unit'}
+                                                    </Text>
+                                                    <ChevronDown size={18} color="#9ca3af" />
+                                                </TouchableOpacity>
+                                                {showSizeUnitPicker && (
+                                                    <View style={styles.dropdownOptions}>
+                                                        <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+                                                            {['Sq. Ft.', 'Sq. M.', 'Sq. Yd.', 'Acre', 'Hectare', 'Bigha', 'Katha', 'Kattha', 'Biswa', 'Guntha', 'Cent', 'Ground', 'Kanal', 'Marla', 'Chatak', 'Dhur', 'Decimal', 'Perch', 'Rood', 'Are', 'Carat'].map((unit) => (
+                                                                <TouchableOpacity 
+                                                                    key={unit}
+                                                                    style={styles.dropdownOption}
+                                                                    onPress={() => {
+                                                                        handleChange('sizeUnit', unit);
+                                                                        setShowSizeUnitPicker(false);
+                                                                    }}
+                                                                >
+                                                                    <Text style={styles.dropdownOptionText}>{unit}</Text>
+                                                                </TouchableOpacity>
+                                                            ))}
+                                                        </ScrollView>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        </View>
                                     </View>
+
+                                    {/* Length & Width - Only for Plot (Residential) and Plot/Land (Commercial) */}
+                                    {(formData.type === 'Plot' || formData.type === 'Plot/Land') && (
+                                        <View style={styles.section}>
+                                            <View style={styles.rowInputs}>
+                                                <View style={styles.halfInput}>
+                                                    <Text style={styles.inputLabel}>Length (ft)</Text>
+                                                    <TextInput 
+                                                        keyboardType="numeric" 
+                                                        value={String(formData.length || '')} 
+                                                        onChangeText={(t) => handleChange('length', t)} 
+                                                        placeholder="0" 
+                                                        style={styles.textInputStyled} 
+                                                    />
+                                                </View>
+                                                <View style={styles.halfInput}>
+                                                    <Text style={styles.inputLabel}>Width (ft)</Text>
+                                                    <TextInput 
+                                                        keyboardType="numeric" 
+                                                        value={String(formData.width || '')} 
+                                                        onChangeText={(t) => handleChange('width', t)} 
+                                                        placeholder="0" 
+                                                        style={styles.textInputStyled} 
+                                                    />
+                                                </View>
+                                            </View>
+                                        </View>
+                                    )}
 
                                     {/* Owner Name */}
                                     <View style={styles.section}>
@@ -819,7 +901,7 @@ const AddModal = ({
                                     <View style={styles.section}>
                                         <Text style={styles.inputLabel}>Property Requirements</Text>
                                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.listingTypeScrollContainer}>
-                                            {['Buy', 'Rent/Lease', 'Paying Guest'].map((requirement) => {
+                                            {['Buy', 'Rent/Lease'].map((requirement) => {
                                                 const isSelected = formData.listingType === requirement;
                                                 return (
                                                     <TouchableOpacity key={requirement} onPress={() => handleChange('listingType', requirement)}
@@ -931,8 +1013,9 @@ const AddModal = ({
                                         </View>
                                     )}
 
-                                    {/* Furnishing for Residential (excluding Plot/Land and Farmhouse) */}
-                                    {formData.category === 'Residential' && formData.type !== 'Plot/Land' && formData.type !== 'Farmhouse' && (
+                                    {/* Furnishing (Residential excluding Plot and Farmhouse, Commercial only for Office and Shop/Showroom excluding Bareshell Office) */}
+                                    {((formData.category === 'Residential' && formData.type !== 'Plot' && formData.type !== 'Farmhouse') || 
+                                      (formData.category === 'Commercial' && (formData.type === 'Office' || formData.type === 'Shop/Showroom') && formData.commercialConfig !== 'Bareshell Office')) && (
                                         <View style={styles.section}>
                                             <Text style={styles.inputLabel}>Furnishing</Text>
                                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.furnishingScrollContainer}>
@@ -1287,6 +1370,46 @@ const styles = StyleSheet.create({
     // ROW LAYOUT STYLES
     rowContainer: { flexDirection: 'row', gap: 12 },
     halfWidth: { flex: 1 },
+    rowInputs: { flexDirection: 'row', gap: 12 },
+    halfInput: { flex: 1 },
+    priceInputContainer: { flex: 1.5 },
+    priceUnitContainer: { flex: 1, position: 'relative' },
+    dropdownStyled: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        padding: 14, 
+        backgroundColor: 'white', 
+        borderWidth: 1, 
+        borderColor: '#e5e7eb', 
+        borderRadius: 8 
+    },
+    dropdownOptions: {
+        position: 'absolute',
+        top: 52,
+        left: 0,
+        right: 0,
+        backgroundColor: 'white',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        borderRadius: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        zIndex: 1000,
+    },
+    dropdownOption: {
+        padding: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f3f4f6',
+    },
+    dropdownOptionText: {
+        fontSize: 14,
+        color: '#374151',
+        fontWeight: '500',
+    },
     
     imageUpload: { width: '100%', height: 160, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: '#d1d5db', backgroundColor: '#f9fafb', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
     uploadedImage: { width: '100%', height: '100%' },
@@ -1330,7 +1453,7 @@ const styles = StyleSheet.create({
     budgetTrack: { 
         position: 'absolute', 
         height: 3, 
-        backgroundColor: '#bfb7fd', 
+        backgroundColor: '#111827', 
         borderRadius: 1.5,
         top: '50%',
         marginTop: -1.5
@@ -1340,7 +1463,7 @@ const styles = StyleSheet.create({
         top: '50%',
         width: 16, 
         height: 16, 
-        backgroundColor: '#bfb7fd', 
+        backgroundColor: '#111827', 
         borderRadius: 8,
         marginTop: -8,
         zIndex: 10

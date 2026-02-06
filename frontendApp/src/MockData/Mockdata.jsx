@@ -28,7 +28,7 @@ export const AMENITIES_BY_TYPE = {
     { id: 'swimming_pool_optional', name: 'Swimming Pool (Optional)', icon: 'Waves' },
   ],
 
-  'Plot/Land': [
+  'Plot': [
     { id: 'approved_layout', name: 'Approved Layout', icon: 'FileCheck' },
     { id: 'road_access', name: 'Road Access', icon: 'Route' },
     { id: 'electricity', name: 'Electricity', icon: 'Zap' },
@@ -196,7 +196,7 @@ export const INITIAL_PROPERTIES = [
     id: "p3",
     title: "Prime Corner Plot",
     category: "Residential",
-    type: "Plot/Land",
+    type: "Plot",
     status: "Sold",
     price: 8500000,
     location: "Sarjapur, Bangalore",

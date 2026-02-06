@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, ChevronUp, CirclePlus, Phone, Search } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, ChevronUp, CirclePlus, MessageCircle, Phone, Search } from 'lucide-react-native';
 import { useState } from 'react';
 import {
     ImageBackground, Linking, Platform, ScrollView, StatusBar, StyleSheet, Text,
@@ -207,9 +207,11 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer }) => {
               const currentTask = getCurrentTask(customer.id);
               
               return (
-                <View
+                <TouchableOpacity
                   key={customer.id}
                   style={styles.card}
+                  onPress={() => onSelect(customer)}
+                  activeOpacity={0.7}
                 >
                   {/* Header Info */}
                   <View style={styles.cardHeader}>
@@ -231,7 +233,10 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer }) => {
                     {/* Dropdown Arrow */}
                     <TouchableOpacity 
                       style={styles.dropdownButton}
-                      onPress={() => toggleCardExpansion(customer.id)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        toggleCardExpansion(customer.id);
+                      }}
                     >
                       {isExpanded ? (
                         <ChevronUp size={20} color="#6b7280" />
@@ -267,19 +272,22 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer }) => {
                           handleCall(customer.phone, customer.name);
                         }}
                       >
-                        <Phone size={18} color="#22c55e" />
+                        <Phone size={18} color="#16a34a" />
                         <Text style={styles.actionText}>Call</Text>
                       </TouchableOpacity>
                       <TouchableOpacity 
-                        style={[styles.actionButton, styles.actionButtonPrimary]}
-                        onPress={() => onSelect(customer)}
+                        style={styles.actionButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          Linking.openURL(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}`);
+                        }}
                       >
-                        <Text style={styles.actionTextPrimary}>View Details</Text>
-                        <ChevronRight size={18} color="#7c3aed" />
+                        <MessageCircle size={18} color="#25D366" />
+                        <Text style={styles.actionText}>Message</Text>
                       </TouchableOpacity>
                     </View>
                   )}
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -433,9 +441,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10,
     backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb',
   },
-  actionButtonPrimary: { backgroundColor: '#f3e8ff', borderColor: '#e9d5ff' },
-  actionText: { fontSize: 13, fontWeight: '600', color: '#22c55e' },
-  actionTextPrimary: { fontSize: 13, fontWeight: '700', color: '#7c3aed' },
+  actionText: { fontSize: 13, fontWeight: '600', color: '#374151' },
   emptyState: { alignItems: 'center', marginTop: 80 },
   emptyText: { marginTop: 16, fontSize: 16, fontWeight: '600', color: '#9ca3af' },
 });

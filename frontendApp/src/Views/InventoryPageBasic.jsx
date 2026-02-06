@@ -27,7 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const PROPERTY_STRUCTURE = {
-  Residential: { types: ['Apartment/Flats', 'Builder Floor', 'House/Villa', 'Plot/Land', 'Farmhouse', 'Other'] },
+  Residential: { types: ['Apartment/Flats', 'Builder Floor', 'House/Villa', 'Plot', 'Farmhouse', 'Other'] },
   Commercial: { types: ['Office', 'Shop/Showroom', 'Storage', 'Industry', 'Hospitality', 'Plot/Land', 'Other'] },
   Agriculture: { types: ['Farm Land', 'Farm House'] }
 };
@@ -46,6 +46,8 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
   const [activeCategory, setActiveCategory] = useState('Residential');
   const [activeType, setActiveType] = useState('All');
   const [activeBHK, setActiveBHK] = useState('All');
+  const [activeCommercialConfig, setActiveCommercialConfig] = useState('All');
+  const [activeFurnishing, setActiveFurnishing] = useState('All');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -57,7 +59,9 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
       const matchCategory = (p.category || 'Residential') === activeCategory;
       const matchType = activeType === 'All' || p.type === activeType;
       const matchBHK = activeBHK === 'All' || p.bhk === activeBHK;
-      return matchListing && matchCategory && matchType && matchBHK;
+      const matchCommercialConfig = activeCommercialConfig === 'All' || p.commercialConfig === activeCommercialConfig;
+      const matchFurnishing = activeFurnishing === 'All' || p.furnishing === activeFurnishing;
+      return matchListing && matchCategory && matchType && matchBHK && matchCommercialConfig && matchFurnishing;
     });
   }, [properties, listingFilter, activeCategory, activeType, activeBHK]);
 
@@ -114,6 +118,8 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                       setActiveCategory(cat);
                       setActiveType('All');
                       setActiveBHK('All');
+                      setActiveCommercialConfig('All');
+                      setActiveFurnishing('All');
                     }}
                     style={styles.categoryTab}
                   >
@@ -350,7 +356,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                 </View>
               </View>
 
-              {activeCategory === 'Residential' && (
+              {activeCategory === 'Residential' && (activeType === 'All' || activeType === 'Apartment/Flats' || activeType === 'Builder Floor' || activeType === 'House/Villa') && (
                 <View style={styles.filterSection}>
                   <Text style={styles.filterSectionTitle}>Configuration</Text>
                   <View style={styles.filterOptions}>
@@ -389,6 +395,106 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                   </View>
                 </View>
               )}
+
+              {activeCategory === 'Commercial' && (activeType === 'All' || (activeType !== 'Plot/Land' && activeType !== 'Other')) && (
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterSectionTitle}>Configuration</Text>
+                  <View style={styles.filterOptions}>
+                    <TouchableOpacity
+                      onPress={() => setActiveCommercialConfig('All')}
+                      style={[
+                        styles.filterOption,
+                        activeCommercialConfig === 'All' && styles.filterOptionActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.filterOptionText,
+                        activeCommercialConfig === 'All' && styles.filterOptionTextActive
+                      ]}>
+                        All
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    {(() => {
+                      let configs = [];
+                      if (activeType === 'All' || activeType === 'Office') {
+                        configs = [...configs, 'Co-working Space', 'Bareshell Office', 'Ready to Move Office'];
+                      }
+                      if (activeType === 'All' || activeType === 'Shop/Showroom') {
+                        configs = [...configs, 'Shop', 'Showroom', 'Retail Space'];
+                      }
+                      if (activeType === 'All' || activeType === 'Storage') {
+                        configs = [...configs, 'Cold Storage', 'Warehouse', 'Godown'];
+                      }
+                      if (activeType === 'All' || activeType === 'Industry') {
+                        configs = [...configs, 'Manufacturing', 'Factory', 'Industrial Unit'];
+                      }
+                      if (activeType === 'All' || activeType === 'Hospitality') {
+                        configs = [...configs, 'Guesthouse', 'Banquet Halls', 'Hotels/Resorts'];
+                      }
+                      
+                      return configs.map(config => (
+                        <TouchableOpacity
+                          key={config}
+                          onPress={() => setActiveCommercialConfig(config)}
+                          style={[
+                            styles.filterOption,
+                            activeCommercialConfig === config && styles.filterOptionActive
+                          ]}
+                        >
+                          <Text style={[
+                            styles.filterOptionText,
+                            activeCommercialConfig === config && styles.filterOptionTextActive
+                          ]}>
+                            {config}
+                          </Text>
+                        </TouchableOpacity>
+                      ));
+                    })()}
+                  </View>
+                </View>
+              )}
+
+              {((activeCategory === 'Residential' && (activeType === 'All' || (activeType !== 'Plot' && activeType !== 'Farmhouse'))) || 
+                (activeCategory === 'Commercial' && (activeType === 'All' || activeType === 'Office' || activeType === 'Shop/Showroom') && activeCommercialConfig !== 'Bareshell Office')) && (
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterSectionTitle}>Furnishing</Text>
+                  <View style={styles.filterOptions}>
+                    <TouchableOpacity
+                      onPress={() => setActiveFurnishing('All')}
+                      style={[
+                        styles.filterOption,
+                        activeFurnishing === 'All' && styles.filterOptionActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.filterOptionText,
+                        activeFurnishing === 'All' && styles.filterOptionTextActive
+                      ]}>
+                        All
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    {['Unfurnished', 'Semi', 'Furnished'].map(furn => (
+                      <TouchableOpacity
+                        key={furn}
+                        onPress={() => setActiveFurnishing(furn)}
+                        style={[
+                          styles.filterOption,
+                          activeFurnishing === furn && styles.filterOptionActive
+                        ]}
+                      >
+                        <Text style={[
+                          styles.filterOptionText,
+                          activeFurnishing === furn && styles.filterOptionTextActive
+                        ]}>
+                          {furn}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
             </ScrollView>
 
             <View style={styles.modalFooter}>
@@ -397,6 +503,8 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                   setActiveCategory('Residential');
                   setActiveType('All');
                   setActiveBHK('All');
+                  setActiveCommercialConfig('All');
+                  setActiveFurnishing('All');
                 }}
                 style={styles.clearButton}
               >
