@@ -11,8 +11,8 @@ import {
 const SALES_STAGES = [
   { id: 'New', label: 'New', isFirst: true },
   { id: 'Contacted', label: 'Contacted', isFirst: false },
-  { id: 'Interested', label: 'Interested', isFirst: false },
   { id: 'Site Visit', label: 'Site Visit', isFirst: false },
+  { id: 'Interested', label: 'Interested', isFirst: false },
   { id: 'Meeting', label: 'Meeting', isFirst: false },
   { id: 'Negotiation', label: 'Negotiation', isFirst: false },
   { id: 'Token', label: 'Token', isFirst: false },
@@ -143,7 +143,7 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer }) => {
                   <View style={styles.stageContent}>
                     <Text style={[
                       styles.stageText,
-                      (isCompleted || currentIndex === index) && { color: '#7B6FDA' } // Purple text for completed and current stages
+                      (isCompleted || currentIndex === index) && { color: '#7B6FDA' }
                     ]}>
                       {stage.label}
                     </Text>
@@ -350,19 +350,18 @@ const styles = StyleSheet.create({
   stageSection: {
     marginBottom: 6,
     paddingVertical: 8,
-    
     borderRadius: 12,
   },
   stageContainer: {
-    height: 46, // Fixed height for the scroll area
+    height: 46,
   },
   stageScrollContent: {
     paddingHorizontal: 2,
     alignItems: 'center',
-    paddingRight: 20, // Extra padding at end for easier scrolling
+    paddingRight: 20,
   },
   stageWrapper: {
-    marginRight: 0, // Gap between stages
+    marginRight: 0,
     height: 32,
   },
   stageArrow: {
@@ -373,20 +372,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   stageArrowSpecial: {
-    
-    height:38, // More padding for better text fit
+    height: 38,
   },
   stageContent: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   stageText: {
-    //fontFamily:'Poppins_400Regular',
     fontSize: 11,
     fontWeight: '500',
     textAlign: 'center',
     color: '#4b5563',
-    
   },
 
   // Task Section Styles

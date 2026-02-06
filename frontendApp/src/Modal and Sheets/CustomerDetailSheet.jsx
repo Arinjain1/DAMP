@@ -1,28 +1,110 @@
 import {
-    Calendar,
-    ChevronRight,
-    Edit3,
-    Handshake,
-    MapPin,
-    Phone,
-    Plus,
-    Sparkles,
-    Trash2,
-    X
+  BadgeIndianRupee,
+  Check,
+  ChevronRight,
+  CircleCheckBig,
+  Edit3,
+  FileText,
+  Handshake,
+  MapPin,
+  Phone,
+  Plus,
+  Search,
+  Sparkles,
+  ThumbsUp,
+  Trash2,
+  Users,
+  X
 } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    Image,
-    Linking,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Image,
+  Linking,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import WhatsAppIcon from '../Components/WhatsAppIcon';
 
+// --- SALES STAGES LIST ---
+const SALES_STAGES = [
+  { id: 'New', label: 'New', icon: 'Check' },
+  { id: 'Contacted', label: 'Contacted', icon: 'Phone' },
+  { id: 'Site Visit', label: 'Site Visit', icon: 'MapPin' },
+  { id: 'Interested', label: 'Interested', icon: 'ThumbsUp' },
+  { id: 'Meeting', label: 'Meeting', icon: 'Users' },
+  { id: 'Negotiation', label: 'Negotiation', icon: 'Handshake' },
+  { id: 'Token', label: 'Token', icon: 'BadgeIndianRupee' },
+  { id: 'Agreement', label: 'Agreement', icon: 'FileText' },
+  { id: 'Completed', label: 'Completed', icon: 'CircleCheckBig' },
+];
+
+// Icon mapping
+const getStageIcon = (iconName, size, color) => {
+  const icons = {
+    Check: <Check size={size} color={color} />,
+    Phone: <Phone size={size} color={color} />,
+    ThumbsUp: <ThumbsUp size={size} color={color} />,
+    MapPin: <MapPin size={size} color={color} />,
+    Users: <Users size={size} color={color} />,
+    Handshake: <Handshake size={size} color={color} />,
+    BadgeIndianRupee: <BadgeIndianRupee size={size} color={color} />,
+    FileText: <FileText size={size} color={color} />,
+    CircleCheckBig: <CircleCheckBig size={size} color={color} />,
+  };
+  return icons[iconName] || <Check size={size} color={color} />;
+};
+
+// --- STAGE INDICATOR COMPONENT ---
+const StageIndicator = ({ currentStage }) => {
+  const currentIndex = SALES_STAGES.findIndex(s => s.id === currentStage);
+  
+  return (
+    <View style={styles.stageContainer}>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.stageScrollContent}
+      >
+        {SALES_STAGES.map((stage, index) => {
+          const isCurrent = currentIndex === index;
+          const isCompleted = currentIndex > index;
+          
+          let circleStyle, iconColor;
+          if (isCompleted) {
+            circleStyle = styles.stageCircleCompleted;
+            iconColor = '#ffffff';
+          } else if (isCurrent) {
+            circleStyle = styles.stageCircleCurrent;
+            iconColor = '#ffffff';
+          } else {
+            circleStyle = styles.stageCircleFuture;
+            iconColor = '#d1d5db';
+          }
+          
+          return (
+            <View key={stage.id} style={styles.stageItem}>
+              <View style={[styles.stageCircle, circleStyle]}>
+                {getStageIcon(stage.icon, 20, iconColor)}
+              </View>
+              <Text style={[
+                styles.stageLabel,
+                isCurrent && styles.stageLabelActive
+              ]}>
+                {stage.label}
+              </Text>
+              {isCurrent && <View style={styles.stageUnderline} />}
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+};
 
 // Helper for currency formatting
 const formatCurrency = (amount) => {
@@ -33,34 +115,40 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals = [], followUps = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask }) => {
+const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals = [], followUps = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask, onUpdateStage, onSelectProperties }) => {
   const [showPropertyPicker, setShowPropertyPicker] = useState(false);
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState(customer.selectedProperties || []);
+  const [searchQuery, setSearchQuery] = useState('');
 
   if (!customer) return null;
 
-  // Filter Logic
+  const currentStageIndex = SALES_STAGES.findIndex(s => s.id === (customer.stage || 'New'));
+  const nextStage = currentStageIndex < SALES_STAGES.length - 1 ? SALES_STAGES[currentStageIndex + 1] : null;
+  
+  const showNextStepCard = nextStage && (customer.stage === 'New' || customer.stage === 'Contacted');
+
+  const handleProceedToNextStage = () => {
+    if (nextStage && onUpdateStage) {
+      onUpdateStage(customer.id, nextStage.id);
+    }
+  };
+
+  const handleToggleProperty = (propertyId) => {
+    const newSelection = selectedPropertyIds.includes(propertyId)
+      ? selectedPropertyIds.filter(id => id !== propertyId)
+      : [...selectedPropertyIds, propertyId];
+    
+    setSelectedPropertyIds(newSelection);
+    
+    // Update customer with selected properties after state update
+    if (onSelectProperties) {
+      onSelectProperties(customer.id, newSelection);
+    }
+  };
+
   const customerDeals = activeDeals.filter(d => d.customerId === customer.id);
   const dealtPropertyIds = customerDeals.map(d => d.propertyId);
   const customerTasks = followUps.filter(f => f.customerId === customer.id);
-  
-  console.log('CustomerDetailSheet - customer:', customer.id, 'followUps:', followUps.length, 'customerTasks:', customerTasks.length);
-  console.log('🔍 Customer tasks:', customerTasks);
-
-  const matches = properties.filter(p => {
-    if (p.type !== customer.type) return false;
-    if (p.status === 'Sold') return false;
-    if (dealtPropertyIds.includes(p.id)) return false;
-    return true;
-  });
-
-  const handleCall = () => {
-    Linking.openURL(`tel:${customer.phone}`);
-  };
-
-  const handleWhatsApp = () => {
-    const message = `Hi ${customer.name}, I have some properties that match your requirements.`;
-    Linking.openURL(`https://wa.me/${customer.phone}?text=${encodeURIComponent(message)}`);
-  };
 
   return (
     <Modal
@@ -72,10 +160,9 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
     >
       <View style={styles.overlay}>
         
-        {/* Main Sheet Container */}
         <View style={styles.sheetContainer}>
           
-          {/* Header (Spacious) */}
+          {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerContent}>
                <View style={styles.avatar}>
@@ -91,73 +178,142 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
             </TouchableOpacity>
           </View>
           
-          {/* Main Scroll Content */}
+          {/* Stage Indicator */}
+          <StageIndicator currentStage={customer.stage || 'New'} />
+
+          {/* Main Content */}
           <ScrollView 
             style={styles.content} 
             contentContainerStyle={{ paddingBottom: 100 }} 
             showsVerticalScrollIndicator={false}
           >
-            
-            {/* Quick Stats Row (Spacious) */}
-            <View style={styles.infoRow}>
-                <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>BUDGET</Text>
-                    <Text style={styles.infoValue}>{formatCurrency(customer.budget)}</Text>
+
+            {/* --- UPDATED NEXT STEP CARD (Vertical Layout + Full Width Button) --- */}
+            {showNextStepCard && (
+              <View style={styles.nextStepCard}>
+                <View style={styles.nextStepInfo}>
+                  <Text style={styles.nextStepLabel}>NEXT STEP</Text>
+                  <Text style={styles.nextStepTitle}>Move to {nextStage.label}</Text>
+                  <Text style={styles.nextStepSub}>Advance stage to track progress.</Text>
                 </View>
-                <View style={styles.verticalLine} />
-                <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>TYPE</Text>
-                    <Text style={styles.infoValue}>{customer.type}</Text>
+
+                <TouchableOpacity 
+                  style={styles.proceedButton}
+                  onPress={handleProceedToNextStage}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.proceedButtonText}>Proceed to {nextStage.label}</Text>
+                  <ChevronRight size={16} color="white" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Select Properties Section - Show only for Contacted stage */}
+            {customer.stage === 'Contacted' && (
+              <View style={styles.section}>
+                <Text style={styles.formLabel}>
+                  Properties to Show ({selectedPropertyIds.length})
+                </Text>
+                
+                <TouchableOpacity 
+                  style={styles.selectPropertiesButton}
+                  onPress={() => setShowPropertyPicker(true)}
+                >
+                  <Plus size={20} color="#6a7380" />
+                  <Text style={styles.selectPropertiesButtonText}>Select Properties</Text>
+                </TouchableOpacity>
+
+                {/* Show selected properties */}
+                {selectedPropertyIds.length > 0 && (
+                  <View style={styles.listContainer}>
+                    {selectedPropertyIds.map(propId => {
+                      const prop = properties.find(p => p.id === propId);
+                      if (!prop) return null;
+                      return (
+                        <View key={prop.id} style={styles.selectedPropertyItem}>
+                          <Image source={{ uri: prop.image }} style={styles.compactImg} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.compactTitle} numberOfLines={1}>{prop.title}</Text>
+                            <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
+                          </View>
+                          <TouchableOpacity 
+                            onPress={() => handleToggleProperty(prop.id)}
+                            style={styles.removeButton}
+                          >
+                            <X size={16} color="#ef4444" />
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Properties to Show - Show for Site Visit and later stages */}
+            {customer.stage !== 'New' && customer.stage !== 'Contacted' && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  Properties to Show ({selectedPropertyIds.length})
+                </Text>
+                
+                <TouchableOpacity 
+                  style={styles.selectPropertiesButton}
+                  onPress={() => setShowPropertyPicker(true)}
+                >
+                  <Plus size={20} color="#6a7380" />
+                  <Text style={styles.selectPropertiesButtonText}>Add More Properties</Text>
+                </TouchableOpacity>
+
+                {selectedPropertyIds.length > 0 && (
+                  <View style={styles.listContainer}>
+                    {selectedPropertyIds.map(propId => {
+                      const prop = properties.find(p => p.id === propId);
+                      if (!prop) return null;
+                      
+                      // Check if deal already exists for this property
+                      const hasDeal = dealtPropertyIds.includes(prop.id);
+                      
+                      return (
+                        <View key={prop.id} style={styles.matchCard}>
+                          <Image source={{ uri: prop.image }} style={styles.matchImg} />
+                          <View style={styles.matchContent}>
+                            <View>
+                              <Text style={styles.matchTitle} numberOfLines={1}>{prop.title}</Text>
+                            <View style={styles.rowCenter}>
+                              <MapPin size={12} color="#9ca3af" />
+                              <Text style={styles.matchLoc} numberOfLines={1}>{prop.location}</Text>
+                            </View>
+                          </View>
+                          
+                          <View style={styles.matchFooter}>
+                            <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
+                            {!hasDeal ? (
+                              <TouchableOpacity 
+                                onPress={() => onStartDeal(customer, prop)}
+                                style={styles.smallDealBtn}
+                              >
+                                <Handshake size={14} color="white" />
+                                <Text style={styles.smallDealText}>Start</Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <View style={styles.dealStartedBadge}>
+                                <CircleCheckBig size={12} color="#059669" />
+                                <Text style={styles.dealStartedText}>Deal Started</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
                 </View>
-                <View style={styles.verticalLine} />
-                <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>STATUS</Text>
-                    <Text style={[styles.infoValue, {color: '#d97706'}]}>{customer.status || 'New'}</Text>
-                </View>
-            </View>
+                )}
+              </View>
+            )}
 
-            {/* Action Buttons Grid (Bigger Touch Targets) */}
-            <View style={styles.actionGrid}>
-               <TouchableOpacity onPress={handleCall} style={styles.actionBtn}>
-                  <View style={[styles.iconBox, { backgroundColor: '#ecfdf5' }]}>
-                     <Phone size={22} color="#059669" />
-                  </View>
-                  <Text style={styles.actionText}>Call</Text>
-               </TouchableOpacity>
-               
-               <TouchableOpacity onPress={handleWhatsApp} style={styles.actionBtn}>
-                  <View style={[styles.iconBox, { backgroundColor: '#ecfccb' }]}>
-                     <WhatsAppIcon size={22} color="#65a30d" />
-                  </View>
-                  <Text style={styles.actionText}>WhatsApp</Text>
-               </TouchableOpacity>
-
-               <TouchableOpacity onPress={() => {
-                  // If there are existing tasks, edit the first pending task
-                  // Otherwise, add a new task
-                  const pendingTasks = customerTasks.filter(task => task.status === 'Pending');
-                  if (pendingTasks.length > 0) {
-                     onEditTask && onEditTask(pendingTasks[0]);
-                  } else {
-                     onAddFollowUp(customer);
-                  }
-               }} style={styles.actionBtn}>
-                  <View style={[styles.iconBox, { backgroundColor: '#eff6ff' }]}>
-                     <Calendar size={22} color="#2563eb" />
-                  </View>
-                  <Text style={styles.actionText}>Task</Text>
-               </TouchableOpacity>
-
-               <TouchableOpacity onPress={() => setShowPropertyPicker(true)} style={styles.actionBtn}>
-                  <View style={[styles.iconBox, { backgroundColor: '#111827' }]}>
-                     <Plus size={22} color="#fff" />
-                  </View>
-                  <Text style={styles.actionText}>Deal</Text>
-               </TouchableOpacity>
-            </View>
-
-            {/* Active Deals Section */}
-            {customerDeals.length > 0 && (
+            {/* Active Deals - Hide for New and Contacted stages */}
+            {customer.stage !== 'New' && customer.stage !== 'Contacted' && customerDeals.length > 0 && (
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Active Deals</Text>
                     <View style={styles.listContainer}>
@@ -182,8 +338,8 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 </View>
             )}
 
-            {/* Tasks Section */}
-            {customerTasks.length > 0 && (
+            {/* Tasks - Hide for New stage */}
+            {customer.stage !== 'New' && customerTasks.length > 0 && (
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Tasks ({customerTasks.length})</Text>
                     <View style={styles.listContainer}>
@@ -194,10 +350,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                             const statusColor = task.status === 'Done' ? '#059669' : '#d97706';
                             
                             return (
-                                <View 
-                                    key={task.id} 
-                                    style={styles.taskCard}
-                                >
+                                <View key={task.id} style={styles.taskCard}>
                                     <View style={styles.taskHeader}>
                                         <View style={[styles.taskTypeBadge, { 
                                             backgroundColor: isVisit ? '#fffbeb' : '#eff6ff' 
@@ -245,80 +398,114 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 </View>
             )}
 
-            {/* Matches Section */}
-            <View style={styles.section}>
-               <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Matches ({matches.length})</Text>
-                  {matches.length > 0 && <Sparkles size={16} color="#f59e0b" />}
-               </View>
-
-               {matches.length > 0 ? (
-                  <View style={styles.listContainer}>
-                     {matches.map(prop => (
-                        <TouchableOpacity 
-                           key={prop.id} 
-                           style={styles.matchCard}
-                           activeOpacity={0.8}
-                        >
-                           <Image source={{ uri: prop.image }} style={styles.matchImg} />
-                           <View style={styles.matchContent}>
-                              <View>
-                                <Text style={styles.matchTitle} numberOfLines={1}>{prop.title}</Text>
-                                <View style={styles.rowCenter}>
-                                   <MapPin size={12} color="#9ca3af" />
-                                   <Text style={styles.matchLoc} numberOfLines={1}>{prop.location}</Text>
-                                </View>
-                              </View>
-                              
-                              <View style={styles.matchFooter}>
-                                 <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
-                                 <TouchableOpacity 
-                                    onPress={() => { onStartDeal(customer, prop); setShowPropertyPicker(false); }}
-                                    style={styles.smallDealBtn}
-                                 >
-                                    <Handshake size={14} color="white" />
-                                    <Text style={styles.smallDealText}>Start</Text>
-                                 </TouchableOpacity>
-                              </View>
-                           </View>
-                        </TouchableOpacity>
-                     ))}
-                  </View>
-               ) : (
-                  <View style={styles.emptyState}>
-                     <Text style={styles.emptyText}>No matching properties found.</Text>
-                  </View>
-               )}
-            </View>
-
           </ScrollView>
 
-          {/* --- PROPERTY PICKER MODAL --- */}
+          {/* Property Picker Modal */}
           {showPropertyPicker && (
              <View style={styles.pickerOverlay}>
                 <View style={styles.pickerHeader}>
-                   <Text style={styles.pickerTitle}>Select Property</Text>
-                   <TouchableOpacity onPress={() => setShowPropertyPicker(false)} style={styles.closeButton}>
+                   <Text style={styles.pickerTitle}>
+                     {customer.stage === 'Contacted' ? 'Select Properties to Show' : 'Select Property'}
+                   </Text>
+                   <TouchableOpacity onPress={() => {
+                     setShowPropertyPicker(false);
+                     setSearchQuery('');
+                   }} style={styles.closeButton}>
                       <X size={22} color="#000" />
                    </TouchableOpacity>
                 </View>
+
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                  <Search size={18} color="#9ca3af" />
+                  <TextInput
+                    placeholder="Search properties..."
+                    placeholderTextColor="#9ca3af"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    style={styles.searchInput}
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <X size={18} color="#9ca3af" />
+                    </TouchableOpacity>
+                  )}
+                </View>
                 
                 <ScrollView style={styles.pickerContent}>
-                   {properties.filter(p => p.status === 'Available' && !dealtPropertyIds.includes(p.id)).map(p => (
+                   {properties
+                     .filter(p => {
+                       // Filter by search query
+                       const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                           p.location.toLowerCase().includes(searchQuery.toLowerCase());
+                       // For Contacted and Site Visit stages: show all matching properties
+                       // For other stages: show only available properties not in deals
+                       if (customer.stage === 'Contacted' || customer.stage === 'Site Visit') {
+                         return matchesSearch && p.type === customer.type && p.status !== 'Sold';
+                       } else {
+                         return matchesSearch && p.status === 'Available' && !dealtPropertyIds.includes(p.id);
+                       }
+                     })
+                     .map(p => {
+                     const isSelected = selectedPropertyIds.includes(p.id);
+                     const canToggle = customer.stage === 'Contacted' || customer.stage === 'Site Visit';
+                     return (
                       <TouchableOpacity 
                          key={p.id} 
-                         onPress={() => { onStartDeal(customer, p); setShowPropertyPicker(false); }}
-                         style={styles.pickerItem}
+                         onPress={() => {
+                           if (canToggle) {
+                             // For Contacted and Site Visit stages: toggle selection
+                             handleToggleProperty(p.id);
+                           } else {
+                             // For other stages: start deal
+                             onStartDeal(customer, p);
+                             setShowPropertyPicker(false);
+                             setSearchQuery('');
+                           }
+                         }}
+                         style={[
+                           styles.pickerItem,
+                           canToggle && isSelected && styles.pickerItemSelected
+                         ]}
                       >
                          <Image source={{ uri: p.image }} style={styles.pickerImg} />
                          <View style={{ flex: 1 }}>
                             <Text style={styles.pickerItemTitle}>{p.title}</Text>
+                            <View style={styles.rowCenter}>
+                              <MapPin size={10} color="#9ca3af" />
+                              <Text style={styles.pickerItemLocation}>{p.location}</Text>
+                            </View>
                             <Text style={styles.pickerItemPrice}>{formatCurrency(p.price)}</Text>
                          </View>
-                         <Plus size={20} color="#2563eb" />
+                         {canToggle ? (
+                           <View style={[
+                             styles.checkboxCircle,
+                             isSelected && styles.checkboxCircleSelected
+                           ]}>
+                             {isSelected && <Check size={16} color="#ffffff" />}
+                           </View>
+                         ) : (
+                           <Plus size={20} color="#2563eb" />
+                         )}
                       </TouchableOpacity>
-                   ))}
+                     );
+                   })}
                 </ScrollView>
+
+                {/* Done button for Contacted and Site Visit stages */}
+                {(customer.stage === 'Contacted' || customer.stage === 'Site Visit') && (
+                  <View style={styles.pickerFooter}>
+                    <TouchableOpacity 
+                      style={styles.doneButton}
+                      onPress={() => {
+                        setShowPropertyPicker(false);
+                        setSearchQuery('');
+                      }}
+                    >
+                      <Text style={styles.doneButtonText}>Done ({selectedPropertyIds.length} selected)</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
              </View>
           )}
 
@@ -332,12 +519,12 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.6)', // Slightly darker overlay
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   sheetContainer: {
-    backgroundColor: '#f9fafb', // Light gray background for contrast
+    backgroundColor: '#f9fafb',
     width: '100%',
-    height: '83%', // Increased Height for spacious feel
+    height: '83%',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
@@ -345,8 +532,8 @@ const styles = StyleSheet.create({
   
   // Header
   header: {
-    paddingVertical: 20,
-    paddingHorizontal: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
     flexDirection: 'row',
@@ -357,23 +544,23 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
   },
   avatar: {
-    height: 52, // Bigger Avatar
-    width: 52,
+    height: 44,
+    width: 44,
     backgroundColor: '#f3f4f6',
-    borderRadius: 18,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: '#374151',
   },
   customerName: {
-    fontSize: 16, // Bigger Font
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#111827',
   },
@@ -393,76 +580,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 24,
+    backgroundColor: '#ffffff',
   },
   
-  // Info Row
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: 'white',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    marginBottom: 28, // More gap
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  infoItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#9ca3af',
-    marginBottom: 4,
-    letterSpacing: 0.5,
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#111827',
-    textAlign: 'center',
-  },
-  verticalLine: {
-    width: 1,
-    height: '80%',
-    backgroundColor: '#e5e7eb',
-    alignSelf: 'center',
-  },
-
-  // Action Grid
-  actionGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 32, // More gap
-  },
-  actionBtn: {
-    alignItems: 'center',
-    width: '22%',
-  },
-  iconBox: {
-    width: 52, // Bigger Touch Target
-    height: 52,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  actionText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#4b5563',
-  },
-
   // Sections
   section: {
-    marginBottom: 32, // Spacing between sections
+    marginBottom: 32,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -477,7 +600,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   listContainer: {
-    gap: 14, // Gap between cards
+    gap: 14,
   },
   
   // Compact Deal Card
@@ -503,7 +626,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
   },
   compactTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#111827',
   },
@@ -577,23 +700,19 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Match Card (Spacious)
+  // Match Card
   matchCard: {
     flexDirection: 'row',
-    padding: 16, // More padding inside
+    padding: 16,
     backgroundColor: 'white',
     borderWidth: 1,
     borderColor: '#e5e7eb',
     borderRadius: 16,
     gap: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 2,
+    
   },
   matchImg: {
-    width: 70, // Bigger Image
+    width: 70,
     height: 70,
     borderRadius: 12,
     backgroundColor: '#f3f4f6',
@@ -607,7 +726,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   matchLoc: {
     fontSize: 12,
@@ -622,12 +741,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   matchPrice: {
     fontSize: 15,
     fontWeight: '900',
-    color: '#2563eb',
+    color: '#6b7280',
   },
   smallDealBtn: {
     flexDirection: 'row',
@@ -641,6 +760,20 @@ const styles = StyleSheet.create({
   smallDealText: {
     color: 'white',
     fontSize: 11,
+    fontWeight: 'bold',
+  },
+  dealStartedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#d1fae5',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  dealStartedText: {
+    color: '#059669',
+    fontSize: 10,
     fontWeight: 'bold',
   },
   emptyState: {
@@ -660,10 +793,7 @@ const styles = StyleSheet.create({
   // Property Picker
   pickerOverlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'white',
     zIndex: 50,
   },
@@ -671,18 +801,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-    marginTop: 20,
+    borderBottomColor: '#e5e7eb',
+    marginTop: 0,
+    backgroundColor: '#ffffff',
   },
-  pickerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  pickerTitle: { 
+    fontSize: 17, 
+    fontWeight: '800',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginLeft:6,
   },
-  pickerContent: {
-    padding: 20,
+  searchContainer: {
+    marginTop:20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    gap: 10,
   },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#111827',
+    padding: 0,
+  },
+  pickerContent: { padding: 20, paddingTop: 8 },
   pickerItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -699,14 +852,209 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#f3f4f6',
   },
-  pickerItemTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
+  pickerItemTitle: { fontSize: 14, fontWeight: 'bold' },
+  pickerItemLocation: { fontSize: 11, color: '#9ca3af', marginLeft: 4 },
+  pickerItemPrice: { fontSize: 13, color: '#6b7280', marginTop: 4 },
+  
+  // Stage Indicator
+  stageContainer: {
+    backgroundColor: 'white',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
   },
-  pickerItemPrice: {
-    fontSize: 13,
+  stageScrollContent: {
+    paddingHorizontal: 8,
+    gap: 24,
+  },
+  stageItem: {
+    alignItems: 'center',
+    minWidth: 70,
+  },
+  stageCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  stageCircleCompleted: { backgroundColor: '#86efac' },
+  stageCircleCurrent: { backgroundColor: '#1f2937' },
+  stageCircleFuture: { backgroundColor: '#f3f4f6' },
+  stageLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9ca3af',
+    textAlign: 'center',
+  },
+  stageLabelActive: { color: '#1f2937', fontWeight: '700' },
+  stageUnderline: {
+    width: 32,
+    height: 3,
+    backgroundColor: '#1f2937',
+    borderRadius: 2,
+    marginTop: 4,
+  },
+
+  // --- UPDATED NEXT STEP CARD ---
+  nextStepCard: {
+    backgroundColor: '#E9E6F7', // Reference Card BG
+    borderColor: '#BFB7FD',     // Reference Card Border
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 24,
+    // Column layout (default in RN) ensures vertical stacking
+    shadowColor: '#BFB7FD',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  nextStepInfo: {
+    marginBottom: 16, // Space between Text and Button
+  },
+  nextStepLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#7c3aed', 
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  nextStepTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  nextStepSub: {
+    fontSize: 12,
     color: '#6b7280',
-  }
+  },
+  proceedButton: {
+    backgroundColor: '#BFB7FD', // Reference Button BG Color
+    paddingVertical: 14,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%', // Full Width
+    shadowColor: '#BFB7FD',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  proceedButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: 'white', // White Text
+  },
+
+  // Select Properties Styles
+  formLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  selectedCount: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6366f1',
+  },
+  selectPropertiesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#ffffff',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e1e3e6',
+    borderStyle: 'dashed',
+    marginBottom: 12,
+  },
+  selectPropertiesButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#6a7380',
+  },
+  selectedPropertyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 14,
+    gap: 14,
+    
+  },
+  removeButton: {
+    padding: 6,
+    backgroundColor: '#fee2e2',
+    borderRadius: 8,
+  },
+  selectablePropertyCard: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    gap: 16,
+    shadowColor: '#000',
+    
+  },
+  selectedPropertyCard: {
+    borderColor: '#a78bfa',
+    backgroundColor: '#f3f0ff',
+  },
+  pickerItemSelected: {
+    backgroundColor: '#f3f0ff',
+    borderColor: '#a78bfa',
+  },
+  pickerFooter: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    backgroundColor: 'white',
+  },
+  doneButton: {
+    backgroundColor: '#a78bfa',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  doneButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'white',
+  },
+  checkboxCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  checkboxCircleSelected: {
+    backgroundColor: '#a78bfa',
+    borderColor: '#a78bfa',
+  },
 });
 
 export default CustomerDetailSheet;

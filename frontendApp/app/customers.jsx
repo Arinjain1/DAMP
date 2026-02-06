@@ -125,6 +125,18 @@ export default function Customers() {
           onEditTask={handleEditTask}
           onDeleteTask={handleDeleteTask}
           onUpdateStatus={(id, status) => dispatch(updateCustomerStatus({ id, status }))}
+          onUpdateStage={(id, stage) => {
+            const customer = customers.find(c => c.id === id);
+            if (customer) {
+              dispatch(updateCustomer({ ...customer, stage }));
+            }
+          }}
+          onSelectProperties={(id, selectedProperties) => {
+            const customer = customers.find(c => c.id === id);
+            if (customer) {
+              dispatch(updateCustomer({ ...customer, selectedProperties }));
+            }
+          }}
           onStartDeal={handleStartDeal}
           onOpenDeal={(deal) => dispatch(setSelectedDeal(deal))}
         />
