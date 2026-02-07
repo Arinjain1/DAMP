@@ -131,10 +131,17 @@ export default function Customers() {
               dispatch(updateCustomer({ ...customer, stage }));
             }
           }}
-          onSelectProperties={(id, selectedProperties) => {
+          onSelectProperties={(id, selectedProperties, interestedProperties, holdProperties) => {
             const customer = customers.find(c => c.id === id);
             if (customer) {
-              dispatch(updateCustomer({ ...customer, selectedProperties }));
+              const updates = { selectedProperties };
+              if (interestedProperties !== undefined) {
+                updates.interestedProperties = interestedProperties;
+              }
+              if (holdProperties !== undefined) {
+                updates.holdProperties = holdProperties;
+              }
+              dispatch(updateCustomer({ ...customer, ...updates }));
             }
           }}
           onStartDeal={handleStartDeal}

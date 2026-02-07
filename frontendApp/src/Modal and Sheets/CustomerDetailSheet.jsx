@@ -3,6 +3,7 @@ import {
   Check,
   ChevronRight,
   CircleCheckBig,
+  Clock,
   Edit3,
   FileText,
   Handshake,
@@ -12,12 +13,13 @@ import {
   Plus,
   Search,
   Sparkles,
+  ThumbsDown,
   ThumbsUp,
   Trash2,
   Users,
   X
 } from 'lucide-react-native';
-import { useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import {
   Image,
   ImageBackground,
@@ -120,9 +122,12 @@ const formatCurrency = (amount) => {
 const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals = [], followUps = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask, onUpdateStage, onSelectProperties }) => {
   const [showPropertyPicker, setShowPropertyPicker] = useState(false);
   const [selectedPropertyIds, setSelectedPropertyIds] = useState(customer.selectedProperties || []);
+  const [interestedPropertyIds, setInterestedPropertyIds] = useState(customer.interestedProperties || []);
+  const [holdPropertyIds, setHoldPropertyIds] = useState(customer.holdProperties || []);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMapView, setShowMapView] = useState(false);
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
+  const [isPropertyExpanded, setIsPropertyExpanded] = useState(false);
 
   if (!customer) return null;
 
@@ -150,9 +155,83 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
     }
   };
 
+  const handlePropertyInterested = (propertyId) => {
+    // Add to interested properties array (don't replace, add to existing)
+    const newInterestedProperties = interestedPropertyIds.includes(propertyId)
+      ? interestedPropertyIds
+      : [...interestedPropertyIds, propertyId];
+    
+    setInterestedPropertyIds(newInterestedProperties);
+    
+    // Update customer with interested properties (separate from selectedProperties)
+    if (onSelectProperties) {
+      const customer_data = {
+        selectedProperties: selectedPropertyIds, // Keep original selected properties
+        interestedProperties: newInterestedProperties // Track interested properties separately
+      };
+      // Store both arrays in customer
+      const customerToUpdate = properties.length > 0 ? customer : null;
+      if (customerToUpdate) {
+        onSelectProperties(customer.id, selectedPropertyIds, newInterestedProperties);
+      }
+    }
+    
+    // Move customer to Interested stage
+    if (onUpdateStage) {
+      onUpdateStage(customer.id, 'Interested');
+    }
+    
+    // Close the map view to show the updated stage
+    setShowMapView(false);
+    setIsPropertyExpanded(false);
+  };
+
+  const handlePropertyNotInterested = (propertyId) => {
+    // Remove property from selectedProperties
+    const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
+    setSelectedPropertyIds(newSelectedProperties);
+    
+    // Update customer with updated selected properties
+    if (onSelectProperties) {
+      onSelectProperties(customer.id, newSelectedProperties, interestedPropertyIds);
+    }
+    
+    // If no properties left, close map view
+    if (newSelectedProperties.length === 0) {
+      setShowMapView(false);
+      setIsPropertyExpanded(false);
+    } else {
+      // Move to next property if available
+      if (currentPropertyIndex >= newSelectedProperties.length) {
+        setCurrentPropertyIndex(newSelectedProperties.length - 1);
+      }
+    }
+  };
+
+  const handlePropertyHold = (propertyId) => {
+    // Add to hold properties array
+    const newHoldProperties = holdPropertyIds.includes(propertyId)
+      ? holdPropertyIds
+      : [...holdPropertyIds, propertyId];
+    
+    setHoldPropertyIds(newHoldProperties);
+    
+    // Keep property in selectedProperties (don't remove it)
+    // Update customer with hold properties
+    if (onSelectProperties) {
+      onSelectProperties(customer.id, selectedPropertyIds, interestedPropertyIds, newHoldProperties);
+    }
+  };
+
   const customerDeals = activeDeals.filter(d => d.customerId === customer.id);
   const dealtPropertyIds = customerDeals.map(d => d.propertyId);
   const customerTasks = followUps.filter(f => f.customerId === customer.id);
+
+  // Determine which properties to show based on stage
+  // Filter out hold properties from the active list
+  const propertiesToShow = customer.stage === 'Interested' 
+    ? interestedPropertyIds.filter(id => !holdPropertyIds.includes(id))
+    : selectedPropertyIds.filter(id => !holdPropertyIds.includes(id));
 
   return (
     <Modal
@@ -202,9 +281,13 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 </View>
 
                 <TouchableOpacity 
-                  style={styles.proceedButton}
+                  style={[
+                    styles.proceedButton,
+                    customer.stage === 'Contacted' && selectedPropertyIds.length === 0 && styles.proceedButtonDisabled
+                  ]}
                   onPress={handleProceedToNextStage}
                   activeOpacity={0.9}
+                  disabled={customer.stage === 'Contacted' && selectedPropertyIds.length === 0}
                 >
                   <Text style={styles.proceedButtonText}>Proceed to {nextStage.label}</Text>
                   <ChevronRight size={16} color="white" />
@@ -291,20 +374,23 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
             {customer.stage !== 'New' && customer.stage !== 'Contacted' && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
-                  Properties to Show ({selectedPropertyIds.length})
+                  Properties to Show ({propertiesToShow.length})
                 </Text>
                 
-                <TouchableOpacity 
-                  style={styles.selectPropertiesButton}
-                  onPress={() => setShowPropertyPicker(true)}
-                >
-                  <Plus size={20} color="#6a7380" />
-                  <Text style={styles.selectPropertiesButtonText}>Add More Properties</Text>
-                </TouchableOpacity>
+                {/* Hide Add More Properties button for Interested stage */}
+                {customer.stage !== 'Interested' && (
+                  <TouchableOpacity 
+                    style={styles.selectPropertiesButton}
+                    onPress={() => setShowPropertyPicker(true)}
+                  >
+                    <Plus size={20} color="#6a7380" />
+                    <Text style={styles.selectPropertiesButtonText}>Add More Properties</Text>
+                  </TouchableOpacity>
+                )}
 
-                {selectedPropertyIds.length > 0 && (
+                {propertiesToShow.length > 0 && (
                   <View style={styles.listContainer}>
-                    {selectedPropertyIds.map(propId => {
+                    {propertiesToShow.map(propId => {
                       const prop = properties.find(p => p.id === propId);
                       if (!prop) return null;
                       
@@ -327,7 +413,75 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                             <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
                             {!hasDeal ? (
                               <TouchableOpacity 
-                                onPress={() => onStartDeal(customer, prop)}
+                                onPress={() => {
+                                  if (customer.stage === 'Interested') {
+                                    // Start Deal and move to Meeting stage
+                                    onStartDeal(customer, prop);
+                                    if (onUpdateStage) {
+                                      onUpdateStage(customer.id, 'Meeting');
+                                    }
+                                  } else {
+                                    // Open Google Maps for other stages
+                                    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                                  }
+                                }}
+                                style={styles.visitBtn}
+                              >
+                                {customer.stage !== 'Interested' && (
+                                  <MapPin size={14} color="white" />
+                                )}
+                                <Text style={styles.visitBtnText}>
+                                  {customer.stage === 'Interested' ? 'Start Deal' : 'Visit'}
+                                </Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <View style={styles.dealStartedBadge}>
+                                <CircleCheckBig size={12} color="#059669" />
+                                <Text style={styles.dealStartedText}>Deal Started</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+                )}
+              </View>
+            )}
+
+            {/* Pending Decision - Show hold properties in Site Visit stage */}
+            {customer.stage === 'Site Visit' && holdPropertyIds.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Pending Decision ({holdPropertyIds.length})</Text>
+                <View style={styles.listContainer}>
+                  {holdPropertyIds.map(propId => {
+                    const prop = properties.find(p => p.id === propId);
+                    if (!prop) return null;
+                    
+                    // Check if deal already exists for this property
+                    const hasDeal = dealtPropertyIds.includes(prop.id);
+                    
+                    return (
+                      <View key={prop.id} style={styles.matchCard}>
+                        <Image source={{ uri: prop.image }} style={styles.matchImg} />
+                        <View style={styles.matchContent}>
+                          <View>
+                            <Text style={styles.matchTitle} numberOfLines={1}>{prop.title}</Text>
+                            <View style={styles.rowCenter}>
+                              <MapPin size={12} color="#9ca3af" />
+                              <Text style={styles.matchLoc} numberOfLines={1}>{prop.location}</Text>
+                            </View>
+                          </View>
+                          
+                          <View style={styles.matchFooter}>
+                            <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
+                            {!hasDeal ? (
+                              <TouchableOpacity 
+                                onPress={() => {
+                                  // Open Google Maps with property location
+                                  Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                                }}
                                 style={styles.visitBtn}
                               >
                                 <MapPin size={14} color="white" />
@@ -345,7 +499,83 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     );
                   })}
                 </View>
-                )}
+              </View>
+            )}
+
+            {/* Pending Decision - Show hold properties in Interested stage */}
+            {customer.stage === 'Interested' && holdPropertyIds.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Pending Decision ({holdPropertyIds.length})</Text>
+                <View style={styles.listContainer}>
+                  {holdPropertyIds.map(propId => {
+                    const prop = properties.find(p => p.id === propId);
+                    if (!prop) return null;
+                    
+                    // Check if deal already exists for this property
+                    const hasDeal = dealtPropertyIds.includes(prop.id);
+                    
+                    return (
+                      <View key={prop.id} style={styles.pendingCardWithButtons}>
+                        {/* Top Section - Image and Details */}
+                        <View style={styles.pendingCardTop}>
+                          <Image source={{ uri: prop.image }} style={styles.matchImg} />
+                          <View style={styles.matchContent}>
+                            <View>
+                              <Text style={styles.matchTitle} numberOfLines={1}>{prop.title}</Text>
+                              <View style={styles.rowCenter}>
+                                <MapPin size={12} color="#9ca3af" />
+                                <Text style={styles.matchLoc} numberOfLines={1}>{prop.location}</Text>
+                              </View>
+                            </View>
+                            
+                            <View style={styles.matchFooter}>
+                              <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
+                              <View style={styles.holdBadge}>
+                                <Clock size={12} color="#d97706" />
+                                <Text style={styles.holdBadgeText}>On Hold</Text>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+
+                        {/* Bottom Section - Action Buttons Full Width */}
+                        <View style={styles.pendingActionButtonsVertical}>
+                          <TouchableOpacity 
+                            style={styles.interestedActionBtn}
+                            onPress={() => {
+                              // Add to interested properties without changing stage
+                              const newInterestedProperties = interestedPropertyIds.includes(propId)
+                                ? interestedPropertyIds
+                                : [...interestedPropertyIds, propId];
+                              
+                              setInterestedPropertyIds(newInterestedProperties);
+                              
+                              // Remove from hold properties
+                              const newHoldProperties = holdPropertyIds.filter(id => id !== propId);
+                              setHoldPropertyIds(newHoldProperties);
+                              
+                              // Update customer
+                              if (onSelectProperties) {
+                                onSelectProperties(customer.id, selectedPropertyIds, newInterestedProperties, newHoldProperties);
+                              }
+                            }}
+                          >
+                            <Text style={styles.interestedActionText}>Interested</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={styles.visitActionBtn}
+                            onPress={() => {
+                              // Open Google Maps with property location
+                              Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                            }}
+                          >
+                            <Text style={styles.visitActionText}>Visit</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
               </View>
             )}
 
@@ -548,15 +778,64 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
         </View>
 
-        {/* Fixed Bottom Button - Show only for Site Visit stage */}
-        {customer.stage === 'Site Visit' && selectedPropertyIds.length > 0 && (
+        {/* Fixed Bottom Buttons - Show for Site Visit stage */}
+        {customer.stage === 'Site Visit' && (
+          <View style={styles.fixedBottomContainer}>
+            {/* Show two buttons if there are interested properties */}
+            {interestedPropertyIds.length > 0 ? (
+              <View style={styles.twoButtonRow}>
+                <TouchableOpacity 
+                  style={[styles.halfWidthButton, styles.interestedButton]}
+                  onPress={() => {
+                    if (onUpdateStage) {
+                      onUpdateStage(customer.id, 'Interested');
+                    }
+                  }}
+                >
+                  <Text style={styles.visitSitesButtonText}>View Interested ({interestedPropertyIds.length})</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[
+                    styles.halfWidthButton,
+                    styles.visitSitesButton,
+                    selectedPropertyIds.length === 0 && styles.visitSitesButtonDisabled
+                  ]}
+                  onPress={() => setShowMapView(true)}
+                  disabled={selectedPropertyIds.length === 0}
+                >
+                  <MapPin size={20} color="white" />
+                  <Text style={styles.visitSitesButtonText}>Visit Sites ({selectedPropertyIds.length})</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={[
+                  styles.visitSitesButton,
+                  selectedPropertyIds.length === 0 && styles.visitSitesButtonDisabled
+                ]}
+                onPress={() => setShowMapView(true)}
+                disabled={selectedPropertyIds.length === 0}
+              >
+                <MapPin size={20} color="white" />
+                <Text style={styles.visitSitesButtonText}>Visit Sites ({selectedPropertyIds.length})</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {/* Fixed Bottom Button - Show only for Interested stage */}
+        {customer.stage === 'Interested' && (
           <View style={styles.fixedBottomContainer}>
             <TouchableOpacity 
               style={styles.visitSitesButton}
-              onPress={() => setShowMapView(true)}
+              onPress={() => {
+                if (onUpdateStage) {
+                  onUpdateStage(customer.id, 'Site Visit');
+                }
+              }}
             >
               <MapPin size={20} color="white" />
-              <Text style={styles.visitSitesButtonText}>Visit Sites ({selectedPropertyIds.length})</Text>
+              <Text style={styles.visitSitesButtonText}>Back to Visit Sites</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -568,7 +847,10 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
           visible={true}
           transparent={false}
           animationType="slide"
-          onRequestClose={() => setShowMapView(false)}
+          onRequestClose={() => {
+            setShowMapView(false);
+            setIsPropertyExpanded(false);
+          }}
           statusBarTranslucent
         >
           <View style={styles.mapViewContainer}>
@@ -577,63 +859,205 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
               source={require('../../assets/images/Rectangle.png')} 
               style={styles.mapImage}
               resizeMode="cover"
+              progressiveRenderingEnabled={true}
+              fadeDuration={300}
             />
             
-            {/* Close Button */}
-            <TouchableOpacity 
-              style={styles.mapCloseButton}
-              onPress={() => setShowMapView(false)}
-            >
-              <X size={24} color="white" />
-            </TouchableOpacity>
-
-            {/* Properties Horizontal Scroll */}
-            <View style={styles.propertiesScrollContainer}>
-              <ScrollView 
-                horizontal 
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={(event) => {
-                  const index = Math.round(event.nativeEvent.contentOffset.x / 320);
-                  setCurrentPropertyIndex(index);
+            {/* Header with Title and Close Button */}
+            <View style={styles.mapHeader}>
+              <TouchableOpacity 
+                style={styles.mapCloseButton}
+                onPress={() => {
+                  setShowMapView(false);
+                  setIsPropertyExpanded(false);
                 }}
-                contentContainerStyle={styles.propertiesScrollContent}
               >
-                {selectedPropertyIds.map((propId, index) => {
-                  const prop = properties.find(p => p.id === propId);
-                  if (!prop) return null;
-                  
-                  return (
-                    <View key={prop.id} style={styles.propertyScrollCard}>
-                      <Image source={{ uri: prop.image }} style={styles.propertyScrollImageSmall} />
-                      <View style={styles.propertyScrollInfo}>
-                        <Text style={styles.propertyScrollTitle} numberOfLines={2}>{prop.title}</Text>
-                        <View style={styles.propertyScrollLocation}>
-                          <MapPin size={16} color="#6b7280" />
-                          <Text style={styles.propertyScrollLocationText} numberOfLines={1}>{prop.location}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
-              </ScrollView>
+                <X size={24} color="#111827" />
+              </TouchableOpacity>
             </View>
 
-            {/* Fixed Bottom Component */}
-            {selectedPropertyIds.length > 0 && (
-              <View style={styles.fixedBottomCard}>
-                <View style={styles.deliverySection}>
-                  <MapPin size={24} color="#a78bfa" />
-                  <View style={styles.deliveryInfo}>
-                    <Text style={styles.deliveryLabel}>Address</Text>
-                    <Text style={styles.deliveryAddress} numberOfLines={2}>
-                      {properties.find(p => p.id === selectedPropertyIds[currentPropertyIndex])?.location || ''}
-                    </Text>
-                  </View>
+            {/* Properties Horizontal Scroll - Small Cards */}
+            {!isPropertyExpanded && (
+              <View style={styles.collapsedModalCard}>
+                {/* Horizontal Line */}
+                <TouchableOpacity 
+                  activeOpacity={1}
+                  onPress={() => {
+                    if (selectedPropertyIds.length > 0) {
+                      setCurrentPropertyIndex(0);
+                      setIsPropertyExpanded(true);
+                    }
+                  }}
+                >
+                  <View style={styles.handleBar} />
+
+                  {/* Visit Sites Label */}
+                  <Text style={styles.propertiesToShowLabel}>Visit Sites</Text>
+                </TouchableOpacity>
+
+                {/* Property Horizontal Scroll */}
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.propertiesScrollContent}
+                  nestedScrollEnabled={true}
+                  removeClippedSubviews={true}
+                  maxToRenderPerBatch={3}
+                  windowSize={5}
+                >
+                  {selectedPropertyIds.map((propId, index) => {
+                    const prop = properties.find(p => p.id === propId);
+                    if (!prop) return null;
+                    
+                    return (
+                      <TouchableOpacity 
+                        key={prop.id} 
+                        style={styles.propertyScrollCard}
+                        onPress={() => {
+                          setCurrentPropertyIndex(index);
+                          setIsPropertyExpanded(true);
+                        }}
+                        activeOpacity={0.9}
+                      >
+                        <Image source={{ uri: prop.image }} style={styles.propertyScrollImageSmall} />
+                        <View style={styles.propertyScrollInfo}>
+                          <Text style={styles.propertyScrollTitle} numberOfLines={2}>{prop.title}</Text>
+                          <View style={styles.propertyScrollLocation}>
+                            <MapPin size={14} color="#6b7280" />
+                            <Text style={styles.propertyScrollLocationText} numberOfLines={1}>{prop.location}</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Expanded Property Details */}
+            {isPropertyExpanded && selectedPropertyIds.length > 0 && (
+              <View style={styles.expandedModalCard}>
+                {/* Horizontal Line */}
+                <TouchableOpacity 
+                  activeOpacity={1}
+                  onPress={() => setIsPropertyExpanded(false)}
+                >
+                  <View style={styles.handleBar} />
+                </TouchableOpacity>
+
+                {/* Visit Sites Label */}
+                <Text style={styles.propertiesToShowLabel}>Visit Sites</Text>
+
+                {/* Property Horizontal Scroll */}
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.expandedPropertiesScroll}
+                  nestedScrollEnabled={true}
+                  scrollEnabled={true}
+                  snapToInterval={322}
+                  decelerationRate="fast"
+                  onMomentumScrollEnd={(event) => {
+                    const index = Math.round(event.nativeEvent.contentOffset.x / 322);
+                    setCurrentPropertyIndex(index);
+                  }}
+                >
+                  {selectedPropertyIds.map((propId, index) => {
+                    const prop = properties.find(p => p.id === propId);
+                    if (!prop) return null;
+                    
+                    // Check if property is on hold
+                    const isOnHold = holdPropertyIds.includes(propId);
+                    
+                    return (
+                      <View 
+                        key={prop.id} 
+                        style={styles.expandedPropertyCard}
+                      >
+                        <Image source={{ uri: prop.image }} style={styles.expandedPropertyCardImage} />
+                        <View style={styles.expandedPropertyCardInfo}>
+                          <View style={styles.propertyCardHeader}>
+                            <Text style={styles.expandedPropertyCardTitle} numberOfLines={1}>
+                              {prop.title}
+                            </Text>
+                            {isOnHold && (
+                              <View style={styles.holdBadgeSmall}>
+                                <Clock size={10} color="#d97706" />
+                                <Text style={styles.holdBadgeSmallText}>Hold</Text>
+                              </View>
+                            )}
+                          </View>
+                          <View style={styles.expandedPropertyCardLocation}>
+                            <MapPin size={12} color="#9ca3af" />
+                            <Text style={styles.expandedPropertyCardLocationText} numberOfLines={1}>
+                              {prop.location}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* Feedback Buttons - Single Row with Partitions */}
+                <View style={styles.feedbackButtonsRow}>
+                  <TouchableOpacity 
+                    style={styles.feedbackBtn}
+                    onPress={() => {
+                      const propId = selectedPropertyIds[currentPropertyIndex];
+                      if (propId) {
+                        handlePropertyInterested(propId);
+                      }
+                    }}
+                  >
+                    <ThumbsUp size={20} color="#374151" />
+                    <Text style={styles.feedbackTextHorizontal}>Interested</Text>
+                  </TouchableOpacity>
+                  <View style={styles.verticalDivider} />
+                  <TouchableOpacity 
+                    style={styles.feedbackBtn}
+                    onPress={() => {
+                      const propId = selectedPropertyIds[currentPropertyIndex];
+                      if (propId) {
+                        handlePropertyNotInterested(propId);
+                      }
+                    }}
+                  >
+                    <ThumbsDown size={20} color="#374151" />
+                    <Text style={styles.feedbackTextHorizontal}>Not-Interested</Text>
+                  </TouchableOpacity>
+                  <View style={styles.verticalDivider} />
+                  <TouchableOpacity 
+                    style={styles.feedbackBtn}
+                    onPress={() => {
+                      const propId = selectedPropertyIds[currentPropertyIndex];
+                      if (propId) {
+                        handlePropertyHold(propId);
+                      }
+                    }}
+                  >
+                    <Clock size={20} color="#374151" />
+                    <Text style={styles.feedbackTextHorizontal}>Hold</Text>
+                  </TouchableOpacity>
                 </View>
 
+                {/* Contact Owner Button */}
                 <TouchableOpacity 
-                  style={styles.navigateButtonFixed}
+                  style={styles.contactOwnerButton}
+                  onPress={() => {
+                    const prop = properties.find(p => p.id === selectedPropertyIds[currentPropertyIndex]);
+                    if (prop && prop.ownerPhone) {
+                      Linking.openURL(`tel:${prop.ownerPhone}`);
+                    }
+                  }}
+                >
+                  <Phone size={18} color="#374151" />
+                  <Text style={styles.contactOwnerText}>Call Owner</Text>
+                </TouchableOpacity>
+
+                {/* Navigate Button */}
+                <TouchableOpacity 
+                  style={styles.navigateButtonExpanded}
                   onPress={() => {
                     const prop = properties.find(p => p.id === selectedPropertyIds[currentPropertyIndex]);
                     if (prop) {
@@ -641,24 +1065,8 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     }
                   }}
                 >
-                  <MapPin size={16} color="white" />
-                  <Text style={styles.navigateButtonFixedText}>Navigate to Property</Text>
+                  <Text style={styles.navigateButtonExpandedText}>Navigate to Property</Text>
                 </TouchableOpacity>
-
-                <View style={styles.feedbackButtonsFixed}>
-                  <TouchableOpacity style={[styles.feedbackBtnFixed, styles.rejectedBtnFixed]}>
-                    <X size={18} color="#ef4444" />
-                    <Text style={styles.rejectedTextFixed}>Rejected</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.feedbackBtnFixed, styles.interestedBtnFixed]}>
-                    <ThumbsUp size={18} color="#16a34a" />
-                    <Text style={styles.interestedTextFixed}>Interested</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.feedbackBtnFixed, styles.holdBtnFixed]}>
-                    <Text style={styles.holdIconFixed}>⏸</Text>
-                    <Text style={styles.holdTextFixed}>Hold</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
             )}
           </View>
@@ -864,6 +1272,46 @@ const styles = StyleSheet.create({
     gap: 16,
     
   },
+  pendingCard: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    gap: 16,
+  },
+  pendingCardVertical: {
+    flexDirection: 'column',
+    padding: 16,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    gap: 12,
+  },
+  pendingCardWithButtons: {
+    flexDirection: 'column',
+    padding: 16,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    gap: 12,
+  },
+  pendingCardTop: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  pendingCardImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+  },
+  pendingCardContent: {
+    gap: 8,
+  },
   matchImg: {
     width: 70,
     height: 70,
@@ -900,6 +1348,63 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
     color: '#6b7280',
+  },
+  pendingActionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  pendingActionButtonsVertical: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  interestedActionBtn: {
+    flex: 1,
+    backgroundColor: '#34d399',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  interestedActionBtnFull: {
+    width: '100%',
+    backgroundColor: '#34d399',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  interestedActionText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  visitActionBtn: {
+    flex: 1,
+    backgroundColor: '#1f2937',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  visitActionText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  startDealActionBtn: {
+    flex: 1,
+    backgroundColor: '#1f2937',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  startDealActionText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '700',
   },
   smallDealBtn: {
     flexDirection: 'row',
@@ -941,6 +1446,34 @@ const styles = StyleSheet.create({
   dealStartedText: {
     color: '#059669',
     fontSize: 10,
+    fontWeight: 'bold',
+  },
+  holdBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fef3c7',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  holdBadgeText: {
+    color: '#d97706',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  holdBadgeSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#fef3c7',
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+  },
+  holdBadgeSmallText: {
+    color: '#d97706',
+    fontSize: 9,
     fontWeight: 'bold',
   },
   emptyState: {
@@ -1102,7 +1635,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   proceedButton: {
-    backgroundColor: '#BFB7FD', // Reference Button BG Color
+    backgroundColor: '#9f95f2', // Darker purple when enabled
     paddingVertical: 14,
     borderRadius: 14,
     flexDirection: 'row',
@@ -1110,11 +1643,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     width: '100%', // Full Width
-    shadowColor: '#BFB7FD',
+    shadowColor: '#9f95f2',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 2,
+  },
+  proceedButtonDisabled: {
+    backgroundColor: '#BFB7FD', // Light purple when disabled
+    shadowColor: '#BFB7FD',
+    opacity: 0.6,
   },
   proceedButtonText: {
     fontSize: 14,
@@ -1308,188 +1846,314 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 15,
-    backgroundColor: '#bfb7fd',
+    backgroundColor: '#9f95f2',
     paddingVertical: 16,
     borderRadius: 14,
-    
+    shadowColor: '#9f95f2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  visitSitesButtonDisabled: {
+    backgroundColor: '#bfb7fd',
+    shadowColor: '#bfb7fd',
+    opacity: 0.6,
   },
   visitSitesButtonText: {
     fontSize: 16,
     fontWeight: '700',
     color: 'white',
   },
+  twoButtonRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  halfWidthButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 14,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  interestedButton: {
+    backgroundColor: '#34d399',
+    shadowColor: '#34d399',
+  },
+  pendingDecisionButton: {
+    backgroundColor: '#1f2937',
+    shadowColor: '#1f2937',
+  },
 
   // Map View Styles
   mapViewContainer: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#f9fafb',
   },
   mapImage: {
     width: '100%',
     height: '100%',
     position: 'absolute',
+    top: 0,
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 50,
+    paddingBottom: 16,
+    backgroundColor: 'transparent',
+  },
+  mapHeaderContent: {
+    flex: 1,
+  },
+  mapHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  mapHeaderSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
   },
   mapCloseButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    width: 44,
-    height: 44,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    
-  },
-  propertiesScrollContainer: {
-    position: 'absolute',
-    bottom: 200,
-    left: 0,
-    right: 0,
-    paddingVertical: 20,
-    paddingHorizontal: 10,
-  },
-  propertiesScrollContent: {
-    paddingHorizontal: 2,
-    gap: 3,
-  },
-  propertyScrollCard: {
-    width: 330,
+    width: 40,
+    height: 40,
     backgroundColor: 'white',
     borderRadius: 20,
-    padding: 16,
-    marginHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  collapsedModalCard: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    padding: 20,
+    paddingBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  propertiesScrollContent: {
+    paddingHorizontal: 4,
+    gap: 12,
+  },
+  propertyScrollCard: {
+    width: 300,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    
+    gap: 12,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    marginHorizontal: 6,
   },
   propertyScrollImageSmall: {
     width: 70,
     height: 70,
-    borderRadius: 14,
-    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
   },
   propertyScrollInfo: {
     flex: 1,
-    gap: 2,
+    gap: 6,
   },
   propertyScrollTitle: {
-    fontFamily: 'Lato_700Bold',
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '700',
     color: '#111827',
   },
   propertyScrollLocation: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   propertyScrollLocationText: {
-    //fontFamily: 'Lato_400Regular',
-    fontFamily:'Manrope_600SemiBold',
-    
-    fontSize: 15,
+    fontSize: 12,
     color: '#6b7280',
     flex: 1,
   },
   
-  // Fixed Bottom Card
-  fixedBottomCard: {
+  // Expanded Modal Card
+  expandedModalCard: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: 'white',
-    borderTopLeftRadius:50,
-    borderTopRightRadius: 50,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
     padding: 20,
-    paddingBottom: 15,
+    paddingBottom: 30,
     
   },
-  deliverySection: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 8,
-    marginLeft:16,
-  },
-  deliveryInfo: {
-    flex: 1,
-  },
-  deliveryLabel: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 2,
-  },
-  deliveryAddress: {
-    fontSize: 14,
-    fontWeight:500,
-    color: '#6b7280',
-    lineHeight: 18,
-  },
-  navigateButtonFixed: {
-    flexDirection: 'row',
+  backButton: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    width: 36,
+    height: 36,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#bfb7fd',
-    paddingVertical: 14,
-    borderRadius: 12,
+    zIndex: 10,
+  },
+  handleBar: {
+    width: 70,
+    height: 5,
+    backgroundColor: '#d1d5db',
+    borderRadius: 2,
+    alignSelf: 'center',
     marginBottom: 12,
   },
-  navigateButtonFixedText: {
-    fontSize: 15,
+  propertiesToShowLabel: {
+    fontSize: 20,
     fontWeight: '700',
-    color: 'white',
+    color: '#111827',
+    marginBottom: 23,
+    textAlign: 'center',
   },
-  feedbackButtonsFixed: {
+  scrollWrapper: {
+    marginBottom: 20,
+  },
+  expandedPropertiesContainer: {
+    marginBottom: 28,
+  },
+  expandedPropertiesScroll: {
+    paddingHorizontal: 0,
+    gap: 10,
+    marginBottom: 20,
+  },
+  expandedPropertyCard: {
+    width: 310,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 12,
     flexDirection: 'row',
     gap: 10,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    marginHorizontal: 6,
   },
-  feedbackBtnFixed: {
+  expandedPropertyCardActive: {
+    borderColor: '#bfb7fd',
+    backgroundColor: '#faf9ff',
+  },
+  expandedPropertyCardImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+  },
+  expandedPropertyCardInfo: {
     flex: 1,
+    justifyContent: 'center',
+    gap: 2,
+  },
+  propertyCardHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  expandedPropertyCardTitle: {
+    fontFamily:'Lato_700Bold',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    flex: 1,
+  },
+  expandedPropertyCardLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  expandedPropertyCardLocationText: {
+    fontSize: 13,
+    color: '#313131',
+    flex: 1,
+  },
+  feedbackButtonsRow: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 13,
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+    overflow: 'hidden',
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  feedbackBtn: {
+    flex: 1,
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 18,
+  },
+  verticalDivider: {
+    width: 1.5,
+    height: '60%',
+    backgroundColor: '#e5e7eb',
+  },
+  feedbackTextHorizontal: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  contactOwnerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'white',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 12,
     borderWidth: 1.5,
+    borderColor: '#d1d5db',
   },
-  rejectedBtnFixed: {
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
-  },
-  rejectedTextFixed: {
-    fontSize: 12,
+  contactOwnerText: {
+    fontSize: 15,
     fontWeight: '700',
-    color: '#ef4444',
+    color: '#374151',
   },
-  interestedBtnFixed: {
-    backgroundColor: '#f0fdf4',
-    borderColor: '#bbf7d0',
+  navigateButtonExpanded: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#a9a0f5',
+    paddingVertical: 16,
+    borderRadius: 14,
+   
   },
-  interestedTextFixed: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#16a34a',
-  },
-  holdBtnFixed: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#fde68a',
-  },
-  holdTextFixed: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#d97706',
-  },
-  holdIconFixed: {
+  navigateButtonExpandedText: {
     fontSize: 16,
-  },
-  holdIcon: {
-    fontSize: 14,
+    fontWeight: '700',
+    color: 'white',
   },
 });
 
