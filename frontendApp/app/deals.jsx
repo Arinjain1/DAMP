@@ -1,5 +1,6 @@
 import { StatusBar, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { router } from 'expo-router';
 import DealSheet from '../src/Modal and Sheets/DealSheet';
 import DealsManagerPage from '../src/Views/DealsManagerPage';
 
@@ -36,7 +37,8 @@ export default function Deals() {
         deals={deals} 
         properties={properties} 
         customers={customers} 
-        onOpenDeal={(deal) => dispatch(setSelectedDeal(deal))} 
+        onOpenDeal={(deal) => dispatch(setSelectedDeal(deal))}
+        onBack={() => router.back()}
       />
 
       {selectedDeal && (

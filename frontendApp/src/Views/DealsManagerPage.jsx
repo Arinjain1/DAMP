@@ -9,8 +9,7 @@ import {
   StatusBar,
   StyleSheet
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Briefcase, ChevronRight, ArrowLeft } from 'lucide-react-native';
+import { Briefcase, ChevronRight, X } from 'lucide-react-native';
 
 // Helper for currency formatting
 const formatCurrency = (amount) => {
@@ -28,77 +27,46 @@ const DealsManagerPage = ({ deals, properties, customers, onOpenDeal, onBack }) 
    const sortedDeals = [...deals].sort((a,b) => new Date(b.startedAt) - new Date(a.startedAt));
    const filteredDeals = filter === 'All' ? sortedDeals : sortedDeals.filter(d => d.stage === filter);
 
-   const filters = ['All', 'Meeting', 'Negotiation', 'Agreement', 'Closed', 'Dropped'];
+   const filters = ['All', 'New', 'Contacted', 'Site Visit', 'Interested', 'Meeting', 'Negotiation', 'Token', 'Agreement', 'Completed'];
 
    // Calculate stats
    const stats = {
      total: deals.length,
-     active: deals.filter(d => !['Closed', 'Dropped'].includes(d.stage)).length,
-     closed: deals.filter(d => d.stage === 'Closed').length,
-     dropped: deals.filter(d => d.stage === 'Dropped').length,
+     active: deals.filter(d => d.stage !== 'Completed').length,
+     completed: deals.filter(d => d.stage === 'Completed').length,
    };
 
    return (
       <View style={styles.container}>
          <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
+         {/* ===== HEADER ===== */}
+         <View style={styles.header}>
+            {/* Title */}
+            <View style={styles.headerContent}>
+               <Text style={styles.headerTitle}>Deals Manager</Text>
+               <Text style={styles.headerSubtitle}>Track your property pipeline</Text>
+            </View>
+
+            {/* Close Button */}
+            <TouchableOpacity 
+               onPress={onBack}
+               style={styles.closeButton}
+            >
+               <X size={24} color="#6b7280" />
+            </TouchableOpacity>
+         </View>
+
          <ScrollView 
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
          >
-            
-            {/* ===== GRADIENT HEADER ===== */}
-            <LinearGradient
-               colors={['#BFB7FD', '#E5E1FF', '#f9fafb']} 
-               locations={[0, 0.7, 1]}
-               style={styles.gradientHeader}
-            >
-               {/* Back Button */}
-               {onBack && (
-                  <TouchableOpacity 
-                     onPress={onBack}
-                     style={styles.backButton}
-                  >
-                     <ArrowLeft size={20} color="#111827" />
-                  </TouchableOpacity>
-               )}
-
-               {/* Header */}
-               <View style={styles.headerContent}>
-                  <View style={styles.headerTitleRow}>
-                     <Briefcase size={24} color="#111827" />
-                     <Text style={styles.headerTitle}>Deals Manager</Text>
-                  </View>
-                  <Text style={styles.headerSubtitle}>Track your property pipeline</Text>
-               </View>
-
-               {/* Stats Box */}
-               <View style={styles.statsOuterBox}>
-                  <View style={styles.statInnerBox}>
-                     <Text style={styles.statCount}>{stats.total}</Text>
-                     <Text style={styles.statLabel}>Total</Text>
-                  </View>
-                  <View style={styles.statInnerBox}>
-                     <Text style={styles.statCount}>{stats.active}</Text>
-                     <Text style={styles.statLabel}>Active</Text>
-                  </View>
-                  <View style={styles.statInnerBox}>
-                     <Text style={styles.statCount}>{stats.closed}</Text>
-                     <Text style={styles.statLabel}>Closed</Text>
-                  </View>
-                  <View style={styles.statInnerBox}>
-                     <Text style={styles.statCount}>{stats.dropped}</Text>
-                     <Text style={styles.statLabel}>Dropped</Text>
-                  </View>
-               </View>
-            </LinearGradient>
-
             {/* ===== MAIN CONTENT ===== */}
             <View style={styles.mainBody}>
                
                {/* Filter Chips */}
                <View style={styles.filterSection}>
-                  <Text style={styles.sectionTitle}>FILTER BY STAGE</Text>
+                  
                   <ScrollView 
                      horizontal 
                      showsHorizontalScrollIndicator={false}
@@ -158,13 +126,11 @@ const DealsManagerPage = ({ deals, properties, customers, onOpenDeal, onBack }) 
                                  {/* Status Badge */}
                                  <View style={[
                                     styles.stageBadge,
-                                    deal.stage === 'Closed' && styles.stageBadgeClosed,
-                                    deal.stage === 'Dropped' && styles.stageBadgeDropped,
+                                    deal.stage === 'Completed' && styles.stageBadgeCompleted,
                                  ]}>
                                     <Text style={[
                                        styles.stageText,
-                                       deal.stage === 'Closed' && styles.stageTextClosed,
-                                       deal.stage === 'Dropped' && styles.stageTextDropped,
+                                       deal.stage === 'Completed' && styles.stageTextCompleted,
                                     ]}>
                                        {deal.stage}
                                     </Text>
@@ -191,7 +157,7 @@ const DealsManagerPage = ({ deals, properties, customers, onOpenDeal, onBack }) 
                                  </Text>
                                  <View style={styles.manageButton}>
                                     <Text style={styles.manageText}>Manage</Text>
-                                    <ChevronRight size={12} color="#4f46e5"/>
+                                    <ChevronRight size={12} color="#8B7CF6"/>
                                  </View>
                               </View>
                            </TouchableOpacity>
@@ -219,78 +185,43 @@ const DealsManagerPage = ({ deals, properties, customers, onOpenDeal, onBack }) 
 const styles = StyleSheet.create({
    container: {
       flex: 1,
-      backgroundColor: '#f9fafb',
+      backgroundColor: '#ffffff',
    },
    scrollContent: {
       paddingBottom: 120,
    },
 
-   // Gradient Header
-   gradientHeader: {
+   // Header
+   header: {
+      backgroundColor: 'white',
       paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 60,
       paddingHorizontal: 20,
-      paddingBottom: 32,
-      borderBottomLeftRadius: 32,
-      borderBottomRightRadius: 32,
+      paddingBottom: 24,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
    },
-   backButton: {
+   closeButton: {
       width: 40,
       height: 40,
-      borderRadius: 12,
-      backgroundColor: 'rgba(255,255,255,0.6)',
+      borderRadius: 20,
+      backgroundColor: '#f9fafb',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 16,
    },
    headerContent: {
-      marginBottom: 24,
-   },
-   headerTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      marginBottom: 6,
+      flex: 1,
    },
    headerTitle: {
-      fontSize: 24,
-      fontWeight: '900',
-      color: '#111827',
+      fontSize: 28,
+      fontWeight: '700',
+      color: '#3E3E3E',
+      letterSpacing: -0.5,
    },
    headerSubtitle: {
-      fontSize: 13,
-      color: '#6b7280',
-      fontWeight: '600',
-   },
-
-   // Stats Box
-   statsOuterBox: {
-      flexDirection: 'row',
-      backgroundColor: 'white',
-      borderRadius: 20,
-      padding: 12,
-      justifyContent: 'space-between',
-      borderWidth: 1,
-      borderColor: '#e5e7eb',
-   },
-   statInnerBox: {
-      flex: 1,
-      backgroundColor: '#fff',
-      borderRadius: 14,
-      paddingVertical: 16,
-      alignItems: 'center',
-      marginHorizontal: 4,
-      borderWidth: 1,
-      borderColor: '#e5e7eb',
-   },
-   statCount: {
-      fontSize: 18,
-      fontWeight: '800',
-      color: '#111827',
-   },
-   statLabel: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: '#6b7280',
+      fontSize: 14,
+      color: '#9ca3af',
+      fontWeight: '500',
       marginTop: 4,
    },
 
@@ -301,8 +232,8 @@ const styles = StyleSheet.create({
 
    // Filter Section
    filterSection: {
-      marginTop: 8,
-      marginBottom: 18,
+      marginTop: 2,
+      marginBottom: 28,
    },
    sectionTitle: {
       fontSize: 12,
@@ -325,8 +256,8 @@ const styles = StyleSheet.create({
       borderColor: '#e5e7eb',
    },
    filterChipActive: {
-      backgroundColor: '#4f46e5',
-      borderColor: '#4f46e5',
+      backgroundColor: '#8B7CF6',
+      borderColor: '#8B7CF6',
    },
    filterChipText: {
       fontSize: 12,
@@ -382,27 +313,21 @@ const styles = StyleSheet.create({
       color: '#6b7280',
    },
    stageBadge: {
-      backgroundColor: '#eff6ff',
+      backgroundColor: '#faf5ff',
       paddingHorizontal: 10,
       paddingVertical: 6,
       borderRadius: 8,
    },
-   stageBadgeClosed: {
+   stageBadgeCompleted: {
       backgroundColor: '#d1fae5',
-   },
-   stageBadgeDropped: {
-      backgroundColor: '#fee2e2',
    },
    stageText: {
       fontSize: 10,
       fontWeight: 'bold',
-      color: '#4f46e5',
+      color: '#8B7CF6',
    },
-   stageTextClosed: {
+   stageTextCompleted: {
       color: '#059669',
-   },
-   stageTextDropped: {
-      color: '#dc2626',
    },
 
    // Card Middle
@@ -424,14 +349,14 @@ const styles = StyleSheet.create({
       width: 28,
       height: 28,
       borderRadius: 14,
-      backgroundColor: '#eff6ff',
+      backgroundColor: '#faf5ff',
       alignItems: 'center',
       justifyContent: 'center',
    },
    customerInitial: {
       fontSize: 12,
       fontWeight: 'bold',
-      color: '#4f46e5',
+      color: '#8B7CF6',
    },
    customerName: {
       fontSize: 13,
@@ -466,7 +391,7 @@ const styles = StyleSheet.create({
    manageText: {
       fontSize: 11,
       fontWeight: 'bold',
-      color: '#4f46e5',
+      color: '#8B7CF6',
    },
 
    // Empty State

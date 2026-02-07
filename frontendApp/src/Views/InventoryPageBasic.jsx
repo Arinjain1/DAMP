@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chipActive: {
-    backgroundColor: '#B0A6F8', 
+    backgroundColor: '#9A8CFC', 
     borderWidth: 0,
     shadowColor: '#B0A6F8',
   },
@@ -654,11 +654,11 @@ const styles = StyleSheet.create({
   chipTextActive: { 
     color: '#ffffff',
     fontWeight: '600',
-    //fontFamily: 'Montserrat_500Medium',
+    
   },
   chipTextInactive: { 
     color: '#6B7280',
-    //fontFamily: 'Montserrat_500Medium',
+    
     fontWeight: '500',
   },
 
