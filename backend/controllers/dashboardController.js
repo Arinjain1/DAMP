@@ -1,12 +1,33 @@
 import { query } from '../config/db.js';
+
 export const getDashboardOverview = async (req, res, next) => {
   const brokerId = req.user.id; 
+
   try {
-    const [propsData, clientsData, tasksData, dealsData, todayTasksData] = await Promise.all([
-      query('SELECT COUNT(*) FROM properties WHERE broker_id = $1', [brokerId]),
+    const [
+      visitorCount, 
+      saleCount, 
+      pendingCount, 
+      rejectedCount, 
+      activeDealsList, 
+      todayTasksData
+    ] = await Promise.all([
       query('SELECT COUNT(*) FROM contacts WHERE broker_id = $1', [brokerId]),
-      query("SELECT COUNT(*) FROM tasks WHERE broker_id = $1 AND status = 'pending'", [brokerId]),
-      query("SELECT COUNT(*) FROM collaborations WHERE broker_id = $1 AND status = 'active'", [brokerId]),
+      query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status = 'Closed'", [brokerId]),
+      query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status NOT IN ('Closed', 'Lost')", [brokerId]),
+      query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status = 'Lost'", [brokerId]),
+      query(
+        `SELECT d.id, d.status, d.final_price, 
+                p.title as property_title, p.cover_image_url, p.price as listing_price,
+                c.name as client_name
+         FROM deals d
+         JOIN properties p ON d.property_id = p.id
+         JOIN contacts c ON d.client_id = c.id
+         WHERE d.broker_id = $1 AND d.status NOT IN ('Closed', 'Lost')
+         ORDER BY d.updated_at DESC
+         LIMIT 5`, 
+        [brokerId]
+      ),
       query(
         `SELECT t.id, t.title, t.due_date, t.status, c.name as client_name 
          FROM tasks t
@@ -22,16 +43,18 @@ export const getDashboardOverview = async (req, res, next) => {
       success: true,
       data: {
         stats: {
-          properties: parseInt(propsData.rows[0].count),
-          clients: parseInt(clientsData.rows[0].count),
-          tasks: parseInt(tasksData.rows[0].count),
-          active_deals: parseInt(dealsData.rows[0].count)
+          total_visitor: parseInt(visitorCount.rows[0].count),
+          total_sale: parseInt(saleCount.rows[0].count),
+          pending: parseInt(pendingCount.rows[0].count),
+          rejected: parseInt(rejectedCount.rows[0].count)
         },
-        todays_focus: todayTasksData.rows
+        active_deals: activeDealsList.rows, 
+        todays_focus: todayTasksData.rows   
       }
     });
 
   } catch (err) {
+    console.error("Dashboard Error:", err);
     next(err);
   }
 };
