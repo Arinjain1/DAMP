@@ -29,10 +29,7 @@ export default function Properties() {
   const { customers } = useSelector(state => state.customers);
   const { modalOpen, modalType, editItem } = useSelector(state => state.ui);
 
-  // Debug logging
-  console.log('Properties - customers from Redux:', customers);
-  console.log('Properties - customers length:', customers?.length || 0);
-
+  
   const generateId = () => Math.random().toString(36).substring(2, 11);
 
   // FAB (Floating Action Button) logic

@@ -35,13 +35,19 @@ const getRandomColor = (char) => {
   return { bg: colors[index], text: textColors[index] };
 };
 
-const CustomersList = ({ customers = [], onSelect, onAddCustomer }) => {
+const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) => {
   const [query, setQuery] = useState('');
   const [expandedCards, setExpandedCards] = useState(new Set());
 
   const filteredCustomers = customers.filter((c) =>
     c.name.toLowerCase().includes(query.toLowerCase())
   );
+
+  // Check if customer is beyond Interested stage
+  const isBeyondInterested = (stage) => {
+    const stagesAfterInterested = ['Meeting', 'Negotiation', 'Token', 'Agreement', 'Completed'];
+    return stagesAfterInterested.includes(stage);
+  };
 
   const handleCall = (phone, customerName) => {
     if (phone) {
@@ -210,7 +216,7 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer }) => {
                 <TouchableOpacity
                   key={customer.id}
                   style={styles.card}
-                  onPress={() => onSelect(customer)}
+                  onPress={() => toggleCardExpansion(customer.id)}
                   activeOpacity={0.7}
                 >
                   {/* Header Info */}
@@ -264,28 +270,50 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer }) => {
 
                   {/* Actions - Only show when expanded */}
                   {isExpanded && (
-                    <View style={styles.cardActions}>
+                    <>
+                      <View style={styles.cardActions}>
+                        <TouchableOpacity 
+                          style={styles.actionButton}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleCall(customer.phone, customer.name);
+                          }}
+                        >
+                          <Phone size={18} color="#16a34a" />
+                          <Text style={styles.actionText}>Call</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.actionButton}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            Linking.openURL(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}`);
+                          }}
+                        >
+                          <MessageCircle size={18} color="#25D366" />
+                          <Text style={styles.actionText}>Message</Text>
+                        </TouchableOpacity>
+                      </View>
+                      
+                      {/* View Details Button */}
                       <TouchableOpacity 
-                        style={styles.actionButton}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleCall(customer.phone, customer.name);
+                        style={styles.viewDetailsButton}
+                        onPress={() => {
+                          if (isBeyondInterested(customer.stage) && onOpenDeal) {
+                            // Open deal manager if customer is beyond Interested stage
+                            onOpenDeal(customer);
+                          } else {
+                            // Open customer details sheet
+                            onSelect(customer);
+                          }
                         }}
+                        activeOpacity={0.8}
                       >
-                        <Phone size={18} color="#16a34a" />
-                        <Text style={styles.actionText}>Call</Text>
+                        <Text style={styles.viewDetailsText}>
+                          {isBeyondInterested(customer.stage) ? 'View Deal' : 'View Details'}
+                        </Text>
+                        <ChevronRight size={18} color="#ffffff" />
                       </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={styles.actionButton}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          Linking.openURL(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}`);
-                        }}
-                      >
-                        <MessageCircle size={18} color="#25D366" />
-                        <Text style={styles.actionText}>Message</Text>
-                      </TouchableOpacity>
-                    </View>
+                    </>
                   )}
                 </TouchableOpacity>
               );
@@ -442,6 +470,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb',
   },
   actionText: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  
+  // View Details Button
+  viewDetailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#9A8CFC',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 12,
+  },
+  viewDetailsText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  
   emptyState: { alignItems: 'center', marginTop: 80 },
   emptyText: { marginTop: 16, fontSize: 16, fontWeight: '600', color: '#9ca3af' },
 });

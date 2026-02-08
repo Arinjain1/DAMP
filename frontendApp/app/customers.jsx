@@ -1,8 +1,8 @@
 import { View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { useRouter } from 'expo-router';
 import AddModal from '../src/Modal and Sheets/AddModal';
 import CustomerDetailSheet from '../src/Modal and Sheets/CustomerDetailSheet';
-import DealSheet from '../src/Modal and Sheets/DealSheet';
 import CustomersList from '../src/Views/CustomersList';
 
 // Redux actions
@@ -13,6 +13,7 @@ import { clearEditItem, setEditItem, setModalOpen, setModalType } from '../src/s
 
 export default function Customers() {
   const dispatch = useDispatch();
+  const router = useRouter();
   
   const { properties } = useSelector(state => state.properties);
   const { customers, selectedCustomer } = useSelector(state => state.customers);
@@ -48,21 +49,18 @@ export default function Customers() {
   };
 
   const handleAddFollowUpFromCustomer = (customer) => {
-    // Don't clear the selected customer, keep it for initialCustomer
-    dispatch(setEditItem({ customerId: customer.id })); // Set the customer for the follow-up
+    
+    dispatch(setEditItem({ customerId: customer.id })); 
     dispatch(setModalType('FollowUp'));
     dispatch(setModalOpen(true));
   };
 
   const handleEditTask = (task) => {
-    console.log('🔥 handleEditTask called with:', task);
-    console.log('🔥 Task ID:', task?.id, 'Customer ID:', task?.customerId);
-    console.log('🔥 Current modal state - isOpen:', modalOpen, 'type:', modalType);
-    // Don't close customer detail sheet, just open modal on top
+    
     dispatch(setEditItem(task));
     dispatch(setModalType('FollowUp'));
     dispatch(setModalOpen(true));
-    console.log('🔥 Dispatched modal open actions');
+    
   };
 
   const handleDeleteTask = (taskId) => {
@@ -81,6 +79,8 @@ export default function Customers() {
     dispatch(addDeal(newDeal));
     dispatch(clearSelectedCustomer());
     dispatch(setSelectedDeal(newDeal));
+    // Navigate to deal page
+    router.push('/deal-page');
   };
 
   const handleUpdateDeal = (id, updatedDeal) => {
@@ -97,13 +97,24 @@ export default function Customers() {
         customers={customers} 
         onSelect={(customer) => dispatch(setSelectedCustomer(customer))} 
         onAddCustomer={handleAddCustomer}
+        onOpenDeal={(customer) => {
+          // Find the deal for this customer
+          const customerDeal = deals.find(d => d.customerId === customer.id);
+          if (customerDeal) {
+            dispatch(setSelectedDeal(customerDeal));
+            router.push('/deal-page');
+          } else {
+            // If no deal found, open customer details
+            dispatch(setSelectedCustomer(customer));
+          }
+        }}
       />
 
       <AddModal 
         isOpen={modalOpen} 
         type={modalType} 
         onClose={() => {
-          console.log('🔥 AddModal closing');
+         
           dispatch(setModalOpen(false));
         }} 
         onSave={handleAdd} 
@@ -145,19 +156,10 @@ export default function Customers() {
             }
           }}
           onStartDeal={handleStartDeal}
-          onOpenDeal={(deal) => dispatch(setSelectedDeal(deal))}
-        />
-      )}
-
-      {selectedDeal && (
-        <DealSheet 
-          deal={selectedDeal} 
-          properties={properties} 
-          customers={customers} 
-          onClose={() => dispatch(clearSelectedDeal())} 
-          onUpdateDeal={handleUpdateDeal} 
-          onCloseDeal={handleCloseDeal}
-          onAddTask={(task) => dispatch(addFollowUp({ ...task, id: generateId() }))}
+          onOpenDeal={(deal) => {
+            dispatch(setSelectedDeal(deal));
+            router.push('/deal-page');
+          }}
         />
       )}
     </View>

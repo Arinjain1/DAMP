@@ -21,6 +21,7 @@ import {
 } from 'lucide-react-native';
 import { memo, useCallback, useMemo, useState } from 'react';
 import {
+  Alert,
   Image,
   ImageBackground,
   Linking,
@@ -415,11 +416,26 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                               <TouchableOpacity 
                                 onPress={() => {
                                   if (customer.stage === 'Interested') {
-                                    // Start Deal and move to Meeting stage
-                                    onStartDeal(customer, prop);
-                                    if (onUpdateStage) {
-                                      onUpdateStage(customer.id, 'Meeting');
-                                    }
+                                    // Show confirmation alert before starting deal
+                                    Alert.alert(
+                                      '🤝 Start Deal',
+                                      `Are you sure you want to start a deal for "${prop.title}" with ${customer.name}?\n\nThis will move the customer to Meeting stage.`,
+                                      [
+                                        {
+                                          text: 'Cancel',
+                                          style: 'cancel'
+                                        },
+                                        {
+                                          text: 'Yes, Start Deal',
+                                          onPress: () => {
+                                            onStartDeal(customer, prop);
+                                            if (onUpdateStage) {
+                                              onUpdateStage(customer.id, 'Meeting');
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    );
                                   } else {
                                     // Open Google Maps for other stages
                                     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
@@ -724,10 +740,25 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                              // For Contacted and Site Visit stages: toggle selection
                              handleToggleProperty(p.id);
                            } else {
-                             // For other stages: start deal
-                             onStartDeal(customer, p);
-                             setShowPropertyPicker(false);
-                             setSearchQuery('');
+                             // For other stages: show confirmation before starting deal
+                             Alert.alert(
+                               '🤝 Start Deal',
+                               `Are you sure you want to start a deal for "${p.title}" with ${customer.name}?\n\nThis will move the customer to Meeting stage.`,
+                               [
+                                 {
+                                   text: 'Cancel',
+                                   style: 'cancel'
+                                 },
+                                 {
+                                   text: 'Yes, Start Deal',
+                                   onPress: () => {
+                                     onStartDeal(customer, p);
+                                     setShowPropertyPicker(false);
+                                     setSearchQuery('');
+                                   }
+                                 }
+                               ]
+                             );
                            }
                          }}
                          style={[

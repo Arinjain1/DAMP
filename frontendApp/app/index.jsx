@@ -39,7 +39,6 @@ import FAB from "../src/Components/FAB";
 import AddModal from "../src/Modal and Sheets/AddModal";
 import CollaborationSheet from "../src/Modal and Sheets/CollaborationSheet";
 import CustomerDetailSheet from "../src/Modal and Sheets/CustomerDetailSheet";
-import DealSheet from "../src/Modal and Sheets/DealSheet";
 import PropertyDetailSheet from "../src/Modal and Sheets/PropertyDetailSheet";
 import { SiteVisitSheet } from "../src/Modal and Sheets/SiteVisitSheet";
 import SubscriptionSheet from "../src/Modal and Sheets/SubscriptionSheet";
@@ -218,6 +217,8 @@ export default function Index() {
     dispatch(addDeal(deal));
     dispatch(clearSelectedCustomer());
     dispatch(setSelectedDeal(deal));
+    // Navigate to deal page
+    router.push('/deal-page');
   };
 
   const handleCloseDeal = (deal) => {
@@ -284,7 +285,10 @@ export default function Index() {
         activeDeals={deals}
         unreadCount={unreadCount}
         onOpenCollab={() => dispatch(setCollabOpen(true))}
-        onOpenDeal={(deal) => dispatch(setSelectedDeal(deal))}
+        onOpenDeal={(deal) => {
+          dispatch(setSelectedDeal(deal));
+          router.push('/deal-page');
+        }}
         onNavigate={handleNavigation}
         onOpenModal={handleOpenModal}
       />
@@ -325,16 +329,6 @@ export default function Index() {
           followUps={followUps}
           onClose={() => dispatch(clearSelectedCustomer())}
           onStartDeal={handleStartDeal}
-        />
-      )}
-
-      {selectedDeal && (
-        <DealSheet
-          deal={selectedDeal}
-          properties={properties}
-          customers={customers}
-          onClose={() => dispatch(clearSelectedDeal())}
-          onCloseDeal={handleCloseDeal}
         />
       )}
 

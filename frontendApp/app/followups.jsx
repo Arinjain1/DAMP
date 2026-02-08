@@ -47,7 +47,7 @@ export default function FollowUps() {
   const { properties } = useSelector(state => state.properties);
   const { modalOpen, modalType, editItem } = useSelector(state => state.ui);
   
-  console.log('🔍 FollowUps - Modal state:', { modalOpen, modalType, editItem });
+  
   
   // --- DATE LOGIC ---
   const getExtendedDates = () => {
@@ -102,7 +102,7 @@ export default function FollowUps() {
   };
 
   const handleStartVisit = (visitData) => {
-    console.log('Starting site visit:', visitData);
+    
     dispatch(setActiveSiteVisit(visitData));
   };
 
@@ -111,12 +111,11 @@ export default function FollowUps() {
   };
 
   const handleFABClick = () => {
-    console.log('🔥 FAB clicked in followups page');
-    console.log('🔥 Current modal state:', modalOpen, modalType);
+    
     dispatch(clearEditItem());
     dispatch(setModalType('FollowUp'));
     dispatch(setModalOpen(true));
-    console.log('🔥 Dispatched modal open actions');
+    
   };
 
   const handleEditTask = (task) => {

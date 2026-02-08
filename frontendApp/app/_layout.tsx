@@ -91,10 +91,41 @@ function AppNavigator() {
       />
 
       {/* Hidden Screens */}
-      <Tabs.Screen name="deals" options={{ href: null }} />
-      <Tabs.Screen name="notifications" options={{ href: null }} />
-      <Tabs.Screen name="stats" options={{ href: null }} />
-      <Tabs.Screen name="legal" options={{ href: null }} />
+      <Tabs.Screen 
+        name="deals" 
+        options={{ 
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }} 
+      />
+      <Tabs.Screen 
+        name="deal-page" 
+        options={{ 
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }} 
+      />
+      <Tabs.Screen 
+        name="notifications" 
+        options={{ 
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }} 
+      />
+      <Tabs.Screen 
+        name="stats" 
+        options={{ 
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }} 
+      />
+      <Tabs.Screen 
+        name="legal" 
+        options={{ 
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }} 
+      />
       
       {/* Hide auth screens from tabs */}
       <Tabs.Screen name="login" options={{ href: null }} />
