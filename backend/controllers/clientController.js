@@ -2,7 +2,19 @@ import { query } from '../config/db.js';
 
 export const addClient = async (req, res, next) => {
   const brokerId = req.user.id;
-  const { name, phone, budget, preferences, looking_for } = req.body;
+  const { 
+    name, 
+    phone, 
+    requirement_type,   
+    property_category,  
+    property_type,      
+    configuration,     
+    furnishing_status,  
+    budget_min,         
+    budget_max,         
+    preferred_location, 
+    notes               
+  } = req.body;
 
   try {
     if (!name || !phone) {
@@ -10,18 +22,31 @@ export const addClient = async (req, res, next) => {
     }
 
     const result = await query(
-      `INSERT INTO contacts (broker_id, name, phone, budget, preferences, looking_for, status) 
-       VALUES ($1, $2, $3, $4, $5, $6, 'New Lead') 
+      `INSERT INTO contacts (
+         broker_id, name, phone, 
+         requirement_type, property_category, property_type, 
+         configuration, furnishing_status, 
+         budget_min, budget_max, preferred_location, notes,
+         status
+       ) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'New Lead') 
        RETURNING *`,
-      [brokerId, name, phone, budget || 0, preferences || '', looking_for || '']
+      [
+        brokerId, name, phone, 
+        requirement_type, property_category, property_type, 
+        configuration, furnishing_status, 
+        budget_min || 0, budget_max || 0, preferred_location || '', notes || ''
+      ]
     );
 
     res.status(201).json({
       success: true,
+      message: "Client added successfully!",
       data: result.rows[0]
     });
 
   } catch (err) {
+    console.error("Add Client Error:", err);
     next(err);
   }
 };
@@ -35,7 +60,7 @@ export const getClients = async (req, res, next) => {
     let params = [brokerId];
 
     if (search) {
-      sql += ' AND name ILIKE $2';
+      sql += ' AND (name ILIKE $2 OR phone ILIKE $2)';
       params.push(`%${search}%`);
     }
 
@@ -54,7 +79,6 @@ export const getClients = async (req, res, next) => {
   }
 };
 
-
 export const getClientDetails = async (req, res, next) => {
   const brokerId = req.user.id;
   const clientId = req.params.id;
@@ -69,7 +93,6 @@ export const getClientDetails = async (req, res, next) => {
       return res.status(404).json({ message: "Client not found" });
     }
     const client = clientResult.rows[0];
-
     const activeDealsResult = await query(
       `SELECT d.id, d.status, p.title, p.address, p.price, p.cover_image_url 
        FROM deals d
@@ -81,11 +104,24 @@ export const getClientDetails = async (req, res, next) => {
     const matchesResult = await query(
       `SELECT * FROM properties 
        WHERE broker_id = $1 
-       AND property_type = $2 
-       AND price <= $3
-       AND id NOT IN (SELECT property_id FROM deals WHERE client_id = $4)
+       AND status = 'Available'
+       -- 1. Match Category (Res/Com)
+       AND category = $2 
+       -- 2. Match Price Range (Property Price must be between Min and Max budget)
+       AND price BETWEEN $3 AND $4
+       -- 3. Match Location (Partial match on City or Address)
+       AND (city ILIKE $5 OR address ILIKE $5)
+       -- Exclude properties already in a deal
+       AND id NOT IN (SELECT property_id FROM deals WHERE client_id = $6)
        LIMIT 5`,
-      [brokerId, client.looking_for, client.budget, clientId]
+      [
+        brokerId, 
+        client.property_category, 
+        client.budget_min,        
+        client.budget_max,        
+        `%${client.preferred_location}%`, 
+        clientId
+      ]
     );
 
     res.json({
@@ -93,7 +129,7 @@ export const getClientDetails = async (req, res, next) => {
       data: {
         profile: client,
         active_deals: activeDealsResult.rows,
-        matches: matchesResult.rows
+        matches: matchesResult.rows 
       }
     });
 
@@ -110,42 +146,35 @@ export const createDeal = async (req, res, next) => {
     if (!client_id || !property_id) {
       return res.status(400).json({ success: false, message: "Client and Property IDs are required" });
     }
-
     const existingDeal = await query(
       `SELECT * FROM deals WHERE client_id = $1 AND property_id = $2`,
       [client_id, property_id]
     );
-
     if (existingDeal.rows.length > 0) {
       return res.status(400).json({ 
         success: false, 
         message: "This property is already linked to this client." 
       });
     }
-
     const result = await query(
       `INSERT INTO deals (broker_id, client_id, property_id, status) 
        VALUES ($1, $2, $3, 'Interested') 
        RETURNING *`,
       [brokerId, client_id, property_id]
     );
-
     res.status(201).json({
       success: true,
       message: "Deal started successfully!",
       data: result.rows[0]
     });
-
   } catch (err) {
     next(err);
   }
 };
 
-
 export const getDealDetails = async (req, res, next) => {
   const brokerId = req.user.id;
   const dealId = req.params.id;
-
   try {
     const result = await query(
       `SELECT 
@@ -159,16 +188,13 @@ export const getDealDetails = async (req, res, next) => {
        WHERE d.id = $1 AND d.broker_id = $2`,
       [dealId, brokerId]
     );
-
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Deal not found" });
     }
-
     res.json({
       success: true,
       data: result.rows[0]
     });
-
   } catch (err) {
     next(err);
   }
@@ -179,7 +205,6 @@ export const scheduleDealMeeting = async (req, res, next) => {
   const brokerId = req.user.id;
   const dealId = req.params.id;
   const { meeting_date, notes } = req.body;
-
   try {
     const dealCheck = await query(
       `SELECT d.client_id, p.title as property_title, c.name as client_name 
@@ -189,36 +214,28 @@ export const scheduleDealMeeting = async (req, res, next) => {
        WHERE d.id = $1 AND d.broker_id = $2`,
       [dealId, brokerId]
     );
-
     if (dealCheck.rows.length === 0) {
       return res.status(404).json({ message: "Deal not found" });
     }
-    
     const { client_id, property_title, client_name } = dealCheck.rows[0];
-
     await query(
       `UPDATE deals SET status = 'Meeting' WHERE id = $1`,
       [dealId]
     );
-
     const taskTitle = `Meeting: ${client_name} for ${property_title}`;
-    
     await query(
       `INSERT INTO tasks (broker_id, title, description, due_date, status, client_id, deal_id)
        VALUES ($1, $2, $3, $4, 'pending', $5, $6)`,
       [brokerId, taskTitle, notes || 'Deal Negotiation Meeting', meeting_date, client_id, dealId]
     );
-
     res.json({
       success: true,
       message: "Meeting scheduled and Deal updated!",
     });
-
   } catch (err) {
     next(err);
   }
 };
-
 
 export const updateDealStage = async (req, res, next) => {
   const brokerId = req.user.id;
