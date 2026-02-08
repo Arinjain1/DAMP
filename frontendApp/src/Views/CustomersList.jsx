@@ -213,11 +213,9 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
               const currentTask = getCurrentTask(customer.id);
               
               return (
-                <TouchableOpacity
+                <View
                   key={customer.id}
                   style={styles.card}
-                  onPress={() => toggleCardExpansion(customer.id)}
-                  activeOpacity={0.7}
                 >
                   {/* Header Info */}
                   <View style={styles.cardHeader}>
@@ -239,10 +237,7 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
                     {/* Dropdown Arrow */}
                     <TouchableOpacity 
                       style={styles.dropdownButton}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        toggleCardExpansion(customer.id);
-                      }}
+                      onPress={() => toggleCardExpansion(customer.id)}
                     >
                       {isExpanded ? (
                         <ChevronUp size={20} color="#6b7280" />
@@ -274,20 +269,14 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
                       <View style={styles.cardActions}>
                         <TouchableOpacity 
                           style={styles.actionButton}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            handleCall(customer.phone, customer.name);
-                          }}
+                          onPress={() => handleCall(customer.phone, customer.name)}
                         >
                           <Phone size={18} color="#16a34a" />
                           <Text style={styles.actionText}>Call</Text>
                         </TouchableOpacity>
                         <TouchableOpacity 
                           style={styles.actionButton}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            Linking.openURL(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}`);
-                          }}
+                          onPress={() => Linking.openURL(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}`)}
                         >
                           <MessageCircle size={18} color="#25D366" />
                           <Text style={styles.actionText}>Message</Text>
@@ -315,7 +304,7 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
                       </TouchableOpacity>
                     </>
                   )}
-                </TouchableOpacity>
+                </View>
               );
             })}
           </View>
