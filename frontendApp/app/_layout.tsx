@@ -26,6 +26,8 @@ function AppNavigator() {
   if (!isAuthenticated) {
     return (
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="splash" />
+        <Stack.Screen name="onboarding" />
         <Stack.Screen name="login" />
         <Stack.Screen name="register" />
         <Stack.Screen name="otp" />
@@ -55,7 +57,7 @@ function AppNavigator() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="dashboard"
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <Home size={24} color={color} />,
@@ -127,7 +129,10 @@ function AppNavigator() {
         }} 
       />
       
-      {/* Hide auth screens from tabs */}
+      {/* Hide auth and onboarding screens from tabs */}
+      <Tabs.Screen name="index" options={{ href: null }} />
+      <Tabs.Screen name="splash" options={{ href: null }} />
+      <Tabs.Screen name="onboarding" options={{ href: null }} />
       <Tabs.Screen name="login" options={{ href: null }} />
       <Tabs.Screen name="register" options={{ href: null }} />
       <Tabs.Screen name="otp" options={{ href: null }} />
