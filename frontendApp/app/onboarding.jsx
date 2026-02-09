@@ -73,10 +73,10 @@ export default function Onboarding() {
       )}
 
       {/* Image */}
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 }}>
+      <View style={{ height: height * 0.6, justifyContent: 'center', alignItems: 'center' , marginTop:30}}>
         <Image
           source={currentScreen.image}
-          style={{ width: width }}
+          style={{ width: width, height: '100%' }}
           resizeMode="contain"
         />
       </View>
@@ -89,7 +89,7 @@ export default function Onboarding() {
             fontFamily: 'Poppins_700Bold',
             color: '#1F2937',
             textAlign: 'center',
-            marginBottom: 1,
+            marginBottom: 6,
           }}
         >
           {currentScreen.title}
@@ -132,21 +132,25 @@ export default function Onboarding() {
             paddingVertical: 10,
             borderRadius: 12,
             flexDirection: 'row',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
             alignItems: 'center',
+            paddingHorizontal: 20,
           }}
         >
+          <View style={{ flex: 1 }} />
           <Text
             style={{
               color: 'white',
               fontSize: 16,
               fontFamily: 'Poppins_600SemiBold',
-              marginRight: 8,
+              textAlign: 'center',
             }}
           >
             {currentIndex === onboardingData.length - 1 ? 'Get Started' : 'Next'}
           </Text>
-          <Text style={{ color: 'white', fontSize: 20 ,alignSelf:'flex-end'}}>→</Text>
+          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+            <Text style={{ color: 'white', fontSize: 20 }}>→</Text>
+          </View>
         </TouchableOpacity>
 
         {/* Terms & Privacy */}

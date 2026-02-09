@@ -12,14 +12,17 @@ export default function Splash() {
         // 1 second splash screen
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Check if user has completed onboarding
-        const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
+        // TEMPORARY: Force show onboarding for testing
+        // Comment out these lines after testing
+        router.replace('/onboarding');
         
-        if (hasSeenOnboarding === 'true') {
-          router.replace('/login');
-        } else {
-          router.replace('/onboarding');
-        }
+        // Uncomment below code after testing
+        // const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
+        // if (hasSeenOnboarding === 'true') {
+        //   router.replace('/login');
+        // } else {
+        //   router.replace('/onboarding');
+        // }
       } catch (error) {
         console.error('Error checking onboarding:', error);
         router.replace('/onboarding');
