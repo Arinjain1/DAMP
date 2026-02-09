@@ -1,9 +1,11 @@
 import { Briefcase, Building, Edit3, Layout, MapPin, Phone, Search, Sofa, Users, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Image, Linking, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useDispatch } from 'react-redux';
+import { router } from 'expo-router';
 import WhatsAppIcon from '../Components/WhatsAppIcon';
 import { getAmenitiesForType } from '../MockData/Mockdata';
-import DealSheet from './DealSheet';
+import { setSelectedDeal } from '../store/slices/dealsSlice';
 
 // Helper: currency format
 const formatCurrency = (amount) =>
@@ -17,9 +19,9 @@ const Badge = ({ children, className }) => (
 );
 
 const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], properties = [], onCreateDeal }) => {
+  const dispatch = useDispatch();
   const [showProposeModal, setShowProposeModal] = useState(false);
   const [customerSearchText, setCustomerSearchText] = useState('');
-  const [selectedDeal, setSelectedDeal] = useState(null);
   
   // Helper function to render Lucide icons
   const renderIcon = (iconName, size = 14, color = '#6b7280') => {
@@ -70,8 +72,11 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
       onCreateDeal(newDeal);
     }
     
-    setSelectedDeal(newDeal);
+    // Navigate to deal page
+    dispatch(setSelectedDeal(newDeal));
     setShowProposeModal(false);
+    onClose(); // Close property sheet
+    router.push('/deal-page');
   };
 
   return (
@@ -274,19 +279,6 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
             </View>
           </View>
         </Modal>
-      )}
-
-      {/* Deal Sheet Logic */}
-      {selectedDeal && (
-        <DealSheet
-          deal={selectedDeal}
-          properties={properties}
-          customers={customers}
-          onClose={() => setSelectedDeal(null)}
-          onUpdateDeal={(dealId, updatedDeal) => setSelectedDeal(updatedDeal)}
-          onCloseDeal={() => setSelectedDeal(null)}
-          onAddTask={(task) => console.log('Task added:', task)}
-        />
       )}
     </Modal>
   );

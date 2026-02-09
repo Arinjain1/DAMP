@@ -4,12 +4,12 @@ import { Modal, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity,
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useDispatch } from 'react-redux';
 import { updateDeal } from '../store/slices/dealsSlice';
-// No StyleSheet import needed for NativeWind
+
 
 export default function MeetingView({ selectedDeal, reminderEnabled, setReminderEnabled, setShowReminderSetAlert }) {
   const dispatch = useDispatch();
   const [showMeetingModal, setShowMeetingModal] = useState(false);
-  const [meetingTitle, setMeetingTitle] = useState('');
+  const [meetingTitle, setMeetingTitle] = useState('Meeting');
   const [meetingDate, setMeetingDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -95,7 +95,7 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
         <View className="flex-row justify-between items-center mb-[26px]">
           <Text className="text-lg font-bold text-[#1f2937] left-[10px]">Schedule</Text>
           <TouchableOpacity 
-            className="flex-row items-center gap-[6px] bg-[#BFB7FD] px-3 py-2 rounded-[20px] border border-[#9A8CFC]" 
+            className="flex-row items-center gap-[6px] bg-[#9A8CFC] px-3 py-2 rounded-[20px] border border-[#9A8CFC]" 
             onPress={handleAddMeeting}
           >
             <CirclePlus size={20} color="#ffffff" strokeWidth={2} />

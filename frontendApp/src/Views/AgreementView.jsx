@@ -1,43 +1,24 @@
 import { FileText, Upload, Download, CheckCircle } from 'lucide-react-native';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 
 export default function AgreementView() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      {/* Agreement Status Card */}
-      <View style={styles.statusCard}>
-        <View style={styles.statusHeader}>
-          <FileText size={32} color="#9A8CFC" />
-          <Text style={styles.statusTitle}>Agreement Status</Text>
-        </View>
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusBadgeText}>Pending</Text>
-        </View>
+      {/* Pana Image */}
+      <View style={styles.imageContainer}>
+        <Image 
+          source={require('../../assets/images/pana.png')} 
+          style={styles.panaImage}
+          resizeMode="contain"
+        />
       </View>
 
+      
       {/* Agreement Actions */}
       <View style={styles.actionsContainer}>
         <Text style={styles.sectionTitle}>Agreement Documents</Text>
         
-        <TouchableOpacity style={styles.actionButton}>
-          <View style={styles.actionIconContainer}>
-            <Upload size={24} color="#9A8CFC" />
-          </View>
-          <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>Upload Agreement</Text>
-            <Text style={styles.actionSubtitle}>Upload signed agreement document</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionButton}>
-          <View style={styles.actionIconContainer}>
-            <Download size={24} color="#9A8CFC" />
-          </View>
-          <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>Download Template</Text>
-            <Text style={styles.actionSubtitle}>Get standard agreement template</Text>
-          </View>
-        </TouchableOpacity>
+        
 
         <TouchableOpacity style={styles.actionButton}>
           <View style={styles.actionIconContainer}>
@@ -50,31 +31,7 @@ export default function AgreementView() {
         </TouchableOpacity>
       </View>
 
-      {/* Agreement Checklist */}
-      <View style={styles.checklistContainer}>
-        <Text style={styles.sectionTitle}>Agreement Checklist</Text>
-        
-        <View style={styles.checklistItem}>
-          <CheckCircle size={20} color="#10b981" />
-          <Text style={styles.checklistText}>Property verification completed</Text>
-        </View>
-
-        <View style={styles.checklistItem}>
-          <View style={styles.uncheckedCircle} />
-          <Text style={[styles.checklistText, styles.uncheckedText]}>Agreement draft prepared</Text>
-        </View>
-
-        <View style={styles.checklistItem}>
-          <View style={styles.uncheckedCircle} />
-          <Text style={[styles.checklistText, styles.uncheckedText]}>Legal review pending</Text>
-        </View>
-
-        <View style={styles.checklistItem}>
-          <View style={styles.uncheckedCircle} />
-          <Text style={[styles.checklistText, styles.uncheckedText]}>Signatures pending</Text>
-        </View>
-      </View>
-
+      
       {/* Complete Agreement Button */}
       <TouchableOpacity style={styles.completeButton}>
         <Text style={styles.completeButtonText}>Mark Agreement Complete</Text>
@@ -89,6 +46,16 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 20,
+  },
+  imageContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    paddingTop: 15,
+  },
+  panaImage: {
+    width: '100%',
+    height: 280,
   },
   statusCard: {
     backgroundColor: '#ffffff',

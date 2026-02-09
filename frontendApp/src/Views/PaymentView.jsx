@@ -33,6 +33,7 @@ export default function PaymentView() {
   
   // Full Settlement form states
   const [showAddTransactionModal, setShowAddTransactionModal] = useState(false);
+  const [showFullSettlementModal, setShowFullSettlementModal] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState('');
   const [settlementUnit, setSettlementUnit] = useState('Thousands');
   const [settlementMode, setSettlementMode] = useState('UPI');
@@ -44,6 +45,12 @@ export default function PaymentView() {
   const [showSettlementUnitModal, setShowSettlementUnitModal] = useState(false);
   const [showSettlementModeModal, setShowSettlementModeModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  
+  // Full Settlement specific states
+  const [fullSettlementMode, setFullSettlementMode] = useState('UPI');
+  const [fullSettlementTransactionId, setFullSettlementTransactionId] = useState('');
+  const [fullSettlementRemark, setFullSettlementRemark] = useState('');
+  const [showFullSettlementModeModal, setShowFullSettlementModeModal] = useState(false);
   
   // Transaction ID modal for completing pending transactions
   const [showTransactionIdModal, setShowTransactionIdModal] = useState(false);
@@ -452,6 +459,62 @@ export default function PaymentView() {
     Alert.alert('Success', 'Transaction marked as completed!');
   };
 
+  const handleFullSettlement = () => {
+    // Validate transaction ID for non-cash payments
+    if (fullSettlementMode !== 'Cash' && !fullSettlementTransactionId.trim()) {
+      Alert.alert('Error', 'Transaction ID is required for non-cash payments');
+      return;
+    }
+
+    // Show confirmation alert
+    Alert.alert(
+      'Confirm Full Settlement',
+      'Are you sure this transaction is done?',
+      [
+        {
+          text: 'No',
+          style: 'cancel'
+        },
+        {
+          text: 'Yes',
+          onPress: () => {
+            const newTransaction = {
+              id: Date.now(),
+              amount: remainingAmount,
+              unit: 'Rupees',
+              paymentMode: fullSettlementMode,
+              transactionId: fullSettlementMode !== 'Cash' ? fullSettlementTransactionId : null,
+              remark: fullSettlementRemark,
+              dueDate: new Date().toISOString(),
+              date: new Date().toISOString(),
+              status: 'Completed',
+              completedDate: new Date().toISOString()
+            };
+
+            const existingTransactions = selectedDeal?.settlements || [];
+            const newPaidAmount = dealAmount; // Full settlement means paid amount = deal amount
+
+            const updatedDeal = {
+              ...selectedDeal,
+              paidAmount: newPaidAmount,
+              settlements: [...existingTransactions, newTransaction]
+            };
+
+            dispatch(updateDeal(updatedDeal));
+
+            // Clear form and close modal
+            setFullSettlementMode('UPI');
+            setFullSettlementTransactionId('');
+            setFullSettlementRemark('');
+            setShowFullSettlementModal(false);
+
+            Alert.alert('Success', 'Full settlement completed successfully!');
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <ScrollView 
       className="flex-1" 
@@ -469,7 +532,7 @@ export default function PaymentView() {
         >
           <View 
             className="w-14 h-14 rounded-2xl items-center justify-center" 
-            style={{ backgroundColor: activeTab === 'Negotiation' ? '#C4B5FD' : '#414141' }}
+            style={{ backgroundColor: activeTab === 'Negotiation' ? '#9A8CFC' : '#414141' }}
           >
             <ArrowDown size={22} color="#fff" />
           </View>
@@ -484,7 +547,7 @@ export default function PaymentView() {
         >
           <View 
             className="w-14 h-14 rounded-2xl items-center justify-center"
-            style={{ backgroundColor: activeTab === 'Token' ? '#C4B5FD' : '#414141' }}
+            style={{ backgroundColor: activeTab === 'Token' ? '#9A8CFC' : '#414141' }}
           >
             <ArrowUp size={22} color="#fff" />
           </View>
@@ -499,7 +562,7 @@ export default function PaymentView() {
         >
           <View 
             className="w-14 h-14 rounded-2xl items-center justify-center"
-            style={{ backgroundColor: activeTab === 'Full Settlement' ? '#C4B5FD' : '#414141' }}
+            style={{ backgroundColor: activeTab === 'Full Settlement' ? '#9A8CFC' : '#414141' }}
           >
             <RefreshCw size={22} color="#fff" />
           </View>
@@ -514,7 +577,7 @@ export default function PaymentView() {
         >
           <View 
             className="w-14 h-14 rounded-2xl items-center justify-center"
-            style={{ backgroundColor: activeTab === 'History' ? '#C4B5FD' : '#414141' }}
+            style={{ backgroundColor: activeTab === 'History' ? '#9A8CFC' : '#414141' }}
           >
             <History size={22} color="#fff" />
           </View>
@@ -626,7 +689,7 @@ export default function PaymentView() {
             </TouchableOpacity>
             
             <TouchableOpacity 
-              className="flex-1 bg-[#C4B5FD] rounded-2xl py-4 items-center justify-center"
+              className="flex-1 bg-[#9A8CFC] rounded-2xl py-4 items-center justify-center"
               onPress={handleCompleteNegotiation}
             >
               <Text className="text-base font-semibold text-white">Complete Negotiation</Text>
@@ -700,7 +763,7 @@ export default function PaymentView() {
 
           {/* Submit Button */}
           <TouchableOpacity 
-            className="bg-[#C4B5FD] rounded-2xl py-4 items-center"
+            className="bg-[#9A8CFC] rounded-2xl py-4 items-center"
             onPress={handleTokenSubmit}
           >
             <Text className="text-base font-semibold text-white">Submit</Text>
@@ -714,7 +777,7 @@ export default function PaymentView() {
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-lg font-bold text-[#3E3E3E]">Schedule</Text>
             <TouchableOpacity 
-              className="bg-[#C4B5FD] rounded-full px-6 py-2 flex-row items-center gap-2"
+              className="bg-[#9A8CFC] rounded-full px-6 py-2 flex-row items-center gap-2"
               onPress={() => setShowAddTransactionModal(true)}
             >
               <Text className="text-white text-2xl font-light">+</Text>
@@ -749,7 +812,7 @@ export default function PaymentView() {
                 {/* Mark as Complete Button (for Pending) */}
                 {transaction.status === 'Pending' && (
                   <TouchableOpacity 
-                    className="bg-[#C4B5FD] rounded-xl py-3 items-center mt-4"
+                    className="bg-[#9A8CFC] rounded-xl py-3 items-center mt-4"
                     onPress={() => handleCompleteTransaction(transaction.id)}
                   >
                     <Text className="text-white font-semibold text-base">Mark as Complete</Text>
@@ -758,9 +821,19 @@ export default function PaymentView() {
               </View>
             ))
           ) : (
-            <View className="items-center py-10">
+            <View className="items-center py-20">
               <Text className="text-gray-500">No transactions yet. Add your first transaction!</Text>
             </View>
+          )}
+
+          {/* Full Settlement Button - Only show if remaining amount > 0 */}
+          {remainingAmount > 0 && (
+            <TouchableOpacity 
+              className="bg-[#9A8CFC] rounded-2xl py-4 items-center mt-8 mb-4"
+              onPress={() => setShowFullSettlementModal(true)}
+            >
+              <Text className="text-base font-semibold text-white">Full Settlement</Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
@@ -872,7 +945,7 @@ export default function PaymentView() {
                   setShowExpectedModal(false);
                 }}
               >
-                <Text className={`text-base ${expectedUnit === unit ? 'text-[#C4B5FD] font-semibold' : 'text-gray-700'}`}>
+                <Text className={`text-base ${expectedUnit === unit ? 'text-[#9A8CFC] font-semibold' : 'text-gray-700'}`}>
                   {unit}
                 </Text>
               </TouchableOpacity>
@@ -898,7 +971,7 @@ export default function PaymentView() {
                   setShowCustomerModal(false);
                 }}
               >
-                <Text className={`text-base ${customerUnit === unit ? 'text-[#C4B5FD] font-semibold' : 'text-gray-700'}`}>
+                <Text className={`text-base ${customerUnit === unit ? 'text-[#9A8CFC] font-semibold' : 'text-gray-700'}`}>
                   {unit}
                 </Text>
               </TouchableOpacity>
@@ -924,7 +997,7 @@ export default function PaymentView() {
                   setShowOwnerModal(false);
                 }}
               >
-                <Text className={`text-base ${ownerUnit === unit ? 'text-[#C4B5FD] font-semibold' : 'text-gray-700'}`}>
+                <Text className={`text-base ${ownerUnit === unit ? 'text-[#9A8CFC] font-semibold' : 'text-gray-700'}`}>
                   {unit}
                 </Text>
               </TouchableOpacity>
@@ -950,7 +1023,7 @@ export default function PaymentView() {
                   setShowFinalModal(false);
                 }}
               >
-                <Text className={`text-base ${finalUnit === unit ? 'text-[#C4B5FD] font-semibold' : 'text-gray-700'}`}>
+                <Text className={`text-base ${finalUnit === unit ? 'text-[#9A8CFC] font-semibold' : 'text-gray-700'}`}>
                   {unit}
                 </Text>
               </TouchableOpacity>
@@ -977,7 +1050,7 @@ export default function PaymentView() {
                   setShowTokenUnitModal(false);
                 }}
               >
-                <Text className={`text-base ${tokenUnit === unit ? 'text-[#C4B5FD] font-semibold' : 'text-gray-700'}`}>
+                <Text className={`text-base ${tokenUnit === unit ? 'text-[#9A8CFC] font-semibold' : 'text-gray-700'}`}>
                   {unit}
                 </Text>
               </TouchableOpacity>
@@ -1004,7 +1077,7 @@ export default function PaymentView() {
                   setShowPaymentModeModal(false);
                 }}
               >
-                <Text className={`text-base ${paymentMode === mode ? 'text-[#C4B5FD] font-semibold' : 'text-gray-700'}`}>
+                <Text className={`text-base ${paymentMode === mode ? 'text-[#9A8CFC] font-semibold' : 'text-gray-700'}`}>
                   {mode}
                 </Text>
               </TouchableOpacity>
@@ -1120,7 +1193,7 @@ export default function PaymentView() {
 
               {/* Submit Button */}
               <TouchableOpacity 
-                className="bg-[#C4B5FD] rounded-2xl py-4 items-center"
+                className="bg-[#9A8CFC] rounded-2xl py-4 items-center"
                 onPress={handleAddTransaction}
               >
                 <Text className="text-base font-semibold text-white">Add Transaction</Text>
@@ -1148,7 +1221,7 @@ export default function PaymentView() {
                   setShowSettlementUnitModal(false);
                 }}
               >
-                <Text className={`text-base ${settlementUnit === unit ? 'text-[#C4B5FD] font-semibold' : 'text-gray-700'}`}>
+                <Text className={`text-base ${settlementUnit === unit ? 'text-[#9A8CFC] font-semibold' : 'text-gray-700'}`}>
                   {unit}
                 </Text>
               </TouchableOpacity>
@@ -1175,7 +1248,7 @@ export default function PaymentView() {
                   setShowSettlementModeModal(false);
                 }}
               >
-                <Text className={`text-base ${settlementMode === mode ? 'text-[#C4B5FD] font-semibold' : 'text-gray-700'}`}>
+                <Text className={`text-base ${settlementMode === mode ? 'text-[#9A8CFC] font-semibold' : 'text-gray-700'}`}>
                   {mode}
                 </Text>
               </TouchableOpacity>
@@ -1202,7 +1275,7 @@ export default function PaymentView() {
                   setShowStatusModal(false);
                 }}
               >
-                <Text className={`text-base ${transactionStatus === status ? 'text-[#C4B5FD] font-semibold' : 'text-gray-700'}`}>
+                <Text className={`text-base ${transactionStatus === status ? 'text-[#9A8CFC] font-semibold' : 'text-gray-700'}`}>
                   {status}
                 </Text>
               </TouchableOpacity>
@@ -1244,6 +1317,100 @@ export default function PaymentView() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* Full Settlement Modal */}
+      <Modal visible={showFullSettlementModal} transparent animationType="slide">
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-white rounded-t-3xl p-6" style={{ maxHeight: '80%' }}>
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-xl font-bold text-gray-800">Full Settlement</Text>
+              <TouchableOpacity onPress={() => setShowFullSettlementModal(false)}>
+                <Text className="text-2xl text-gray-500">×</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Remaining Amount Display */}
+              <View className="bg-purple-50 rounded-2xl p-4 mb-4">
+                <Text className="text-sm text-gray-600 mb-1">Remaining Amount</Text>
+                <Text className="text-2xl font-bold text-[#9A8CFC]">₹{remainingAmount.toLocaleString('en-IN')}</Text>
+              </View>
+
+              {/* Payment Mode */}
+              <Text className="text-sm font-semibold text-[#3E3E3E] mb-2">Payment Mode</Text>
+              <TouchableOpacity 
+                className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 mb-4"
+                onPress={() => setShowFullSettlementModeModal(true)}
+              >
+                <Text className="flex-1 text-base text-gray-800">{fullSettlementMode}</Text>
+                <ChevronDown size={20} color="#6b7280" />
+              </TouchableOpacity>
+
+              {/* Transaction ID (if not Cash) */}
+              {fullSettlementMode !== 'Cash' && (
+                <>
+                  <Text className="text-sm font-semibold text-[#3E3E3E] mb-2">Transaction ID *</Text>
+                  <TextInput
+                    className="bg-white rounded-2xl border border-gray-200 px-4 py-3 text-base text-gray-800 mb-4"
+                    placeholder="Enter Transaction ID"
+                    placeholderTextColor="#d1d5db"
+                    value={fullSettlementTransactionId}
+                    onChangeText={setFullSettlementTransactionId}
+                  />
+                </>
+              )}
+
+              {/* Remark */}
+              <Text className="text-sm font-semibold text-[#3E3E3E] mb-2">Remark</Text>
+              <TextInput
+                className="bg-white rounded-2xl border border-gray-200 px-4 py-3 text-base text-gray-800 mb-6"
+                placeholder="Enter Remark"
+                placeholderTextColor="#d1d5db"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                value={fullSettlementRemark}
+                onChangeText={setFullSettlementRemark}
+              />
+
+              {/* Submit Button */}
+              <TouchableOpacity 
+                className="bg-[#9A8CFC] rounded-2xl py-4 items-center"
+                onPress={handleFullSettlement}
+              >
+                <Text className="text-base font-semibold text-white">Complete Full Settlement</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Full Settlement Mode Modal */}
+      <Modal visible={showFullSettlementModeModal} transparent animationType="fade">
+        <TouchableOpacity 
+          className="flex-1 bg-black/50 justify-center items-center"
+          activeOpacity={1}
+          onPress={() => setShowFullSettlementModeModal(false)}
+        >
+          <View className="bg-white rounded-2xl w-[80%] p-4">
+            <Text className="text-lg font-bold text-gray-800 mb-4">Select Payment Mode</Text>
+            {paymentModes.map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                className="py-3 border-b border-gray-200"
+                onPress={() => {
+                  setFullSettlementMode(mode);
+                  setShowFullSettlementModeModal(false);
+                }}
+              >
+                <Text className={`text-base ${fullSettlementMode === mode ? 'text-[#C4B5FD] font-semibold' : 'text-gray-700'}`}>
+                  {mode}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
       </Modal>
     </ScrollView>
   );

@@ -29,7 +29,7 @@ import { SUBSCRIPTION_PLANS } from '../Constants/Constants';
 
 const { width } = Dimensions.get('window');
 
-export default function ProfilePage() {
+export default function ProfilePage({ onRenew }) {
   const dispatch = useDispatch();
   const [profileImage, setProfileImage] = useState(INITIAL_PROFILE?.avatar || null);
   const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
@@ -121,7 +121,11 @@ export default function ProfilePage() {
         </View>
 
         {/* Subscription Card - Full Width, No Background */}
-        <View style={styles.subscriptionCard}>
+        <TouchableOpacity 
+          style={styles.subscriptionCard}
+          onPress={onRenew}
+          activeOpacity={0.7}
+        >
           <View style={styles.subscriptionLeft}>
             <Text style={styles.subscriptionLabel}>Subscription</Text>
             <View style={styles.priceRow}>
@@ -134,7 +138,7 @@ export default function ProfilePage() {
             style={styles.subscriptionIcon}
             resizeMode="contain"
           />
-        </View>
+        </TouchableOpacity>
 
         {/* Content Section */}
         <View style={styles.contentSection}>
