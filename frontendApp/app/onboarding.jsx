@@ -10,19 +10,22 @@ const onboardingData = [
     id: 1,
     image: require('../assets/images/onboard1.png'),
     title: 'Property Manager\nfor Brokers',
-    description: 'Add, edit & organize all your listings\nrent, resale or commercial — in one place.',
+    description:
+      'Add, edit & organize all your listings\nrent, resale or commercial — in one place.',
   },
   {
     id: 2,
     image: require('../assets/images/onboard2.png'),
     title: 'Client Manager\nBuilt-in',
-    description: 'Track buyers & sellers, calls, visits\nand follow-ups without missing anything.',
+    description:
+      'Track buyers & sellers, calls, visits\nand follow-ups without missing anything.',
   },
   {
     id: 3,
     image: require('../assets/images/onboard3.png'),
     title: 'Smart Deal\nManager',
-    description: 'Handle negotiations, commissions\nand deal status from lead to closure.',
+    description:
+      'Handle negotiations, commissions\nand deal status from lead to closure.',
   },
 ];
 
@@ -51,29 +54,42 @@ export default function Onboarding() {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'white' }}>
-      {/* Skip Button - Only on first screen */}
+      {/* Skip Button */}
       {currentIndex === 0 && (
         <TouchableOpacity
           onPress={handleSkip}
           style={{
             position: 'absolute',
-            top: 50,
-            right: 20,
+            top: height * 0.06,
+            right: width * 0.05,
             zIndex: 10,
-            paddingHorizontal: 13,
-            paddingVertical: 3,
-            backgroundColor:'black',
-            borderRadius:20,
+            paddingHorizontal: width * 0.04,
+            paddingVertical: height * 0.004,
+            backgroundColor: 'black',
+            borderRadius: 20,
           }}
         >
-          <Text style={{ fontSize: 14, color: 'white', fontFamily: 'Poppins_500Medium' }}>
+          <Text
+            style={{
+              fontSize: height * 0.016,
+              color: 'white',
+              fontFamily: 'Poppins_500Medium',
+            }}
+          >
             Skip
           </Text>
         </TouchableOpacity>
       )}
 
-      {/* Image */}
-      <View style={{ height: height * 0.6, justifyContent: 'center', alignItems: 'center' , marginTop:30}}>
+      {/* Image (UNCHANGED) */}
+      <View
+        style={{
+          height: height * 0.6,
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginTop: height * 0.03,
+        }}
+      >
         <Image
           source={currentScreen.image}
           style={{ width: width, height: '100%' }}
@@ -81,86 +97,110 @@ export default function Onboarding() {
         />
       </View>
 
-      {/* Content */}
-      <View style={{ paddingHorizontal: 30, paddingBottom: 60 }}>
+      {/* Text Content (Responsive like vh) */}
+      <View
+        style={{
+          height: height * 0.4,
+          paddingHorizontal: width * 0.08,
+          justifyContent: 'space-between',
+          paddingBottom: height * 0.03,
+        }}
+      >
+        {/* Title */}
         <Text
           style={{
-            fontSize: 24,
+            fontSize: height * 0.03,
             fontFamily: 'Poppins_700Bold',
             color: '#1F2937',
             textAlign: 'center',
-            marginBottom: 6,
+            marginBottom: height * 0.008,
           }}
         >
           {currentScreen.title}
         </Text>
 
+        {/* Description */}
         <Text
           style={{
-            fontSize: 14,
+            fontSize: height * 0.017,
             fontFamily: 'Poppins_400Regular',
             color: '#6B7280',
             textAlign: 'center',
-            lineHeight: 20,
-            marginBottom: 22,
+            lineHeight: height * 0.025,
+            marginBottom: height * 0.025,
           }}
         >
           {currentScreen.description}
         </Text>
 
-        {/* Pagination Dots */}
-        <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 30 }}>
+        {/* Pagination */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'center',
+            marginBottom: height * 0.03,
+          }}
+        >
           {onboardingData.map((_, index) => (
             <View
               key={index}
               style={{
-                width: index === currentIndex ? 32 : 8,
-                height: 6,
+                width: index === currentIndex ? width * 0.08 : width * 0.02,
+                height: height * 0.007,
                 borderRadius: 4,
-                backgroundColor: index === currentIndex ? '#2C3E50' : '#D1D5DB',
-                marginHorizontal: 4,
+                backgroundColor:
+                  index === currentIndex ? '#2C3E50' : '#D1D5DB',
+                marginHorizontal: width * 0.01,
               }}
             />
           ))}
         </View>
 
-        {/* Next/Get Started Button */}
+        {/* Button */}
         <TouchableOpacity
           onPress={handleNext}
           style={{
             backgroundColor: '#2C3E50',
-            paddingVertical: 10,
+            height: height * 0.065,
             borderRadius: 12,
             flexDirection: 'row',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            paddingHorizontal: 20,
+            paddingHorizontal: width * 0.05,
           }}
         >
           <View style={{ flex: 1 }} />
           <Text
             style={{
               color: 'white',
-              fontSize: 16,
+              fontSize: height * 0.02,
               fontFamily: 'Poppins_600SemiBold',
               textAlign: 'center',
             }}
           >
-            {currentIndex === onboardingData.length - 1 ? 'Get Started' : 'Next'}
+            {currentIndex === onboardingData.length - 1
+              ? 'Get Started'
+              : 'Next'}
           </Text>
           <View style={{ flex: 1, alignItems: 'flex-end' }}>
-            <Text style={{ color: 'white', fontSize: 20 }}>→</Text>
+            <Text
+              style={{
+                color: 'white',
+                fontSize: height * 0.028,
+              }}
+            >
+              →
+            </Text>
           </View>
         </TouchableOpacity>
 
-        {/* Terms & Privacy */}
+        {/* Terms */}
         <Text
           style={{
-            fontSize: 10,
+            fontSize: height * 0.012,
             fontFamily: 'Poppins_400Regular',
             color: '#9CA3AF',
             textAlign: 'center',
-            marginTop: 20,
+            marginTop: height * 0.02,
           }}
         >
           By continuing, you agree that you have read and accept our{'\n'}
