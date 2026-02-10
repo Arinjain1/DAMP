@@ -59,7 +59,7 @@ const PropertyDetailSheet = ({ property, onClose, onEdit, customers = [], proper
       id: `d${Date.now()}`,
       customerId: customer.id,
       propertyId: property.id,
-      stage: 'Meeting',
+      stage: 'In-Process',
       startedAt: new Date().toISOString(),
       meetings: [],
       visits: [],

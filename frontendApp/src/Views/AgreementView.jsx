@@ -1,7 +1,15 @@
 import { FileText, Upload, Download, CheckCircle } from 'lucide-react-native';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
+import { useSelector } from 'react-redux';
 
-export default function AgreementView() {
+export default function AgreementView({ onMarkAgreementDone }) {
+  // Get customer from Redux store
+  const { selectedDeal } = useSelector(state => state.deals);
+  const { customers } = useSelector(state => state.customers);
+  
+  const customer = customers.find(c => c.id === selectedDeal?.customerId);
+  const isInProcessStage = customer?.stage === 'In-Process';
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       {/* Pana Image */}
@@ -32,10 +40,16 @@ export default function AgreementView() {
       </View>
 
       
-      {/* Complete Agreement Button */}
-      <TouchableOpacity style={styles.completeButton}>
-        <Text style={styles.completeButtonText}>Mark Agreement Complete</Text>
-      </TouchableOpacity>
+      {/* Complete Agreement Button - Only show when customer is in In-Process stage */}
+      {isInProcessStage && (
+        <TouchableOpacity 
+          style={styles.completeButton}
+          onPress={onMarkAgreementDone}
+        >
+          <CheckCircle size={20} color="#ffffff" style={{ marginRight: 8 }} />
+          <Text style={styles.completeButtonText}>Mark Agreement Complete</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
@@ -163,6 +177,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
     marginTop: 8,
   },
   completeButtonText: {

@@ -42,9 +42,33 @@ const dealsSlice = createSlice({
       const deal = state.deals.find(d => d.id === id);
       if (deal) {
         deal.stage = stage;
+        // Add completedAt timestamp when transitioning to Completed
+        if (stage === 'Completed' && !deal.completedAt) {
+          deal.completedAt = new Date().toISOString();
+        }
       }
       if (state.selectedDeal?.id === id) {
         state.selectedDeal.stage = stage;
+        if (stage === 'Completed' && !state.selectedDeal.completedAt) {
+          state.selectedDeal.completedAt = new Date().toISOString();
+        }
+      }
+    },
+    syncDealStageWithCustomer: (state, action) => {
+      const { customerId, stage } = action.payload;
+      const deal = state.deals.find(d => d.customerId === customerId);
+      if (deal) {
+        deal.stage = stage;
+        // Add completedAt timestamp when transitioning to Completed
+        if (stage === 'Completed' && !deal.completedAt) {
+          deal.completedAt = new Date().toISOString();
+        }
+      }
+      if (state.selectedDeal?.customerId === customerId) {
+        state.selectedDeal.stage = stage;
+        if (stage === 'Completed' && !state.selectedDeal.completedAt) {
+          state.selectedDeal.completedAt = new Date().toISOString();
+        }
       }
     },
     closeDeal: (state, action) => {
@@ -87,6 +111,7 @@ export const {
   setSelectedDeal,
   clearSelectedDeal,
   updateDealStage,
+  syncDealStageWithCustomer,
   closeDeal,
   addDealVisit,
   setLoading,

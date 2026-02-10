@@ -14,7 +14,11 @@ const customersSlice = createSlice({
       state.customers = action.payload;
     },
     addCustomer: (state, action) => {
-      state.customers.unshift(action.payload);
+      const newCustomer = {
+        ...action.payload,
+        stage: action.payload.stage || 'New', // Default to 'New' if not specified
+      };
+      state.customers.unshift(newCustomer);
     },
     updateCustomer: (state, action) => {
       const index = state.customers.findIndex(c => c.id === action.payload.id);
@@ -47,6 +51,45 @@ const customersSlice = createSlice({
         state.selectedCustomer.status = status;
       }
     },
+    updateCustomerStage: (state, action) => {
+      const { id, stage } = action.payload;
+      const customer = state.customers.find(c => c.id === id);
+      if (customer) {
+        customer.stage = stage;
+        // Add completedAt timestamp when transitioning to Completed
+        if (stage === 'Completed' && !customer.completedAt) {
+          customer.completedAt = new Date().toISOString();
+        }
+      }
+      if (state.selectedCustomer?.id === id) {
+        state.selectedCustomer.stage = stage;
+        if (stage === 'Completed' && !state.selectedCustomer.completedAt) {
+          state.selectedCustomer.completedAt = new Date().toISOString();
+        }
+      }
+    },
+    transitionToInProcess: (state, action) => {
+      const customerId = action.payload;
+      const customer = state.customers.find(c => c.id === customerId);
+      if (customer) {
+        customer.stage = 'In-Process';
+      }
+      if (state.selectedCustomer?.id === customerId) {
+        state.selectedCustomer.stage = 'In-Process';
+      }
+    },
+    completeAgreement: (state, action) => {
+      const customerId = action.payload;
+      const customer = state.customers.find(c => c.id === customerId);
+      if (customer && customer.stage === 'In-Process') {
+        customer.stage = 'Completed';
+        customer.completedAt = new Date().toISOString();
+      }
+      if (state.selectedCustomer?.id === customerId && state.selectedCustomer.stage === 'In-Process') {
+        state.selectedCustomer.stage = 'Completed';
+        state.selectedCustomer.completedAt = new Date().toISOString();
+      }
+    },
     setLoading: (state, action) => {
       state.loading = action.payload;
     },
@@ -64,6 +107,9 @@ export const {
   setSelectedCustomer,
   clearSelectedCustomer,
   updateCustomerStatus,
+  updateCustomerStage,
+  transitionToInProcess,
+  completeAgreement,
   setLoading,
   setError,
 } = customersSlice.actions;

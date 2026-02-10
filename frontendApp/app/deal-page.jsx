@@ -4,6 +4,7 @@ import { Image, Modal, Platform, ScrollView, StatusBar, StyleSheet, Text, Toucha
 import { useRouter } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateDeal } from '../src/store/slices/dealsSlice';
+import { completeAgreement } from '../src/store/slices/customersSlice';
 import * as Haptics from 'expo-haptics';
 import MeetingView from '../src/Views/MeetingView';
 import PaymentView from '../src/Views/PaymentView';
@@ -113,6 +114,23 @@ export default function DealPage() {
     setCurrentReminder(null);
   };
 
+  const handleMarkAgreementDone = async () => {
+    if (customer && customer.stage === 'In-Process') {
+      // Trigger haptic feedback
+      try {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (error) {
+        console.log('Haptics not available:', error);
+      }
+
+      // Dispatch action to complete agreement
+      dispatch(completeAgreement(customer.id));
+
+      // Show success feedback (you can add a modal or toast here if desired)
+      console.log('Agreement marked as complete for customer:', customer.name);
+    }
+  };
+
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-US', {
@@ -208,7 +226,7 @@ export default function DealPage() {
         
         {activeTab === 'Payment' && <PaymentView />}
         
-        {activeTab === 'Agreement' && <AgreementView />}
+        {activeTab === 'Agreement' && <AgreementView onMarkAgreementDone={handleMarkAgreementDone} />}
       </ScrollView>
 
       {/* Custom Reminder Set Alert */}

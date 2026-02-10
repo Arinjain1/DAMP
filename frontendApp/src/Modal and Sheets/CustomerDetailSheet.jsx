@@ -130,6 +130,12 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
   const [isPropertyExpanded, setIsPropertyExpanded] = useState(false);
 
+  // Reset search query when property picker opens
+  const handleOpenPropertyPicker = () => {
+    setSearchQuery('');
+    setShowPropertyPicker(true);
+  };
+
   if (!customer) return null;
 
   const currentStageIndex = SALES_STAGES.findIndex(s => s.id === (customer.stage || 'New'));
@@ -164,27 +170,28 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
     
     setInterestedPropertyIds(newInterestedProperties);
     
-    // Update customer with interested properties (separate from selectedProperties)
+    // Remove from selectedProperties so it doesn't show in Site Visit anymore
+    const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
+    setSelectedPropertyIds(newSelectedProperties);
+    
+    // Update customer with both arrays
     if (onSelectProperties) {
-      const customer_data = {
-        selectedProperties: selectedPropertyIds, // Keep original selected properties
-        interestedProperties: newInterestedProperties // Track interested properties separately
-      };
-      // Store both arrays in customer
-      const customerToUpdate = properties.length > 0 ? customer : null;
-      if (customerToUpdate) {
-        onSelectProperties(customer.id, selectedPropertyIds, newInterestedProperties);
+      onSelectProperties(customer.id, newSelectedProperties, newInterestedProperties);
+    }
+    
+    // DON'T move customer to Interested stage yet - stay in Site Visit
+    // Only move when they click "View Interested" button
+    
+    // If no more properties to visit, close map view
+    if (newSelectedProperties.length === 0) {
+      setShowMapView(false);
+      setIsPropertyExpanded(false);
+    } else {
+      // Move to next property if available
+      if (currentPropertyIndex >= newSelectedProperties.length) {
+        setCurrentPropertyIndex(newSelectedProperties.length - 1);
       }
     }
-    
-    // Move customer to Interested stage
-    if (onUpdateStage) {
-      onUpdateStage(customer.id, 'Interested');
-    }
-    
-    // Close the map view to show the updated stage
-    setShowMapView(false);
-    setIsPropertyExpanded(false);
   };
 
   const handlePropertyNotInterested = (propertyId) => {
@@ -338,7 +345,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 
                 <TouchableOpacity 
                   style={styles.selectPropertiesButton}
-                  onPress={() => setShowPropertyPicker(true)}
+                  onPress={handleOpenPropertyPicker}
                 >
                   <Plus size={20} color="#6a7380" />
                   <Text style={styles.selectPropertiesButtonText}>Select Properties</Text>
@@ -382,7 +389,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 {customer.stage !== 'Interested' && (
                   <TouchableOpacity 
                     style={styles.selectPropertiesButton}
-                    onPress={() => setShowPropertyPicker(true)}
+                    onPress={handleOpenPropertyPicker}
                   >
                     <Plus size={20} color="#6a7380" />
                     <Text style={styles.selectPropertiesButtonText}>Add More Properties</Text>
@@ -419,7 +426,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                                     // Show confirmation alert before starting deal
                                     Alert.alert(
                                       '🤝 Start Deal',
-                                      `Are you sure you want to start a deal for "${prop.title}" with ${customer.name}?\n\nThis will move the customer to Meeting stage.`,
+                                      `Are you sure you want to start a deal for "${prop.title}" with ${customer.name}?\n\nThis will move the customer to In-Process stage.`,
                                       [
                                         {
                                           text: 'Cancel',
@@ -430,7 +437,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                                           onPress: () => {
                                             onStartDeal(customer, prop);
                                             if (onUpdateStage) {
-                                              onUpdateStage(customer.id, 'Meeting');
+                                              onUpdateStage(customer.id, 'In-Process');
                                             }
                                           }
                                         }
@@ -743,7 +750,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                              // For other stages: show confirmation before starting deal
                              Alert.alert(
                                '🤝 Start Deal',
-                               `Are you sure you want to start a deal for "${p.title}" with ${customer.name}?\n\nThis will move the customer to Meeting stage.`,
+                               `Are you sure you want to start a deal for "${p.title}" with ${customer.name}?\n\nThis will move the customer to In-Process stage.`,
                                [
                                  {
                                    text: 'Cancel',
@@ -753,6 +760,9 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                                    text: 'Yes, Start Deal',
                                    onPress: () => {
                                      onStartDeal(customer, p);
+                                     if (onUpdateStage) {
+                                       onUpdateStage(customer.id, 'In-Process');
+                                     }
                                      setShowPropertyPicker(false);
                                      setSearchQuery('');
                                    }

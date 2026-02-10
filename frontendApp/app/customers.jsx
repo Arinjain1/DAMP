@@ -72,7 +72,7 @@ export default function Customers() {
       id: generateId(),
       customerId: customer.id,
       propertyId: property.id,
-      stage: 'Meeting',
+      stage: 'In-Process',
       startedAt: new Date().toISOString(),
       meetings: []
     };

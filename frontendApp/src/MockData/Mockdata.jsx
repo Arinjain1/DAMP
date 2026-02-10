@@ -381,6 +381,7 @@ export const INITIAL_CUSTOMERS = [
     phone: "9988776655",
     budget: 13000000,
     type: "Apartment/Flats",
+    requirement_type: "Buy",
     status: "Active",
     stage: "Interested",
     notes: "Looking for ready to move in, prefers higher floors.",
@@ -392,8 +393,9 @@ export const INITIAL_CUSTOMERS = [
     phone: "8877665544",
     budget: 50000000,
     type: "Office",
+    requirement_type: "Rent",
     status: "Active",
-    stage: "Token",
+    stage: "Interested",
     notes: "Needs 10 car parking slots.",
     preferredLocation: "Whitefield",
   },
@@ -403,6 +405,7 @@ export const INITIAL_CUSTOMERS = [
     phone: "7766554433",
     budget: 5000000,
     type: "Apartment/Flats",
+    requirement_type: "Buy",
     status: "New Lead",
     stage: "New",
     notes: "Investment purpose only.",
@@ -414,10 +417,24 @@ export const INITIAL_CUSTOMERS = [
     phone: "9876543210",
     budget: 8500000,
     type: "Apartment/Flats",
+    requirement_type: "Rent",
     status: "Hot",
     stage: "Completed",
     notes: "Deal closed successfully. Property purchased.",
     preferredLocation: "Koramangala",
+    completedAt: "2024-01-15T10:30:00.000Z",
+  },
+  {
+    id: "c5",
+    name: "Arjun Patel",
+    phone: "9123456780",
+    budget: 18000000,
+    type: "House/Villa",
+    requirement_type: "Buy",
+    status: "Active",
+    stage: "In-Process",
+    notes: "Agreement in progress. Final documentation pending.",
+    preferredLocation: "Hennur Road",
   },
 ];
 
@@ -506,7 +523,7 @@ export const INITIAL_DEALS = [
     id: "d1",
     customerId: "c1",
     propertyId: "p1",
-    stage: "Negotiation",
+    stage: "Interested",
     startedAt: new Date(Date.now() - 432000000).toISOString(), // 5 days ago
     meetings: [
       {
@@ -525,7 +542,7 @@ export const INITIAL_DEALS = [
     id: "d2",
     customerId: "c2",
     propertyId: "p2",
-    stage: "Meeting",
+    stage: "Interested",
     startedAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
     meetings: [
       {
@@ -539,6 +556,25 @@ export const INITIAL_DEALS = [
     expectedCloseDate: new Date(Date.now() + 1209600000).toISOString(), // 2 weeks from now
     dealValue: 45000000,
     commission: 450000,
+  },
+  {
+    id: "d3",
+    customerId: "c5",
+    propertyId: "p7",
+    stage: "In-Process",
+    startedAt: new Date(Date.now() - 1209600000).toISOString(), // 2 weeks ago
+    meetings: [
+      {
+        id: "m3",
+        date: new Date(Date.now() - 604800000).toISOString(), // 1 week ago
+        notes: "Agreement discussion and terms finalized",
+        type: "Agreement Meeting"
+      }
+    ],
+    visits: [],
+    expectedCloseDate: new Date(Date.now() + 259200000).toISOString(), // 3 days from now
+    dealValue: 45000000,
+    commission: 2250000,
   },
 ];
 

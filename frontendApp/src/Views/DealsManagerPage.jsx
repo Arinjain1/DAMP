@@ -27,7 +27,7 @@ const DealsManagerPage = ({ deals, properties, customers, onOpenDeal, onBack }) 
    const sortedDeals = [...deals].sort((a,b) => new Date(b.startedAt) - new Date(a.startedAt));
    const filteredDeals = filter === 'All' ? sortedDeals : sortedDeals.filter(d => d.stage === filter);
 
-   const filters = ['All', 'New', 'Contacted', 'Site Visit', 'Interested', 'Meeting', 'Negotiation', 'Token', 'Agreement', 'Completed'];
+   const filters = ['All', 'New', 'Contacted', 'Site Visit', 'Interested', 'In-Process', 'Completed'];
 
    // Calculate stats
    const stats = {

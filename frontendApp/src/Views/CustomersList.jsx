@@ -13,10 +13,7 @@ const SALES_STAGES = [
   { id: 'Contacted', label: 'Contacted', isFirst: false },
   { id: 'Site Visit', label: 'Site Visit', isFirst: false },
   { id: 'Interested', label: 'Interested', isFirst: false },
-  { id: 'Meeting', label: 'Meeting', isFirst: false },
-  { id: 'Negotiation', label: 'Negotiation', isFirst: false },
-  { id: 'Token', label: 'Token', isFirst: false },
-  { id: 'Agreement', label: 'Agreement', isFirst: false },
+  { id: 'In-Process', label: 'In-Process', isFirst: false },
   { id: 'Completed', label: 'Completed', isFirst: false },
 ];
 
@@ -38,14 +35,19 @@ const getRandomColor = (char) => {
 const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) => {
   const [query, setQuery] = useState('');
   const [expandedCards, setExpandedCards] = useState(new Set());
+  const [typeFilter, setTypeFilter] = useState('All'); // 'All', 'Rent', 'Sell'
 
-  const filteredCustomers = customers.filter((c) =>
-    c.name.toLowerCase().includes(query.toLowerCase())
-  );
+  const filteredCustomers = customers.filter((c) => {
+    const matchesSearch = c.name.toLowerCase().includes(query.toLowerCase());
+    // Check both 'type' (for mock data) and 'requirement_type' (for backend data)
+    const customerType = c.requirement_type || c.type;
+    const matchesType = typeFilter === 'All' || customerType === typeFilter;
+    return matchesSearch && matchesType;
+  });
 
   // Check if customer is beyond Interested stage
   const isBeyondInterested = (stage) => {
-    const stagesAfterInterested = ['Meeting', 'Negotiation', 'Token', 'Agreement', 'Completed'];
+    const stagesAfterInterested = ['In-Process', 'Completed'];
     return stagesAfterInterested.includes(stage);
   };
 
@@ -104,6 +106,9 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
   const StageIndicator = ({ currentStage }) => {
     const currentIndex = SALES_STAGES.findIndex(s => s.id === currentStage);
     const lastStageIndex = SALES_STAGES.length - 1;
+    
+    // Debug log to check if stage is being received
+    //console.log('StageIndicator - currentStage:', currentStage, 'currentIndex:', currentIndex);
     
     return (
       <View style={styles.stageContainer}>
@@ -192,6 +197,29 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
             <Text style={styles.addButtonText}>Add Clients</Text>
           </TouchableOpacity>
         </View>
+        
+        {/* Type Filter - Horizontal Scrollable Chips with Underline */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterChipsContainer}
+        >
+          {['All', 'Rent', 'Buy'].map((type) => (
+            <TouchableOpacity
+              key={type}
+              style={styles.filterChipWrapper}
+              onPress={() => setTypeFilter(type)}
+            >
+              <Text style={[
+                styles.filterChipText,
+                typeFilter === type && styles.filterChipTextActive
+              ]}>
+                {type}
+              </Text>
+              {typeFilter === type && <View style={styles.chipUnderline} />}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* LIST */}
@@ -318,7 +346,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   headerContainer: {
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) + 16 : 64,
-    paddingHorizontal: 20, paddingBottom: 24,
+    paddingHorizontal: 20, paddingBottom: 10,
     borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
     backgroundColor: '#ffffff',
     alignItems:'center'
@@ -328,6 +356,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginBottom: 16,
   },
   searchBar: {
     flex: 1,
@@ -348,10 +377,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb'
   },
-  addButtonText: {
-    fontSize: 14,
+  addButtonText: { fontSize: 13, fontWeight: '600', color: '#ffffff' },
+  filterChipsContainer: {
+    paddingBottom: 8,
+    gap: 24,
+  },
+  filterChipWrapper: {
+    alignItems:'flex-start',
+    paddingHorizontal: 4,
+  },
+  filterChipText: {
+    fontSize: 15,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#9ca3af',
+    paddingBottom: 8,
+  },
+  filterChipTextActive: {
+    color: '#1f2937',
+    fontWeight: '700',
+  },
+  chipUnderline: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: '#1f2937',
+    borderRadius: 2,
   },
   searchInput: { marginLeft: 10, flex: 1, fontSize: 16, color: '#111827', fontWeight: '500', alignItems:'center' },
   scrollView: { flex: 1 , backgroundColor: '#ffffff',},

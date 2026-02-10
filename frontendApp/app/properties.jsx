@@ -60,7 +60,7 @@ export default function Properties() {
   // Handle deal creation from property detail sheet
   const handleCreateDeal = (dealData) => {
     dispatch(addDeal(dealData));
-    console.log('Deal created:', dealData);
+    
   };
 
   return (
