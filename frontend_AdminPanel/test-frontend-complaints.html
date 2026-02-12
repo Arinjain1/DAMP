@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Frontend Complaints</title>
+</head>
+<body>
+    <h1>Frontend Complaints Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testComplaints() {
+            const results = document.getElementById('results');
+            
+            try {
+                // Check if auth token exists
+                const token = localStorage.getItem('authToken');
+                results.innerHTML += `<p><strong>Auth Token:</strong> ${token ? token.substring(0, 20) + '...' : 'Not found'}</p>`;
+                
+                if (!token) {
+                    results.innerHTML += `<p style="color: red;"><strong>Issue:</strong> No auth token found in localStorage</p>`;
+                    results.innerHTML += `<p>You need to login first to see complaints</p>`;
+                    return;
+                }
+                
+                // Test API call
+                const response = await fetch('http://localhost:5000/api/complaints', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                results.innerHTML += `<p><strong>API Status:</strong> ${response.status}</p>`;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML += `<p><strong>Complaints Found:</strong> ${data.data?.complaints?.length || 0}</p>`;
+                    results.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    const error = await response.text();
+                    results.innerHTML += `<p style="color: red;"><strong>Error:</strong> ${error}</p>`;
+                }
+                
+            } catch (error) {
+                results.innerHTML += `<p style="color: red;"><strong>Network Error:</strong> ${error.message}</p>`;
+            }
+        }
+        
+        // Run test when page loads
+        testComplaints();
+    </script>
+</body>
+</html>
