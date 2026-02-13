@@ -84,7 +84,13 @@ const FollowUpsList = ({ followUps = [], customers = [], properties = [], onUpda
             <View style={styles.taskList}>
                {filteredTasks.length > 0 ? filteredTasks.map((task) => {
                   const customer = customers.find(c => c.id === task.customerId);
-                  const property = properties.find(p => p.id === task.propertyId);
+                  // Support both single propertyId (old) and propertyIds array (new)
+                  const taskPropertyIds = task.propertyIds || (task.propertyId ? [task.propertyId] : []);
+                  const taskProperties = properties.filter(p => taskPropertyIds.includes(p.id));
+                  
+                  // Debug log
+                  console.log('Task:', task.id, 'PropertyIds:', taskPropertyIds, 'Found properties:', taskProperties.length);
+                  
                   const date = new Date(task.date);
                   
                   // Determine type (Visit vs Call) for styling
@@ -122,13 +128,22 @@ const FollowUpsList = ({ followUps = [], customers = [], properties = [], onUpda
                                  {/* Customer Name */}
                                  <Text style={styles.customerName}>{customer?.name || 'Unknown Customer'}</Text>
                                  
-                                 {/* Property Link */}
-                                 {property && (
-                                    <View style={styles.propertyRow}>
-                                       <Home size={12} color="#6b7280" />
-                                       <Text style={styles.propertyText} numberOfLines={1}>
-                                          {property.title}
-                                       </Text>
+                                 {/* Properties List */}
+                                 {taskProperties.length > 0 && (
+                                    <View style={{ marginTop: 4 }}>
+                                       {/* Show first property */}
+                                       <View style={styles.propertyRow}>
+                                          <Home size={12} color="#6b7280" />
+                                          <Text style={styles.propertyText} numberOfLines={1}>
+                                             {taskProperties[0].title}
+                                          </Text>
+                                       </View>
+                                       {/* Show "Show More" if multiple properties */}
+                                       {taskProperties.length > 1 && (
+                                          <Text style={styles.showMoreText}>
+                                             +{taskProperties.length - 1} more {taskProperties.length - 1 === 1 ? 'property' : 'properties'}
+                                          </Text>
+                                       )}
                                     </View>
                                  )}
                               </View>
@@ -149,9 +164,9 @@ const FollowUpsList = ({ followUps = [], customers = [], properties = [], onUpda
                            
                            {/* Action Buttons */}
                            <View style={styles.actionContainer}>
-                              {isVisit && filter === 'Pending' && property ? (
+                              {isVisit && filter === 'Pending' && taskProperties.length > 0 ? (
                                  <TouchableOpacity 
-                                    onPress={() => onStartVisit && onStartVisit({ id: generateId(), customer, property, taskId: task.id })}
+                                    onPress={() => onStartVisit && onStartVisit({ id: generateId(), customer, property: taskProperties[0], taskId: task.id })}
                                     style={styles.startVisitButton}
                                  >
                                     <Map size={16} color="#fbbf24" />

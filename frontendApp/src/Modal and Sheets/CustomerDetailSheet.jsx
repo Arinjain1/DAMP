@@ -34,6 +34,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import AddModal from './AddModal';
 
 // --- SALES STAGES LIST ---
 const SALES_STAGES = [
@@ -120,15 +121,16 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals = [], followUps = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask, onUpdateStage, onSelectProperties }) => {
+const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals = [], followUps = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask, onUpdateStage, onSelectProperties, openMapView = false }) => {
   const [showPropertyPicker, setShowPropertyPicker] = useState(false);
   const [selectedPropertyIds, setSelectedPropertyIds] = useState(customer.selectedProperties || []);
   const [interestedPropertyIds, setInterestedPropertyIds] = useState(customer.interestedProperties || []);
   const [holdPropertyIds, setHoldPropertyIds] = useState(customer.holdProperties || []);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showMapView, setShowMapView] = useState(false);
+  const [showMapView, setShowMapView] = useState(openMapView);
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
-  const [isPropertyExpanded, setIsPropertyExpanded] = useState(false);
+  const [isPropertyExpanded, setIsPropertyExpanded] = useState(openMapView);
+  const [showAddFollowUpModal, setShowAddFollowUpModal] = useState(false);
 
   // Reset search query when property picker opens
   const handleOpenPropertyPicker = () => {
@@ -381,9 +383,20 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
             {/* Properties to Show - Show for Site Visit and later stages */}
             {customer.stage !== 'New' && customer.stage !== 'Contacted' && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                  Properties to Show ({propertiesToShow.length})
-                </Text>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionTitle}>
+                    Properties to Show ({propertiesToShow.length})
+                  </Text>
+                  {customer.stage === 'Site Visit' && (
+                    <TouchableOpacity 
+                      style={styles.addTaskHeaderButton}
+                      onPress={() => setShowAddFollowUpModal(true)}
+                    >
+                      <Plus size={16} color="#ffffff" />
+                      <Text style={styles.addTaskHeaderButtonText}>Add Task</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 
                 {/* Hide Add More Properties button for Interested stage */}
                 {customer.stage !== 'Interested' && (
@@ -628,27 +641,30 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 </View>
             )}
 
-            {/* Tasks - Hide for New stage */}
-            {customer.stage !== 'New' && customerTasks.length > 0 && (
+            {/* Tasks - Show for Site Visit and other stages (except New) */}
+            {customer.stage !== 'New' && (customer.stage === 'Site Visit' || customerTasks.length > 0) && (
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Tasks ({customerTasks.length})</Text>
+                    {customerTasks.length > 0 ? (
                     <View style={styles.listContainer}>
                         {customerTasks.map(task => {
-                            const prop = properties.find(p => p.id === task.propertyId);
+                            // Support both single propertyId (old) and propertyIds array (new)
+                            const taskPropertyIds = task.propertyIds || (task.propertyId ? [task.propertyId] : []);
+                            const taskProperties = properties.filter(p => taskPropertyIds.includes(p.id));
                             const date = new Date(task.date);
-                            const isVisit = task.type === 'Visit' || task.type === 'Meeting';
+                            const isSiteVisit = task.type === 'Site Visit' || task.type === 'Visit';
                             const statusColor = task.status === 'Done' ? '#059669' : '#d97706';
                             
                             return (
                                 <View key={task.id} style={styles.taskCard}>
                                     <View style={styles.taskHeader}>
                                         <View style={[styles.taskTypeBadge, { 
-                                            backgroundColor: isVisit ? '#fffbeb' : '#eff6ff' 
+                                            backgroundColor: isSiteVisit ? '#fffbeb' : '#eff6ff' 
                                         }]}>
                                             <Text style={[styles.taskTypeText, { 
-                                                color: isVisit ? '#b45309' : '#1d4ed8' 
+                                                color: isSiteVisit ? '#b45309' : '#1d4ed8' 
                                             }]}>
-                                                {isVisit ? 'Site Visit' : 'Call / Follow-up'}
+                                                {isSiteVisit ? 'Site Visit' : task.type}
                                             </Text>
                                         </View>
                                         
@@ -674,17 +690,48 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                                     <Text style={styles.taskNote} numberOfLines={2}>{task.note}</Text>
                                     
                                     <View style={styles.taskFooter}>
-                                        <Text style={styles.taskDate}>
-                                            {date.toLocaleDateString()} at {date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                                        </Text>
-                                        {prop && (
-                                            <Text style={styles.taskProperty} numberOfLines={1}>{prop.title}</Text>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.taskDate}>
+                                                {date.toLocaleDateString()} at {date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                                            </Text>
+                                            {taskProperties.length > 0 && (
+                                                <Text style={styles.taskProperty} numberOfLines={1}>
+                                                    {taskProperties.map(p => p.title).join(', ')}
+                                                </Text>
+                                            )}
+                                        </View>
+                                        
+                                        {/* Site Visit Button - Show only for Site Visit tasks */}
+                                        {isSiteVisit && taskProperties.length > 0 && (
+                                            <TouchableOpacity 
+                                                style={styles.taskSiteVisitButton}
+                                                onPress={() => {
+                                                    if (taskProperties.length === 1) {
+                                                        // Single property - directly navigate to Google Maps
+                                                        const prop = taskProperties[0];
+                                                        Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                                                    } else {
+                                                        // Multiple properties - open site visit map view
+                                                        setShowMapView(true);
+                                                    }
+                                                }}
+                                            >
+                                                <MapPin size={16} color="white" />
+                                                <Text style={styles.taskSiteVisitButtonText}>
+                                                    {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
+                                                </Text>
+                                            </TouchableOpacity>
                                         )}
                                     </View>
                                 </View>
                             );
                         })}
                     </View>
+                    ) : (
+                        <View style={styles.emptyTasksContainer}>
+                            <Text style={styles.emptyTasksText}>No tasks yet. Add a task to get started.</Text>
+                        </View>
+                    )}
                 </View>
             )}
 
@@ -838,11 +885,19 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 <TouchableOpacity 
                   style={[
                     styles.halfWidthButton,
-                    styles.visitSitesButton,
-                    selectedPropertyIds.length === 0 && styles.visitSitesButtonDisabled
+                    styles.visitSitesButton
                   ]}
-                  onPress={() => setShowMapView(true)}
-                  disabled={selectedPropertyIds.length === 0}
+                  onPress={() => {
+                    if (selectedPropertyIds.length === 0) {
+                      Alert.alert(
+                        'No Properties Selected',
+                        'Please select properties to visit from the "Properties to Show" section above.',
+                        [{ text: 'OK' }]
+                      );
+                    } else {
+                      setShowMapView(true);
+                    }
+                  }}
                 >
                   <MapPin size={20} color="white" />
                   <Text style={styles.visitSitesButtonText}>Visit Sites ({selectedPropertyIds.length})</Text>
@@ -850,17 +905,31 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
               </View>
             ) : (
               <TouchableOpacity 
-                style={[
-                  styles.visitSitesButton,
-                  selectedPropertyIds.length === 0 && styles.visitSitesButtonDisabled
-                ]}
-                onPress={() => setShowMapView(true)}
-                disabled={selectedPropertyIds.length === 0}
+                style={styles.visitSitesButton}
+                onPress={() => {
+                  if (selectedPropertyIds.length === 0) {
+                    Alert.alert(
+                      'No Properties Selected',
+                      'Please select properties to visit from the "Properties to Show" section above.',
+                      [{ text: 'OK' }]
+                    );
+                  } else {
+                    setShowMapView(true);
+                  }
+                }}
               >
                 <MapPin size={20} color="white" />
                 <Text style={styles.visitSitesButtonText}>Visit Sites ({selectedPropertyIds.length})</Text>
               </TouchableOpacity>
             )}
+            
+            {/* Floating Add Follow Up Button */}
+            <TouchableOpacity 
+              style={styles.floatingAddButton}
+              onPress={() => setShowAddFollowUpModal(true)}
+            >
+              <Plus size={24} color="white" />
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1113,6 +1182,25 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
           </View>
         </Modal>
       )}
+      
+      {/* Add Follow Up Modal */}
+      <AddModal
+        isOpen={showAddFollowUpModal}
+        onClose={() => setShowAddFollowUpModal(false)}
+        type="FollowUp"
+        onSave={(taskData) => {
+          if (onAddFollowUp) {
+            onAddFollowUp(taskData);
+          }
+          setShowAddFollowUpModal(false);
+        }}
+        onUpdate={() => {}}
+        initialCustomer={customer}
+        initialPropertyIds={selectedPropertyIds}
+        initialTaskType="Site Visit"
+        customers={[customer]}
+        properties={properties}
+      />
     </Modal>
   );
 };
@@ -1187,7 +1275,7 @@ const styles = StyleSheet.create({
   
   // Sections
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1195,14 +1283,36 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 16,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 12,
+    marginBottom: 14,
+  },
+  addTaskHeaderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#9f95f2',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  addTaskHeaderButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+    
   },
   listContainer: {
-    gap: 14,
+    gap: 8,
+    paddingBottom: 12,
   },
   
   // Compact Deal Card
@@ -1215,11 +1325,7 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     borderRadius: 14,
     gap: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
+    
   },
   compactImg: {
     width: 44,
@@ -1241,41 +1347,37 @@ const styles = StyleSheet.create({
 
   // Task Card
   taskCard: {
-    padding: 16,
+    padding: 14,
     backgroundColor: 'white',
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
+    borderRadius: 12,
   },
   taskHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    //marginBottom: 10,
   },
   taskTypeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   taskTypeText: {
     fontSize: 10,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    
   },
   statusBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingVertical: 3,
+    borderRadius: 5,
   },
   statusText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
     color: 'white',
     textTransform: 'uppercase',
@@ -1283,13 +1385,17 @@ const styles = StyleSheet.create({
   taskNote: {
     fontSize: 13,
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: 10,
     lineHeight: 18,
   },
   taskFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
-    paddingTop: 8,
+    paddingTop: 10,
+    gap: 10,
   },
   taskDate: {
     fontSize: 11,
@@ -1299,7 +1405,32 @@ const styles = StyleSheet.create({
   taskProperty: {
     fontSize: 11,
     color: '#9ca3af',
-    marginTop: 2,
+    marginTop: 3,
+  },
+  taskSiteVisitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#9f95f2',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    flexShrink: 0,
+  },
+  taskSiteVisitButtonText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'white',
+  },
+  emptyTasksContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTasksText: {
+    fontSize: 13,
+    color: '#9ca3af',
+    textAlign: 'center',
   },
 
   // Match Card

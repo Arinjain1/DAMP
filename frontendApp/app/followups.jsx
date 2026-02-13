@@ -24,6 +24,7 @@ import { useDispatch, useSelector } from 'react-redux';
 // Components
 import WhatsAppIcon from '@/src/Components/WhatsAppIcon';
 import AddModal from '@/src/Modal and Sheets/AddModal';
+import SiteVisitMapModal from '@/src/Modal and Sheets/SiteVisitMapModal';
 import { clearEditItem, setEditItem, setModalOpen, setModalType } from '@/src/store/slices/uiSlice';
 import {
     addFollowUp,
@@ -32,6 +33,7 @@ import {
     updateFollowUp,
     updateFollowUpStatus
 } from '../src/store/slices/followUpsSlice';
+import { updateCustomer } from '../src/store/slices/customersSlice';
 
 // Helper for generating IDs
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -40,6 +42,9 @@ export default function FollowUps() {
   const dispatch = useDispatch();
   const [filter, setFilter] = useState('Pending'); // Default is Pending
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showSiteVisitModal, setShowSiteVisitModal] = useState(false);
+  const [siteVisitCustomer, setSiteVisitCustomer] = useState(null);
+  const [siteVisitProperties, setSiteVisitProperties] = useState([]);
   
   // Redux state
   const { followUps, activeSiteVisit } = useSelector(state => state.followUps);
@@ -102,8 +107,12 @@ export default function FollowUps() {
   };
 
   const handleStartVisit = (visitData) => {
+    // Open Site Visit Map Modal with properties
+    const { customer, properties: visitProps } = visitData;
     
-    dispatch(setActiveSiteVisit(visitData));
+    setSiteVisitCustomer(customer);
+    setSiteVisitProperties(visitProps);
+    setShowSiteVisitModal(true);
   };
 
   const handleDeleteTask = (taskId) => {
@@ -235,7 +244,10 @@ export default function FollowUps() {
             
             {filteredTasks.length > 0 ? filteredTasks.map((task, index) => {
                const customer = customers.find(c => c.id === task.customerId);
-               const property = properties.find(p => p.id === task.propertyId);
+               // Support both single propertyId (old) and propertyIds array (new)
+               const taskPropertyIds = task.propertyIds || (task.propertyId ? [task.propertyId] : []);
+               const taskProperties = properties.filter(p => taskPropertyIds.includes(p.id));
+               const firstProperty = taskProperties[0]; // For backward compatibility
                const date = new Date(task.date);
                
                // Logic: Only first card in Pending is purple, all others (including all Done cards) are grey/white
@@ -286,23 +298,32 @@ export default function FollowUps() {
                         {customer?.name || 'Unknown Customer'}
                      </Text>
 
-                     {/* Property Info */}
-                     {property && (
-                        <View style={styles.infoRow}>
-                           <Home size={12} color={iconColor} />
-                           <Text style={[styles.infoText, { color: textSecondary }]} numberOfLines={1}>
-                              {property.title}
-                           </Text>
+                     {/* Properties List */}
+                     {taskProperties.length > 0 && (
+                        <View>
+                           {/* Show first property */}
+                           <View>
+                              <View style={styles.infoRow}>
+                                 <Home size={12} color={iconColor} />
+                                 <Text style={[styles.infoText, { color: textSecondary }]} numberOfLines={1}>
+                                    {taskProperties[0].title}
+                                 </Text>
+                              </View>
+                              <View style={styles.infoRow}>
+                                 <MapPin size={12} color={iconColor} />
+                                 <Text style={[styles.infoText, { color: textSecondary }]} numberOfLines={1}>
+                                    {taskProperties[0].location || 'No location set'}
+                                 </Text>
+                              </View>
+                           </View>
+                           {/* Show "Show More" if multiple properties */}
+                           {taskProperties.length > 1 && (
+                              <Text style={[styles.showMoreText, { color: textSecondary }]}>
+                                 +{taskProperties.length - 1} more {taskProperties.length - 1 === 1 ? 'property' : 'properties'}
+                              </Text>
+                           )}
                         </View>
                      )}
-
-                     {/* Location */}
-                     <View style={styles.infoRow}>
-                        <MapPin size={12} color={iconColor} />
-                        <Text style={[styles.infoText, { color: textSecondary }]} numberOfLines={1}>
-                           {property ? property.location : 'No location set'}
-                        </Text>
-                     </View>
 
                      {/* Note */}
                      {task.note && (
@@ -320,16 +341,27 @@ export default function FollowUps() {
                            // Purple card actions based on task type
                            (task.type === 'Site Visit' || task.type === 'Visit') ? (
                               <TouchableOpacity 
-                                 onPress={() => handleStartVisit({ 
-                                    id: generateId(), 
-                                    customer, 
-                                    property, 
-                                    taskId: task.id 
-                                 })}
+                                 onPress={() => {
+                                    if (taskProperties.length === 1) {
+                                       // Single property - directly navigate to Google Maps
+                                       const prop = taskProperties[0];
+                                       Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                                    } else {
+                                       // Multiple properties - start site visit flow
+                                       handleStartVisit({ 
+                                          id: generateId(), 
+                                          customer, 
+                                          properties: taskProperties, 
+                                          taskId: task.id 
+                                       });
+                                    }
+                                 }}
                                  style={styles.startVisitButton}
                               >
                                  <Map size={12} color="#fbbf24" />
-                                 <Text style={styles.startVisitText}>Visit Site</Text>
+                                 <Text style={styles.startVisitText}>
+                                    {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
+                                 </Text>
                               </TouchableOpacity>
                            ) : (
                               // For Meeting, Call, Follow-up etc. - show Call & Msg buttons
@@ -346,18 +378,29 @@ export default function FollowUps() {
                            )
                         ) : (
                            // Non-purple cards (white cards)
-                           (task.type === 'Site Visit' || task.type === 'Visit') && filter === 'Pending' && property ? (
+                           (task.type === 'Site Visit' || task.type === 'Visit') && filter === 'Pending' && taskProperties.length > 0 ? (
                               <TouchableOpacity 
-                                 onPress={() => handleStartVisit({ 
-                                    id: generateId(), 
-                                    customer, 
-                                    property, 
-                                    taskId: task.id 
-                                 })}
+                                 onPress={() => {
+                                    if (taskProperties.length === 1) {
+                                       // Single property - directly navigate to Google Maps
+                                       const prop = taskProperties[0];
+                                       Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                                    } else {
+                                       // Multiple properties - start site visit flow
+                                       handleStartVisit({ 
+                                          id: generateId(), 
+                                          customer, 
+                                          properties: taskProperties, 
+                                          taskId: task.id 
+                                       });
+                                    }
+                                 }}
                                  style={styles.startVisitButton}
                               >
                                  <Map size={12} color="#fbbf24" />
-                                 <Text style={styles.startVisitText}>Start Visit</Text>
+                                 <Text style={styles.startVisitText}>
+                                    {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
+                                 </Text>
                               </TouchableOpacity>
                            ) : filter === 'Pending' ? (
                               <View style={styles.contactButtonsRow}>
@@ -401,6 +444,57 @@ export default function FollowUps() {
         editItem={editItem} 
         properties={properties} 
         customers={customers} 
+      />
+
+      {/* Site Visit Map Modal */}
+      <SiteVisitMapModal
+        visible={showSiteVisitModal}
+        onClose={() => {
+          setShowSiteVisitModal(false);
+          setSiteVisitCustomer(null);
+          setSiteVisitProperties([]);
+        }}
+        properties={siteVisitProperties}
+        customer={siteVisitCustomer}
+        onPropertyInterested={(propId) => {
+          // Handle interested property
+          if (siteVisitCustomer) {
+            const updatedCustomer = {
+              ...siteVisitCustomer,
+              interestedProperties: [...(siteVisitCustomer.interestedProperties || []), propId],
+              selectedProperties: (siteVisitCustomer.selectedProperties || []).filter(id => id !== propId)
+            };
+            dispatch(updateCustomer(updatedCustomer));
+            setSiteVisitCustomer(updatedCustomer);
+            
+            // Remove from visit properties
+            setSiteVisitProperties(prev => prev.filter(p => p.id !== propId));
+          }
+        }}
+        onPropertyNotInterested={(propId) => {
+          // Remove property from list
+          setSiteVisitProperties(prev => prev.filter(p => p.id !== propId));
+          
+          if (siteVisitCustomer) {
+            const updatedCustomer = {
+              ...siteVisitCustomer,
+              selectedProperties: (siteVisitCustomer.selectedProperties || []).filter(id => id !== propId)
+            };
+            dispatch(updateCustomer(updatedCustomer));
+            setSiteVisitCustomer(updatedCustomer);
+          }
+        }}
+        onPropertyHold={(propId) => {
+          // Add to hold properties
+          if (siteVisitCustomer) {
+            const updatedCustomer = {
+              ...siteVisitCustomer,
+              holdProperties: [...(siteVisitCustomer.holdProperties || []), propId]
+            };
+            dispatch(updateCustomer(updatedCustomer));
+            setSiteVisitCustomer(updatedCustomer);
+          }
+        }}
       />
     </View>
   );
@@ -654,6 +748,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '100',
     flex: 1,
+  },
+  showMoreText: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginLeft: 18,
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   noteText: {
     fontFamily: 'Lato-400Regular',

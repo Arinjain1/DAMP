@@ -46,6 +46,8 @@ const AddModal = ({
     properties,
     customers,
     initialCustomer,
+    initialPropertyIds,
+    initialTaskType,
 }) => {
     const generateId = () => Math.random().toString(36).substring(2, 11);
 
@@ -301,15 +303,15 @@ const AddModal = ({
             } else if (type === 'FollowUp') {
                 setFormData({
                     status: 'Pending',
-                    type: 'Call',
+                    type: initialTaskType || 'Call',
                     date: new Date().toISOString(),
                     customerId: initialCustomer?.id || '',
-                    propertyIds: [],
+                    propertyIds: initialPropertyIds || [],
                     note: '',
                 });
             }
         }
-    }, [editItem, type, initialCustomer, isOpen]);
+    }, [editItem, type, initialCustomer, initialPropertyIds, initialTaskType, isOpen]);
 
     if (!isOpen) return null;
 
@@ -1211,7 +1213,9 @@ const AddModal = ({
                                             onPress={() => setShowPropertyDropdown(!showPropertyDropdown)}
                                         >
                                             <Text style={formData.propertyIds?.length > 0 ? styles.dropdownSelected : styles.dropdownPlaceholder}>
-                                                {formData.propertyIds?.length > 0 ? `${formData.propertyIds.length} properties selected` : 'Select properties'}
+                                                {formData.propertyIds?.length > 0 
+                                                    ? `${formData.propertyIds.length} ${formData.propertyIds.length === 1 ? 'property' : 'properties'} selected`
+                                                    : 'Select properties'}
                                             </Text>
                                             <ChevronDown size={18} color="#9ca3af" />
                                         </TouchableOpacity>
@@ -1241,6 +1245,46 @@ const AddModal = ({
                                                         );
                                                     })}
                                                 </ScrollView>
+                                            </View>
+                                        )}
+
+                                        {/* Selected Properties Grid */}
+                                        {formData.propertyIds?.length > 0 && (
+                                            <View style={{ marginTop: 12, gap: 8 }}>
+                                                {properties.filter(p => formData.propertyIds.includes(p.id)).map((property) => (
+                                                    <View key={property.id} style={{ 
+                                                        backgroundColor: '#f9fafb', 
+                                                        borderRadius: 12, 
+                                                        padding: 12,
+                                                        borderWidth: 1,
+                                                        borderColor: '#e5e7eb',
+                                                        flexDirection: 'row',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between'
+                                                    }}>
+                                                        <View style={{ flex: 1 }}>
+                                                            <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 2 }}>
+                                                                {property.title}
+                                                            </Text>
+                                                            <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                                                                {property.location}
+                                                            </Text>
+                                                        </View>
+                                                        <TouchableOpacity 
+                                                            onPress={() => {
+                                                                const newIds = formData.propertyIds.filter(id => id !== property.id);
+                                                                handleChange('propertyIds', newIds);
+                                                            }}
+                                                            style={{ 
+                                                                backgroundColor: '#fee2e2', 
+                                                                borderRadius: 8, 
+                                                                padding: 6 
+                                                            }}
+                                                        >
+                                                            <X size={16} color="#dc2626" />
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                ))}
                                             </View>
                                         )}
                                     </View>

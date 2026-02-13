@@ -1,33 +1,50 @@
-import { Calendar, CheckCircle, CirclePlus, Clock, X } from 'lucide-react-native';
+import { Calendar, CheckCircle, CirclePlus } from 'lucide-react-native';
 import { useState } from 'react';
-import { Modal, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useDispatch } from 'react-redux';
+import { ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
 import { updateDeal } from '../store/slices/dealsSlice';
-
+import { addFollowUp } from '../store/slices/followUpsSlice';
+import AddModal from '../Modal and Sheets/AddModal';
 
 export default function MeetingView({ selectedDeal, reminderEnabled, setReminderEnabled, setShowReminderSetAlert }) {
   const dispatch = useDispatch();
-  const [showMeetingModal, setShowMeetingModal] = useState(false);
-  const [meetingTitle, setMeetingTitle] = useState('Meeting');
-  const [meetingDate, setMeetingDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const { customers } = useSelector(state => state.customers);
+  const { properties } = useSelector(state => state.properties);
+  
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const meetings = selectedDeal.meetings || [];
 
   const handleAddMeeting = () => {
-    setShowMeetingModal(true);
+    setShowAddModal(true);
   };
 
-  const handleSaveMeeting = () => {
-    if (!meetingTitle.trim()) return;
+  const handleSaveTask = (taskData) => {
+    console.log('Saving task with data:', taskData); // Debug log
+    
+    // Save to followUps slice
+    const newTask = {
+      ...taskData,
+      id: Math.random().toString(36).substring(2, 11),
+      status: 'Pending'
+    };
+    
+    console.log('New task to be saved:', newTask); // Debug log
+    dispatch(addFollowUp(newTask));
+
+    // Also update deal's meetings
+    const customer = customers.find(c => c.id === taskData.customerId);
+    const selectedProperties = properties.filter(p => taskData.propertyIds?.includes(p.id));
 
     const newMeeting = {
-      id: Math.random().toString(36).substring(2, 11),
-      title: meetingTitle,
-      date: meetingDate.toISOString(),
-      status: 'upcoming'
+      id: newTask.id,
+      title: `${taskData.type}`, 
+      date: taskData.date,
+      status: 'upcoming',
+      type: taskData.type,
+      customer: customer?.name,
+      properties: selectedProperties.map(p => p.title).join(', '),
+      note: taskData.note
     };
 
     const updatedDeal = {
@@ -36,10 +53,7 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
     };
 
     dispatch(updateDeal(updatedDeal));
-
-    setMeetingTitle('');
-    setMeetingDate(new Date());
-    setShowMeetingModal(false);
+    setShowAddModal(false);
   };
 
   const handleMarkDone = (meetingId) => {
@@ -99,7 +113,7 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
             onPress={handleAddMeeting}
           >
             <CirclePlus size={20} color="#ffffff" strokeWidth={2} />
-            <Text className="text-[13px] font-normal text-white">Add Meeting</Text>
+            <Text className="text-[13px] font-normal text-white">Add Task</Text>
           </TouchableOpacity>
         </View>
 
@@ -121,175 +135,87 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
               .map((item) => (
                 <View
                   key={item.id}
-                  className={`bg-white rounded-2xl p-4 border border-[#e5e7eb] flex-row justify-between items-center ${
+                  className={`bg-white rounded-2xl p-4 border border-[#e5e7eb] ${
                     item.status === 'completed' ? 'bg-[#f9fafb]' : ''
                   }`}
                 >
-                  <View className="flex-1">
-                    <Text 
-                      className={`text-lg font-bold text-[#1f2937] mb-1 ${
-                        item.status === 'completed' ? 'text-[#6b7280]' : ''
-                      }`}
-                    >
-                      {item.title}
-                    </Text>
-                    <Text className="text-[13px] text-[#9ca3af]">
-                      {formatDate(item.date)} • {formatTime(item.date)}
-                    </Text>
-                  </View>
-                  {item.status === 'completed' ? (
-                    <CheckCircle size={24} color="#10b981" />
-                  ) : (
-                    <View className="items-end gap-2">
-                      <View className="bg-[#fef3c7] px-3 py-1 rounded-lg">
-                        <Text className="text-[11px] font-semibold text-[#d97706]">Upcoming</Text>
-                      </View>
-                      <TouchableOpacity
-                        className="py-[2px]"
-                        onPress={() => handleMarkDone(item.id)}
+                  <View className="flex-row justify-between items-start mb-2">
+                    <View className="flex-1">
+                      <Text 
+                        className={`text-lg font-bold text-[#1f2937] mb-1 ${
+                          item.status === 'completed' ? 'text-[#6b7280]' : ''
+                        }`}
                       >
-                        <Text className="text-[13px] font-semibold text-[#6b7280] underline">Mark Done</Text>
-                      </TouchableOpacity>
+                        {item.title}
+                      </Text>
+                      
+                      
+                      {item.note && (
+                        <Text className="text-[12px] text-[#9ca3af] mb-1">
+                          {item.note}
+                        </Text>
+                      )}
+                      <Text className="text-[13px] text-[#9ca3af]">
+                        {formatDate(item.date)} • {formatTime(item.date)}
+                      </Text>
                     </View>
-                  )}
+                    {item.status === 'completed' ? (
+                      <CheckCircle size={24} color="#10b981" />
+                    ) : (
+                      <View className="items-end gap-2">
+                        <View className="bg-[#fef3c7] px-3 py-1 rounded-lg">
+                          <Text className="text-[11px] font-semibold text-[#d97706]">Upcoming</Text>
+                        </View>
+                        <TouchableOpacity
+                          className="py-[2px]"
+                          onPress={() => handleMarkDone(item.id)}
+                        >
+                          <Text className="text-[13px] font-semibold text-[#6b7280] underline">Mark Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
                 </View>
               ))}
           </View>
         ) : (
           <View className="items-center py-10">
             <Calendar size={40} color="#d1d5db" />
-            <Text className="mt-3 text-sm text-[#9ca3af]">No meetings scheduled yet</Text>
+            <Text className="mt-3 text-sm text-[#9ca3af]">No tasks scheduled yet</Text>
           </View>
         )}
       </ScrollView>
 
       {/* Fixed Reminder Toggle at Bottom */}
-      <View className="fixed  top-24 bg-white pb-0">
+      <View className="fixed top-24 bg-white pb-0">
         <View className="bg-white rounded-xl p-4 border border-[#e5e7eb] flex-row justify-between items-center">
           <View>
             <Text className="text-lg font-semibold text-[#1f2937] mb-1">Send me a reminder</Text>
-            <Text className="text-[13px] text-[#9ca3af]">For meeting</Text>
+            <Text className="text-[13px] text-[#9ca3af]">For tasks</Text>
           </View>
           <Switch
             value={reminderEnabled}
             onValueChange={handleReminderToggle}
             trackColor={{ false: '#d1d5db', true: '#9A8CFC' }}
             thumbColor="#ffffff"
-            // NativeWind supports scale, but transform style is often safer for Switch on Android/iOS cross-compat
             style={{ transform: [{ scaleX: 1.3 }, { scaleY: 1.3 }] }}
           />
         </View>
       </View>
 
-      {/* Add Meeting Modal */}
-      <Modal
-        visible={showMeetingModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowMeetingModal(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          className="flex-1 justify-end"
-        >
-          <TouchableOpacity
-            className="flex-1 bg-black/50"
-            activeOpacity={1}
-            onPress={() => setShowMeetingModal(false)}
-          />
-          <View className={`bg-white rounded-t-3xl ${Platform.OS === 'ios' ? 'pb-10' : 'pb-5'}`}>
-            <View className="flex-row justify-between items-center p-5 border-b border-[#f3f4f6]">
-              <Text className="text-xl font-bold text-[#1f2937]">Add Meeting</Text>
-              <TouchableOpacity onPress={() => setShowMeetingModal(false)}>
-                <X size={24} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
-
-            <View className="p-5">
-              <View className="mb-5">
-                <Text className="text-sm font-semibold text-[#374151] mb-2">Meeting Title</Text>
-                <TextInput
-                  className="bg-[#f9fafb] border border-[#e5e7eb] rounded-xl p-3.5 text-[15px] text-[#1f2937]"
-                  value={meetingTitle}
-                  onChangeText={setMeetingTitle}
-                  placeholder="Enter meeting title"
-                  placeholderTextColor="#9ca3af"
-                />
-              </View>
-
-              <View className="mb-5">
-                <Text className="text-sm font-semibold text-[#374151] mb-2">Date & Time</Text>
-                <TouchableOpacity
-                  className="flex-row items-center gap-2.5 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl p-3.5 mb-2.5"
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <Calendar size={20} color="#6b7280" />
-                  <Text className="text-[15px] text-[#1f2937] font-medium">
-                    {meetingDate.toLocaleDateString('en-GB', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric'
-                    })}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className="flex-row items-center gap-2.5 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl p-3.5"
-                  onPress={() => setShowTimePicker(true)}
-                >
-                  <Clock size={20} color="#6b7280" />
-                  <Text className="text-[15px] text-[#1f2937] font-medium">
-                    {meetingDate.toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: false
-                    })}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                className={`rounded-xl p-4 items-center mt-2.5 ${
-                  !meetingTitle.trim() ? 'bg-[#d1d5db]' : 'bg-[#9A8CFC]'
-                }`}
-                onPress={handleSaveMeeting}
-                disabled={!meetingTitle.trim()}
-              >
-                <Text className="text-base font-semibold text-white">Add Meeting</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Date Picker */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={meetingDate}
-          mode="date"
-          display="default"
-          onChange={(event, selectedDate) => {
-            setShowDatePicker(false);
-            if (selectedDate) {
-              setMeetingDate(selectedDate);
-            }
-          }}
-        />
-      )}
-
-      {/* Time Picker */}
-      {showTimePicker && (
-        <DateTimePicker
-          value={meetingDate}
-          mode="time"
-          display="default"
-          onChange={(event, selectedDate) => {
-            setShowTimePicker(false);
-            if (selectedDate) {
-              setMeetingDate(selectedDate);
-            }
-          }}
-        />
-      )}
+      {/* Add Task Modal - Using existing AddModal component */}
+      <AddModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        type="FollowUp"
+        onSave={handleSaveTask}
+        onUpdate={() => {}} // Empty function for now, not needed in add mode
+        initialCustomer={selectedDeal ? customers.find(c => c.id === selectedDeal.customerId) : null}
+        initialPropertyIds={selectedDeal?.propertyId ? [selectedDeal.propertyId] : []}
+        initialTaskType="Meeting"
+        customers={customers}
+        properties={properties}
+      />
     </View>
   );
 }

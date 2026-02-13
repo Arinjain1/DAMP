@@ -48,11 +48,21 @@ export default function Customers() {
     dispatch(setModalOpen(false));
   };
 
-  const handleAddFollowUpFromCustomer = (customer) => {
-    
-    dispatch(setEditItem({ customerId: customer.id })); 
-    dispatch(setModalType('FollowUp'));
-    dispatch(setModalOpen(true));
+  const handleAddFollowUpFromCustomer = (taskData) => {
+    // If taskData is a full task object, add it directly
+    if (taskData && taskData.customerId) {
+      const newTask = {
+        ...taskData,
+        id: taskData.id || Math.random().toString(36).substring(2, 11),
+        status: taskData.status || 'Pending'
+      };
+      dispatch(addFollowUp(newTask));
+    } else {
+      // Otherwise, open modal for adding new task
+      dispatch(setEditItem({ customerId: taskData?.id })); 
+      dispatch(setModalType('FollowUp'));
+      dispatch(setModalOpen(true));
+    }
   };
 
   const handleEditTask = (task) => {
