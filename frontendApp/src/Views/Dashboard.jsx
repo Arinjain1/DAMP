@@ -6,7 +6,10 @@ import {
     Plus,
     UserPlus
 } from 'lucide-react-native';
+import { useEffect, useMemo, useState } from 'react';
 import {
+    ActivityIndicator,
+    Alert,
     Image,
     Platform,
     ScrollView,
@@ -16,7 +19,9 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useSelector } from 'react-redux';
 
+import { dashboardAPI } from '../config/api';
 import {
     INITIAL_CUSTOMERS,
     INITIAL_DEALS,
@@ -24,7 +29,6 @@ import {
     INITIAL_PROFILE,
     INITIAL_PROPERTIES,
 } from '../MockData/Mockdata';
-import { useMemo } from 'react';
 
 // Currency formatter
 const formatCurrency = (amount) =>
@@ -35,11 +39,52 @@ const formatCurrency = (amount) =>
   }).format(amount || 0);
 
 const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Get logged-in user from Redux
+  const { user } = useSelector(state => state.auth);
+
+  // Fallback to mock data
   const properties = INITIAL_PROPERTIES;
   const customers = INITIAL_CUSTOMERS;
   const followUps = INITIAL_FOLLOWUPS;
-  const activeDeals = INITIAL_DEALS;
+  const activeDeals = dashboardData?.active_deals || INITIAL_DEALS;
   const unreadCount = 2;
+
+  // Fetch dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const response = await dashboardAPI.getOverview();
+        
+        if (response.data.success) {
+          setDashboardData(response.data.data);
+          setError(null);
+        }
+      } catch (err) {
+        console.error('Dashboard fetch error:', err);
+        setError(err.response?.data?.message || 'Failed to load dashboard data');
+        // Continue with mock data on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Use API data if available, otherwise use mock data
+  const stats = dashboardData?.stats || {
+    total_visitor: customers.length,
+    total_sale: INITIAL_DEALS.filter(d => d.stage === 'Completed').length,
+    pending: INITIAL_DEALS.filter(d => d.stage !== 'Completed').length,
+    rejected: 0,
+  };
+
+  const todaysTasks = dashboardData?.todays_focus || followUps.filter(f => f.status === 'Pending').slice(0, 3);
 
   // Memoize expensive calculations
   const getStageBadgeStyle = useMemo(() => (stage) => {
@@ -55,8 +100,8 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
 
   // Memoize filtered data
   const pendingFollowUps = useMemo(() => 
-    followUps.filter(f => f.status === 'Pending').slice(0, 3),
-    [followUps]
+    todaysTasks,
+    [todaysTasks]
   );
 
   const NavItem = ({ icon: Icon, label, onPress }) => (
@@ -79,7 +124,104 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
     <View style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      {/* Show error banner if API failed but continue with mock data */}
+      {error && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>Using offline data. {error}</Text>
+        </View>
+      )}
+
+      {loading ? (
+        // Skeleton Loader
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Header Skeleton */}
+          <View style={styles.header}>
+            <Image
+              source={require('../../assets/images/Group 1.png')}
+              style={styles.headerDecoration}
+            />
+            
+            <View style={styles.profileRow}>
+              <View style={styles.profileLeft}>
+                <View style={styles.skeletonAvatar} />
+                <View style={styles.skeletonNameContainer}>
+                  <View style={styles.skeletonName} />
+                </View>
+              </View>
+              <View style={styles.skeletonBell} />
+            </View>
+
+            {/* Stats Skeleton */}
+            <View style={styles.statsOuterBox}>
+              {[1, 2, 3, 4].map((i) => (
+                <View key={i} style={styles.statInnerBox}>
+                  <View style={styles.skeletonStatCount} />
+                  <View style={styles.skeletonStatLabel} />
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Body Skeleton */}
+          <View style={styles.body}>
+            <View style={styles.skeletonSectionTitle} />
+            
+            {/* Quick Actions Skeleton */}
+            <View style={styles.billPaymentsWrapper}>
+              <View style={styles.iconsGroup}>
+                {[1, 2, 3, 4].map((i) => (
+                  <View key={i} style={styles.skeletonNavItem}>
+                    <View style={styles.skeletonNavIcon} />
+                    <View style={styles.skeletonNavLabel} />
+                  </View>
+                ))}
+              </View>
+              <View style={styles.brokerBlock}>
+                <View style={styles.skeletonBrokerText} />
+                <View style={styles.skeletonBrokerNumber} />
+              </View>
+            </View>
+
+            {/* Active Deals Skeleton */}
+            <View style={{ marginTop: 24 }}>
+              <View style={styles.skeletonSectionTitle} />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {[1, 2, 3].map((i) => (
+                  <View key={i} style={styles.skeletonDealCard}>
+                    <View style={styles.skeletonDealTop}>
+                      <View style={styles.skeletonDealImage} />
+                      <View style={{ flex: 1, gap: 8 }}>
+                        <View style={styles.skeletonDealTitle} />
+                        <View style={styles.skeletonDealSubtitle} />
+                      </View>
+                    </View>
+                    <View style={styles.skeletonDealBottom}>
+                      <View style={styles.skeletonDealBadge} />
+                      <View style={styles.skeletonDealPrice} />
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Today's Focus Skeleton */}
+            <View style={{ marginTop: 24 }}>
+              <View style={styles.skeletonSectionTitle} />
+              {[1, 2, 3].map((i) => (
+                <View key={i} style={styles.skeletonTaskCard}>
+                  <View style={styles.skeletonDateBox} />
+                  <View style={{ flex: 1, gap: 8 }}>
+                    <View style={styles.skeletonTaskTitle} />
+                    <View style={styles.skeletonTaskNote} />
+                    <View style={styles.skeletonTaskTime} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false}>
         {/* ================= HEADER ================= */}
         <View style={styles.header}>
           <Image
@@ -91,7 +233,7 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
             <View style={styles.profileLeft}>
               <Image source={{ uri: INITIAL_PROFILE.avatar }} style={styles.avatar} />
               <View style={styles.nameRow}>
-                <Text style={styles.userName}>Manas Gangrade</Text>
+                <Text style={styles.userName}>{user?.name || 'User'}</Text>
                 <Image 
                   source={require('../../assets/images/pajamas_partner-verified.png')} 
                   style={styles.verificationBadge}
@@ -110,10 +252,10 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
 
           {/* Stats */}
           <View style={styles.statsOuterBox}>
-            <StatBlock label="Total Visitor" count={123} />
-            <StatBlock label="Total Sale" count={45} />
-            <StatBlock label="Pending" count={34} />
-            <StatBlock label="Rejected" count={14} />
+            <StatBlock label="Total Visitor" count={stats.total_visitor} />
+            <StatBlock label="Total Sale" count={stats.total_sale} />
+            <StatBlock label="Pending" count={stats.pending} />
+            <StatBlock label="Rejected" count={stats.rejected} />
           </View>
         </View>
 
@@ -191,7 +333,20 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
               </TouchableOpacity>
             </View>
 
-            {pendingFollowUps.map(task => {
+            {pendingFollowUps.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Image 
+                  source={require('../../assets/images/rafiki.png')} 
+                  style={styles.emptyStateImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.emptyStateTitle}>All Clear!</Text>
+                <Text style={styles.emptyStateText}>
+                  No tasks for today. Time to relax or plan ahead!
+                </Text>
+              </View>
+            ) : (
+              pendingFollowUps.map(task => {
                 const customer = customers.find(c => c.id === task.customerId);
                 const date = new Date(task.date);
 
@@ -218,10 +373,12 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
                     </View>
                   </View>
                 );
-              })}
+              })
+            )}
           </View>
         </View>
       </ScrollView>
+      )}
     </View>
   );
 };
@@ -363,6 +520,19 @@ const styles = StyleSheet.create({
     marginBottom: 1,
     fontFamily: 'MONTSERRAT_600',
   },
+  
+  errorBanner: {
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FCD34D',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#92400E',
+    textAlign: 'center',
+    fontFamily: 'MONTSERRAT_500',
+  },
   /* ------------------------------------ */
 
   dealCard: {
@@ -422,3 +592,189 @@ const styles = StyleSheet.create({
   timeRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
   timeText: { fontSize: 10, fontWeight: '700', color: '#9ca3af' , bottom :3},
 });
+
+// Skeleton Loader Styles - Added after closing brace
+const skeletonStyles = StyleSheet.create({
+  skeletonAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#e5e7eb',
+  },
+  skeletonNameContainer: {
+    gap: 6,
+  },
+  skeletonName: {
+    width: 120,
+    height: 16,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonBell: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e5e7eb',
+  },
+  skeletonStatCount: {
+    width: 30,
+    height: 14,
+    backgroundColor: '#d1d5db',
+    borderRadius: 4,
+    marginBottom: 6,
+  },
+  skeletonStatLabel: {
+    width: 50,
+    height: 11,
+    backgroundColor: '#d1d5db',
+    borderRadius: 4,
+  },
+  skeletonSectionTitle: {
+    width: 120,
+    height: 16,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+    marginBottom: 15,
+  },
+  skeletonNavItem: {
+    alignItems: 'center',
+    minWidth: 50,
+  },
+  skeletonNavIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: '#e5e7eb',
+    marginBottom: 2,
+  },
+  skeletonNavLabel: {
+    width: 40,
+    height: 11,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonBrokerText: {
+    width: 50,
+    height: 12,
+    backgroundColor: '#d1d5db',
+    borderRadius: 4,
+    marginBottom: 4,
+  },
+  skeletonBrokerNumber: {
+    width: 30,
+    height: 12,
+    backgroundColor: '#d1d5db',
+    borderRadius: 4,
+  },
+  skeletonDealCard: {
+    width: 280,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    marginRight: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  skeletonDealTop: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  skeletonDealImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#e5e7eb',
+  },
+  skeletonDealTitle: {
+    height: 13,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonDealSubtitle: {
+    height: 11,
+    width: '60%',
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonDealBottom: {
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    paddingTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  skeletonDealBadge: {
+    width: 80,
+    height: 20,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 6,
+  },
+  skeletonDealPrice: {
+    width: 60,
+    height: 13,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonTaskCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  skeletonDateBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#e5e7eb',
+  },
+  skeletonTaskTitle: {
+    height: 14,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonTaskNote: {
+    height: 12,
+    width: '80%',
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonTaskTime: {
+    height: 10,
+    width: 60,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyStateImage: {
+    width: 180,
+    height: 180,
+    marginBottom: 14,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+});
+
+// Merge skeleton styles with main styles
+Object.assign(styles, skeletonStyles);

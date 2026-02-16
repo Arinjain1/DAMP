@@ -1,4 +1,5 @@
-import { View } from 'react-native';
+import { useEffect } from 'react';
+import { View, Alert } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
 import AddModal from '../src/Modal and Sheets/AddModal';
@@ -6,20 +7,77 @@ import CustomerDetailSheet from '../src/Modal and Sheets/CustomerDetailSheet';
 import CustomersList from '../src/Views/CustomersList';
 
 // Redux actions
-import { addCustomer, clearSelectedCustomer, setSelectedCustomer, updateCustomer, updateCustomerStatus } from '../src/store/slices/customersSlice';
+import { addCustomer, clearSelectedCustomer, setSelectedCustomer, updateCustomer, updateCustomerStatus, setCustomers, setLoading, setError } from '../src/store/slices/customersSlice';
 import { addDeal, clearSelectedDeal, closeDeal, setSelectedDeal, updateDeal } from '../src/store/slices/dealsSlice';
 import { addFollowUp, deleteFollowUp, updateFollowUp } from '../src/store/slices/followUpsSlice';
 import { clearEditItem, setEditItem, setModalOpen, setModalType } from '../src/store/slices/uiSlice';
+
+// API
+import { customersAPI } from '../src/config/api';
 
 export default function Customers() {
   const dispatch = useDispatch();
   const router = useRouter();
   
   const { properties } = useSelector(state => state.properties);
-  const { customers, selectedCustomer } = useSelector(state => state.customers);
+  const { customers, selectedCustomer, loading } = useSelector(state => state.customers);
   const { deals, selectedDeal } = useSelector(state => state.deals);
   const { followUps } = useSelector(state => state.followUps);
   const { modalOpen, modalType, editItem } = useSelector(state => state.ui);
+
+  // Fetch customers on component mount
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      dispatch(setLoading(true));
+      const response = await customersAPI.getAll();
+      
+      if (response.data.success) {
+        // Map backend data to frontend format
+        const mappedCustomers = response.data.data.map(client => {
+          // Map database status to UI stage
+          let stage = 'New';
+          if (client.status === 'New Lead') stage = 'New';
+          else if (client.status === 'Contacted') stage = 'Contacted';
+          else if (client.status === 'Site Visit') stage = 'Site Visit';
+          else if (client.status === 'Interested') stage = 'Interested';
+          else if (client.status === 'Meeting') stage = 'Meeting';
+          else if (client.status === 'Negotiation') stage = 'Negotiation';
+          else if (client.status === 'Token') stage = 'Token';
+          else if (client.status === 'Agreement') stage = 'Agreement';
+          else if (client.status === 'Completed') stage = 'Completed';
+          
+          return {
+            id: client.id,
+            name: client.name,
+            phone: client.phone,
+            status: client.status,
+            stage: stage,
+            requirement: client.requirement_type,
+            category: client.property_category,
+            type: client.property_type,
+            bhk: client.configuration,
+            furnishing: client.furnishing_status,
+            budgetMin: client.budget_min,
+            budgetMax: client.budget_max,
+            location: client.preferred_location,
+            notes: client.notes,
+            createdAt: client.created_at,
+          };
+        });
+        
+        dispatch(setCustomers(mappedCustomers));
+      }
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      dispatch(setError(error.response?.data?.message || 'Failed to fetch customers'));
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
 
   const generateId = () => Math.random().toString(36).substring(2, 11);
 
@@ -32,20 +90,146 @@ export default function Customers() {
     }, 50);
   };
 
-  const handleAdd = (data) => {
-    const newCustomer = { ...data, id: generateId() };
-    dispatch(addCustomer(newCustomer));
-    dispatch(setModalOpen(false));
+  const handleEditCustomer = (customer) => {
+    
+    
+    // Map customer data to form format
+    const editData = {
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      listingType: customer.requirement === 'Rent' ? 'Rent/Lease' : 'Buy',
+      category: customer.category,
+      type: customer.type,
+      bhk: customer.bhk,
+      commercialConfig: customer.bhk,
+      furnishing: customer.furnishing,
+      preferredLocation: customer.location,
+      details: customer.notes,
+      budgetMin: customer.budgetMin,
+      budgetMax: customer.budgetMax,
+    };
+    
+   
+    
+    dispatch(setEditItem(editData));
+    dispatch(setModalType('Customer'));
+    setTimeout(() => {
+      dispatch(setModalOpen(true));
+    }, 50);
   };
 
-  const handleUpdate = (updatedItem) => {
+  const handleAdd = async (data) => {
+    try {
+      // Map customer form data to API structure
+      const apiPayload = {
+        name: data.name || '',
+        phone: data.phone || '',
+        requirement_type: data.listingType === 'Buy' ? 'Buy' : 'Rent',
+        property_category: data.category || 'Residential',
+        property_type: data.type || '',
+        configuration: data.bhk || data.commercialConfig || null,
+        furnishing_status: data.furnishing || null,
+        budget_min: data.budgetMin || 0,
+        budget_max: data.budgetMax || 0,
+        preferred_location: data.preferredLocation || '',
+        notes: data.details || '',
+      };
+
+      const response = await customersAPI.create(apiPayload);
+      
+      if (response.data.success) {
+        // Map backend response to frontend format
+        const mappedCustomer = {
+          id: response.data.data.id,
+          name: response.data.data.name,
+          phone: response.data.data.phone,
+          status: response.data.data.status,
+          requirement: response.data.data.requirement_type,
+          category: response.data.data.property_category,
+          type: response.data.data.property_type,
+          bhk: response.data.data.configuration,
+          furnishing: response.data.data.furnishing_status,
+          budgetMin: response.data.data.budget_min,
+          budgetMax: response.data.data.budget_max,
+          location: response.data.data.preferred_location,
+          notes: response.data.data.notes,
+        };
+        
+        dispatch(addCustomer(mappedCustomer));
+        dispatch(setModalOpen(false));
+        Alert.alert('Success', 'Customer added successfully!');
+        // Refresh customers list
+        fetchCustomers();
+      }
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to add customer. Please try again.';
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  const handleUpdate = async (updatedItem) => {
+    
+    
     if (modalType === 'FollowUp') {
       dispatch(updateFollowUp(updatedItem));
-    } else {
-      dispatch(updateCustomer(updatedItem));
+      dispatch(clearEditItem());
+      dispatch(setModalOpen(false));
+    } else if (modalType === 'Customer') {
+      try {
+        // Map form data to API structure
+        const apiPayload = {
+          name: updatedItem.name || '',
+          phone: updatedItem.phone || '',
+          requirement_type: updatedItem.listingType === 'Buy' ? 'Buy' : 'Rent',
+          property_category: updatedItem.category || 'Residential',
+          property_type: updatedItem.type || '',
+          configuration: updatedItem.bhk || updatedItem.commercialConfig || null,
+          furnishing_status: updatedItem.furnishing || null,
+          budget_min: updatedItem.budgetMin || 0,
+          budget_max: updatedItem.budgetMax || 0,
+          preferred_location: updatedItem.preferredLocation || '',
+          notes: updatedItem.details || '',
+        };
+
+        
+
+        const response = await customersAPI.update(updatedItem.id, apiPayload);
+        
+        
+        
+        if (response.data.success) {
+          // Map backend response to frontend format
+          const mappedCustomer = {
+            id: response.data.data.id,
+            name: response.data.data.name,
+            phone: response.data.data.phone,
+            status: response.data.data.status,
+            requirement: response.data.data.requirement_type,
+            category: response.data.data.property_category,
+            type: response.data.data.property_type,
+            bhk: response.data.data.configuration,
+            furnishing: response.data.data.furnishing_status,
+            budgetMin: response.data.data.budget_min,
+            budgetMax: response.data.data.budget_max,
+            location: response.data.data.preferred_location,
+            notes: response.data.data.notes,
+          };
+          
+          dispatch(updateCustomer(mappedCustomer));
+          dispatch(clearEditItem());
+          dispatch(setModalOpen(false));
+          Alert.alert('Success', 'Customer updated successfully!');
+          fetchCustomers();
+        }
+      } catch (error) {
+        console.error('=== Error updating customer ===', error);
+        console.error('Error response:', error.response?.data);
+        const errorMessage = error.response?.data?.message || 'Failed to update customer. Please try again.';
+        Alert.alert('Error', errorMessage);
+      }
     }
-    dispatch(clearEditItem());
-    dispatch(setModalOpen(false));
   };
 
   const handleAddFollowUpFromCustomer = (taskData) => {
@@ -105,8 +289,10 @@ export default function Customers() {
     <View className="flex-1 bg-gray-50">
       <CustomersList 
         customers={customers} 
+        loading={loading}
         onSelect={(customer) => dispatch(setSelectedCustomer(customer))} 
         onAddCustomer={handleAddCustomer}
+        onEditCustomer={handleEditCustomer}
         onOpenDeal={(customer) => {
           // Find the deal for this customer
           const customerDeal = deals.find(d => d.customerId === customer.id);

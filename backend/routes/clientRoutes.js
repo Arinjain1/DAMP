@@ -1,7 +1,8 @@
 import express from 'express';
 import { 
   addClient, 
-  getClients, 
+  getClients,
+  updateClient,
   getClientDetails, 
   createDeal, 
   getDealDetails,      
@@ -17,6 +18,7 @@ router.use(verifyToken);
 
 router.get('/', getClients);
 router.post('/', addClient);
+router.put('/:id', updateClient);
 router.post('/deal', createDeal); 
 router.get('/:id', getClientDetails);
 router.get('/deal/:id', getDealDetails);            

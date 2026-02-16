@@ -251,12 +251,78 @@ const AddModal = ({
     useEffect(() => {
         if (editItem) {
             const updatedEditItem = { ...editItem };
+            
+            // Handle customer editing - set budget range
+            if (type === 'Customer') {
+                if (editItem.budgetMin !== undefined && editItem.budgetMax !== undefined) {
+                    setBudgetRange({
+                        min: editItem.budgetMin,
+                        max: editItem.budgetMax
+                    });
+                }
+            }
+            
+            // Handle property editing - map backend format to form format
+            if (type === 'Property') {
+                // Check if bhk field contains actual BHK values or commercial config
+                const bhkValues = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
+                const hasBHK = editItem.bhk && bhkValues.includes(editItem.bhk);
+                
+                // If category is Residential and has BHK value, use it
+                if (editItem.category === 'Residential' && hasBHK) {
+                    updatedEditItem.bhk = editItem.bhk;
+                    updatedEditItem.commercialConfig = '';
+                } 
+                // If category is Commercial, use commercialConfig
+                else if (editItem.category === 'Commercial') {
+                    updatedEditItem.bhk = '';
+                    updatedEditItem.commercialConfig = editItem.bhk || editItem.commercialConfig || '';
+                }
+                // Default case
+                else {
+                    updatedEditItem.bhk = '';
+                    updatedEditItem.commercialConfig = '';
+                }
+                
+                // Parse price to get value and unit
+                if (editItem.price) {
+                    const price = parseFloat(editItem.price);
+                    if (price >= 10000000) {
+                        updatedEditItem.priceValue = (price / 10000000).toString();
+                        updatedEditItem.priceUnit = 'Crore';
+                    } else if (price >= 100000) {
+                        updatedEditItem.priceValue = (price / 100000).toString();
+                        updatedEditItem.priceUnit = 'Lakh';
+                    } else if (price >= 1000) {
+                        updatedEditItem.priceValue = (price / 1000).toString();
+                        updatedEditItem.priceUnit = 'Thousands';
+                    } else {
+                        updatedEditItem.priceValue = price.toString();
+                        updatedEditItem.priceUnit = 'Thousands';
+                    }
+                }
+                
+                // Parse size
+                if (editItem.size && typeof editItem.size === 'string') {
+                    const sizeMatch = editItem.size.match(/^(\d+\.?\d*)\s*(.*)$/);
+                    if (sizeMatch) {
+                        updatedEditItem.sizeValue = sizeMatch[1];
+                        updatedEditItem.sizeUnit = sizeMatch[2] || 'Sq. Ft.';
+                    }
+                } else {
+                    updatedEditItem.sizeValue = '';
+                    updatedEditItem.sizeUnit = 'Sq. Ft.';
+                }
+            }
+            
+            // Handle follow-up editing
             if (editItem.propertyId && !editItem.propertyIds) {
                 updatedEditItem.propertyIds = [editItem.propertyId];
                 delete updatedEditItem.propertyId;
             } else if (!editItem.propertyIds) {
                 updatedEditItem.propertyIds = [];
             }
+            
             setFormData(updatedEditItem);
         } else {
             if (type === 'Property') {
@@ -414,7 +480,7 @@ const AddModal = ({
         const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
         if (!cameraPermission.granted) return;
         const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ['images'],
             allowsEditing: true,
             aspect: [16, 9],
             quality: 0.8,
@@ -426,7 +492,7 @@ const AddModal = ({
         const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!mediaPermission.granted) return;
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ['images'],
             allowsEditing: true,
             aspect: [16, 9],
             quality: 0.8,
@@ -436,16 +502,27 @@ const AddModal = ({
 
     const handleSubmit = () => {
         if (editItem) {
-            onUpdate(formData);
+            const finalData = { ...formData };
+            if (type === 'Customer') {
+                // Add budget range values to customer data
+                finalData.budgetMin = budgetRange.min;
+                finalData.budgetMax = budgetRange.max;
+            }
+            onUpdate(finalData);
         } else {
             const finalData = { ...formData, id: generateId() };
             if (type === 'Property') {
                 if (!finalData.title) finalData.title = `${finalData.bhk ? finalData.bhk + ' ' : ''}${finalData.type}`;
                 if (!finalData.image) finalData.image = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80';
             }
+            if (type === 'Customer') {
+                // Add budget range values to customer data
+                finalData.budgetMin = budgetRange.min;
+                finalData.budgetMax = budgetRange.max;
+            }
             onSave(finalData);
+            // Don't close immediately - let the save handler close after success
         }
-        onClose();
     };
 
     const handleDateChange = (event, selectedDate) => {
