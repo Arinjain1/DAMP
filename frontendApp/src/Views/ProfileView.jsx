@@ -67,8 +67,8 @@ const ProfileView = () => {
               <Text style={styles.subscriptionExpiry}>({profileData.subscription.expiry})</Text>
             </View>
           </View>
-          <Image 
-            source={{ uri: 'https://via.placeholder.com/80' }} 
+          <Image
+            source={{ uri: 'https://via.placeholder.com/80' }}
             style={styles.subscriptionIcon}
           />
         </View>
@@ -76,19 +76,19 @@ const ProfileView = () => {
         {/* Account Details Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account Details</Text>
-          
+
           <MenuItem
             icon="person-outline"
             title="Profile Information"
             subtitle="Manage account details"
-            onPress={() => console.log('Profile Information')}
+            onPress={() => { }}
           />
-          
+
           <MenuItem
             icon="card-outline"
             title="Identify Verification"
             subtitle="Check your verified status"
-            onPress={() => console.log('Identify Verification')}
+            onPress={() => { }}
             showBadge={profileData.isVerified}
           />
         </View>
@@ -96,23 +96,23 @@ const ProfileView = () => {
         {/* Other Details Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Other Details</Text>
-          
+
           <MenuItem
             icon="help-circle-outline"
             title="Support Hub"
-            onPress={() => console.log('Support Hub')}
+            onPress={() => { }}
           />
-          
+
           <MenuItem
             icon="document-text-outline"
             title="Terms & Conditions"
-            onPress={() => console.log('Terms & Conditions')}
+            onPress={() => { }}
           />
-          
+
           <MenuItem
             icon="shield-checkmark-outline"
             title="Data Privacy"
-            onPress={() => console.log('Data Privacy')}
+            onPress={() => { }}
           />
         </View>
 

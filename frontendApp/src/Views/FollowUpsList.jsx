@@ -1,18 +1,18 @@
 import {
-    Calendar,
-    CheckCircle,
-    Home,
-    Map,
-    Phone
+  Calendar,
+  CheckCircle,
+  Home,
+  Map,
+  Phone
 } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import WhatsAppIcon from '../Components/WhatsAppIcon';
 
@@ -22,7 +22,7 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 
 const FollowUpsList = ({ followUps = [], customers = [], properties = [], onUpdateStatus, onDelete, onStartVisit }) => {
   const [filter, setFilter] = useState('Pending');
-  
+
   // Logic to filter and sort tasks
   const filteredTasks = followUps
     .filter(t => t.status === filter)
@@ -30,181 +30,180 @@ const FollowUpsList = ({ followUps = [], customers = [], properties = [], onUpda
 
   // Action Handlers
   const handleCall = (phone) => {
-    if(phone) Linking.openURL(`tel:${phone}`);
+    if (phone) Linking.openURL(`tel:${phone}`);
   };
 
   const handleWhatsApp = (phone) => {
-    if(phone) Linking.openURL(`https://wa.me/${phone}`);
+    if (phone) Linking.openURL(`https://wa.me/${phone}`);
   };
 
   return (
     <View style={styles.container}>
-      
+
       {/* --- STICKY HEADER --- */}
       <View style={styles.headerContainer}>
-         <View>
-            <Text style={styles.headerTitle}>Daily Planner</Text>
-            <Text style={styles.headerSubtitle}>Manage your tasks</Text>
-         </View>
-         
-         {/* Improved Toggle Buttons */}
-         <View style={styles.filterContainer}>
-            {['Pending', 'Done'].map(f => (
-               <TouchableOpacity 
-                  key={f} 
-                  onPress={() => setFilter(f)} 
-                  style={[
-                    styles.filterTab, 
-                    filter === f && styles.filterTabActive
-                  ]}
-                  activeOpacity={0.8}
-               >
-                  <Text style={[
-                    styles.filterText, 
-                    filter === f ? styles.filterTextActive : styles.filterTextInactive
-                  ]}>
-                     {f}
-                  </Text>
-               </TouchableOpacity>
-            ))}
-         </View>
+        <View>
+          <Text style={styles.headerTitle}>Daily Planner</Text>
+          <Text style={styles.headerSubtitle}>Manage your tasks</Text>
+        </View>
+
+        {/* Improved Toggle Buttons */}
+        <View style={styles.filterContainer}>
+          {['Pending', 'Done'].map(f => (
+            <TouchableOpacity
+              key={f}
+              onPress={() => setFilter(f)}
+              style={[
+                styles.filterTab,
+                filter === f && styles.filterTabActive
+              ]}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.filterText,
+                filter === f ? styles.filterTextActive : styles.filterTextInactive
+              ]}>
+                {f}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
-      
+
       {/* --- SCROLLABLE TIMELINE --- */}
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-         <View style={styles.timelineContainer}>
-            
-            {/* Vertical Line */}
-            <View style={styles.timelineLine} />
+        <View style={styles.timelineContainer}>
 
-            <View style={styles.taskList}>
-               {filteredTasks.length > 0 ? filteredTasks.map((task) => {
-                  const customer = customers.find(c => c.id === task.customerId);
-                  // Support both single propertyId (old) and propertyIds array (new)
-                  const taskPropertyIds = task.propertyIds || (task.propertyId ? [task.propertyId] : []);
-                  const taskProperties = properties.filter(p => taskPropertyIds.includes(p.id));
-                  
-                  // Debug log
-                  console.log('Task:', task.id, 'PropertyIds:', taskPropertyIds, 'Found properties:', taskProperties.length);
-                  
-                  const date = new Date(task.date);
-                  
-                  // Determine type (Visit vs Call) for styling
-                  const isVisit = task.type === 'Visit' || task.type === 'Meeting';
-                  const primaryColor = isVisit ? '#f59e0b' : '#3b82f6'; // Amber vs Blue
-                  const lightBg = isVisit ? '#fffbeb' : '#eff6ff'; // Light Amber vs Light Blue
+          {/* Vertical Line */}
+          <View style={styles.timelineLine} />
 
-                  return (
-                     <View key={task.id} style={styles.taskRow}>
-                        
-                        {/* Left Column: Time & Dot */}
-                        <View style={styles.timeColumn}>
-                           <Text style={styles.timeText}>
-                              {date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                           </Text>
-                           <View style={[styles.timelineDot, { borderColor: primaryColor }]} />
-                        </View>
+          <View style={styles.taskList}>
+            {filteredTasks.length > 0 ? filteredTasks.map((task) => {
+              const customer = customers.find(c => c.id === task.customerId);
+              // Support both single propertyId (old) and propertyIds array (new)
+              const taskPropertyIds = task.propertyIds || (task.propertyId ? [task.propertyId] : []);
+              const taskProperties = properties.filter(p => taskPropertyIds.includes(p.id));
 
-                        {/* Right Column: Task Card */}
-                        <View style={[
-                           styles.card, 
-                           { borderLeftColor: primaryColor } 
-                        ]}>
-                           
-                           {/* Card Header */}
-                           <View style={styles.cardHeader}>
-                              <View style={{ flex: 1, marginRight: 8 }}>
-                                 {/* Type Badge */}
-                                 <View style={[styles.badge, { backgroundColor: lightBg }]}>
-                                    <Text style={[styles.badgeText, { color: isVisit ? '#b45309' : '#1d4ed8' }]}>
-                                       {isVisit ? 'Site Visit' : 'Call / Follow-up'}
-                                    </Text>
-                                 </View>
-                                 
-                                 {/* Customer Name */}
-                                 <Text style={styles.customerName}>{customer?.name || 'Unknown Customer'}</Text>
-                                 
-                                 {/* Properties List */}
-                                 {taskProperties.length > 0 && (
-                                    <View style={{ marginTop: 4 }}>
-                                       {/* Show first property */}
-                                       <View style={styles.propertyRow}>
-                                          <Home size={12} color="#6b7280" />
-                                          <Text style={styles.propertyText} numberOfLines={1}>
-                                             {taskProperties[0].title}
-                                          </Text>
-                                       </View>
-                                       {/* Show "Show More" if multiple properties */}
-                                       {taskProperties.length > 1 && (
-                                          <Text style={styles.showMoreText}>
-                                             +{taskProperties.length - 1} more {taskProperties.length - 1 === 1 ? 'property' : 'properties'}
-                                          </Text>
-                                       )}
-                                    </View>
-                                 )}
-                              </View>
-                              
-                              {/* Done Button */}
-                              {filter !== 'Done' && (
-                                 <TouchableOpacity 
-                                    onPress={() => onUpdateStatus && onUpdateStatus(task.id, 'Done')} 
-                                    style={styles.checkButton}
-                                 >
-                                    <CheckCircle size={24} color="#9ca3af" />
-                                 </TouchableOpacity>
-                              )}
-                           </View>
-                           
-                           {/* Note */}
-                           <Text style={styles.noteText}>{task.note}</Text>
-                           
-                           {/* Action Buttons */}
-                           <View style={styles.actionContainer}>
-                              {isVisit && filter === 'Pending' && taskProperties.length > 0 ? (
-                                 <TouchableOpacity 
-                                    onPress={() => onStartVisit && onStartVisit({ id: generateId(), customer, property: taskProperties[0], taskId: task.id })}
-                                    style={styles.startVisitButton}
-                                 >
-                                    <Map size={16} color="#fbbf24" />
-                                    <Text style={styles.startVisitText}>Start Site Visit Flow</Text>
-                                 </TouchableOpacity>
-                              ) : (
-                                 <View style={styles.contactButtonsRow}>
-                                    <TouchableOpacity 
-                                       onPress={() => handleCall(customer?.phone)} 
-                                       style={[styles.contactButton, { backgroundColor: '#f0fdf4' }]}
-                                    >
-                                       <Phone size={16} color="#15803d" />
-                                       <Text style={[styles.contactButtonText, { color: '#15803d' }]}>Call</Text>
-                                    </TouchableOpacity>
-                                    
-                                    <TouchableOpacity 
-                                       onPress={() => handleWhatsApp(customer?.phone)}
-                                       style={[styles.contactButton, { backgroundColor: '#f9fafb' }]}
-                                    >
-                                       <WhatsAppIcon size={16} color="#25D366" />
-                                       <Text style={[styles.contactButtonText, { color: '#4b5563' }]}>WhatsApp</Text>
-                                    </TouchableOpacity>
-                                 </View>
-                              )}
-                           </View>
+              // Debug log
 
-                        </View>
-                     </View>
-                  );
-               }) : (
-                  <View style={styles.emptyState}>
-                     <Calendar size={48} color="#e5e7eb" />
-                     <Text style={styles.emptyText}>No {filter.toLowerCase()} tasks.</Text>
-                     <Text style={styles.emptySubtext}>Enjoy your free time!</Text>
+              const date = new Date(task.date);
+
+              // Determine type (Visit vs Call) for styling
+              const isVisit = task.type === 'Visit' || task.type === 'Meeting';
+              const primaryColor = isVisit ? '#f59e0b' : '#3b82f6'; // Amber vs Blue
+              const lightBg = isVisit ? '#fffbeb' : '#eff6ff'; // Light Amber vs Light Blue
+
+              return (
+                <View key={task.id} style={styles.taskRow}>
+
+                  {/* Left Column: Time & Dot */}
+                  <View style={styles.timeColumn}>
+                    <Text style={styles.timeText}>
+                      {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                    <View style={[styles.timelineDot, { borderColor: primaryColor }]} />
                   </View>
-               )}
-            </View>
-         </View>
+
+                  {/* Right Column: Task Card */}
+                  <View style={[
+                    styles.card,
+                    { borderLeftColor: primaryColor }
+                  ]}>
+
+                    {/* Card Header */}
+                    <View style={styles.cardHeader}>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        {/* Type Badge */}
+                        <View style={[styles.badge, { backgroundColor: lightBg }]}>
+                          <Text style={[styles.badgeText, { color: isVisit ? '#b45309' : '#1d4ed8' }]}>
+                            {isVisit ? 'Site Visit' : 'Call / Follow-up'}
+                          </Text>
+                        </View>
+
+                        {/* Customer Name */}
+                        <Text style={styles.customerName}>{customer?.name || 'Unknown Customer'}</Text>
+
+                        {/* Properties List */}
+                        {taskProperties.length > 0 && (
+                          <View style={{ marginTop: 4 }}>
+                            {/* Show first property */}
+                            <View style={styles.propertyRow}>
+                              <Home size={12} color="#6b7280" />
+                              <Text style={styles.propertyText} numberOfLines={1}>
+                                {taskProperties[0].title}
+                              </Text>
+                            </View>
+                            {/* Show "Show More" if multiple properties */}
+                            {taskProperties.length > 1 && (
+                              <Text style={styles.showMoreText}>
+                                +{taskProperties.length - 1} more {taskProperties.length - 1 === 1 ? 'property' : 'properties'}
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Done Button */}
+                      {filter !== 'Done' && (
+                        <TouchableOpacity
+                          onPress={() => onUpdateStatus && onUpdateStatus(task.id, 'Done')}
+                          style={styles.checkButton}
+                        >
+                          <CheckCircle size={24} color="#9ca3af" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Note */}
+                    <Text style={styles.noteText}>{task.note}</Text>
+
+                    {/* Action Buttons */}
+                    <View style={styles.actionContainer}>
+                      {isVisit && filter === 'Pending' && taskProperties.length > 0 ? (
+                        <TouchableOpacity
+                          onPress={() => onStartVisit && onStartVisit({ id: generateId(), customer, property: taskProperties[0], taskId: task.id })}
+                          style={styles.startVisitButton}
+                        >
+                          <Map size={16} color="#fbbf24" />
+                          <Text style={styles.startVisitText}>Start Site Visit Flow</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={styles.contactButtonsRow}>
+                          <TouchableOpacity
+                            onPress={() => handleCall(customer?.phone)}
+                            style={[styles.contactButton, { backgroundColor: '#f0fdf4' }]}
+                          >
+                            <Phone size={16} color="#15803d" />
+                            <Text style={[styles.contactButtonText, { color: '#15803d' }]}>Call</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            onPress={() => handleWhatsApp(customer?.phone)}
+                            style={[styles.contactButton, { backgroundColor: '#f9fafb' }]}
+                          >
+                            <WhatsAppIcon size={16} color="#25D366" />
+                            <Text style={[styles.contactButtonText, { color: '#4b5563' }]}>WhatsApp</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+
+                  </View>
+                </View>
+              );
+            }) : (
+              <View style={styles.emptyState}>
+                <Calendar size={48} color="#e5e7eb" />
+                <Text style={styles.emptyText}>No {filter.toLowerCase()} tasks.</Text>
+                <Text style={styles.emptySubtext}>Enjoy your free time!</Text>
+              </View>
+            )}
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -244,7 +243,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
   },
-  
+
   // --- IMPROVED TOGGLE BUTTONS ---
   filterContainer: {
     flexDirection: 'row',
@@ -253,14 +252,14 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 10, // More rounded container
     alignItems: 'center',
-    gap:4,
-    
+    gap: 4,
+
   },
   filterTab: {
     paddingHorizontal: 16,
     paddingVertical: 12, // Slightly taller
     borderRadius: 6,   // Matches container curve
-    minWidth: 80,   
+    minWidth: 80,
     height: 24,    // Consistent width
     alignItems: 'center',
   },
@@ -282,7 +281,7 @@ const styles = StyleSheet.create({
   filterTextInactive: {
     color: '#9ca3af',
   },
-  
+
   // --- CONTENT ---
   scrollView: {
     flex: 1,

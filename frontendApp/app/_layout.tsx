@@ -39,7 +39,7 @@ SplashScreen.preventAutoHideAsync();
 
 // Reanimated/Babel warnings ko ignore karein downgrade ke baad
 LogBox.ignoreLogs([
-  '@babel/plugin-proposal-class-properties', 
+  '@babel/plugin-proposal-class-properties',
   'Reanimated',
   'SafeAreaView has been deprecated'
 ]);
@@ -47,7 +47,6 @@ LogBox.ignoreLogs([
 function AppNavigator() {
   const { isAuthenticated } = useSelector(state => state.auth);
 
-  console.log('AppNavigator: isAuthenticated =', isAuthenticated);
 
   if (!isAuthenticated) {
     return (
@@ -119,42 +118,42 @@ function AppNavigator() {
       />
 
       {/* Hidden Screens */}
-      <Tabs.Screen 
-        name="deals" 
-        options={{ 
+      <Tabs.Screen
+        name="deals"
+        options={{
           href: null,
           tabBarStyle: { display: 'none' }
-        }} 
+        }}
       />
-      <Tabs.Screen 
-        name="deal-page" 
-        options={{ 
+      <Tabs.Screen
+        name="deal-page"
+        options={{
           href: null,
           tabBarStyle: { display: 'none' }
-        }} 
+        }}
       />
-      <Tabs.Screen 
-        name="notifications" 
-        options={{ 
+      <Tabs.Screen
+        name="notifications"
+        options={{
           href: null,
           tabBarStyle: { display: 'none' }
-        }} 
+        }}
       />
-      <Tabs.Screen 
-        name="stats" 
-        options={{ 
+      <Tabs.Screen
+        name="stats"
+        options={{
           href: null,
           tabBarStyle: { display: 'none' }
-        }} 
+        }}
       />
-      <Tabs.Screen 
-        name="legal" 
-        options={{ 
+      <Tabs.Screen
+        name="legal"
+        options={{
           href: null,
           tabBarStyle: { display: 'none' }
-        }} 
+        }}
       />
-      
+
       {/* Hide auth and onboarding screens from tabs */}
       <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen name="splash" options={{ href: null }} />

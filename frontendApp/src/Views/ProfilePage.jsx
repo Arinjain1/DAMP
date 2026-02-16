@@ -63,16 +63,16 @@ export default function ProfilePage({ onRenew }) {
       <StatusBar barStyle="light-content" backgroundColor="#A78BFA" />
 
       {/* ================= SCROLLABLE CONTENT ================= */}
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Purple Header Section */}
         <View style={styles.purpleHeader}>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>Profile</Text>
-            <TouchableOpacity 
-              onPress={() => console.log('Notifications')}
+            <TouchableOpacity
+              onPress={() => { }}
               style={styles.notificationButton}
             >
               <Bell size={24} color="#fff" />
@@ -91,15 +91,15 @@ export default function ProfilePage({ onRenew }) {
         <View style={styles.profileCard}>
           {/* PROFILE IMAGE (Half in / Half out) */}
           <View style={styles.avatarContainer}>
-            <TouchableOpacity 
-              onPress={() => setPhotoSheetVisible(true)} 
+            <TouchableOpacity
+              onPress={() => setPhotoSheetVisible(true)}
               activeOpacity={0.9}
               style={styles.avatarTouchable}
             >
               {profileImage ? (
-                <Image 
-                  source={{ uri: profileImage }} 
-                  style={styles.avatar} 
+                <Image
+                  source={{ uri: profileImage }}
+                  style={styles.avatar}
                   resizeMode="cover"
                 />
               ) : (
@@ -121,7 +121,7 @@ export default function ProfilePage({ onRenew }) {
         </View>
 
         {/* Subscription Card - Full Width, No Background */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.subscriptionCard}
           onPress={onRenew}
           activeOpacity={0.7}
@@ -161,17 +161,17 @@ export default function ProfilePage({ onRenew }) {
           {/* OTHER DETAILS */}
           <Text style={styles.sectionTitle}>Other Details</Text>
 
-          <MenuItem 
+          <MenuItem
             icon={<HelpCircle size={22} color="#6B7280" />}
-            title="Support Hub" 
+            title="Support Hub"
           />
-          <MenuItem 
+          <MenuItem
             icon={<FileText size={22} color="#6B7280" />}
-            title="Terms & Conditions" 
+            title="Terms & Conditions"
           />
-          <MenuItem 
+          <MenuItem
             icon={<Lock size={22} color="#6B7280" />}
-            title="Data Privacy" 
+            title="Data Privacy"
           />
 
           {/* LOGOUT (Bottom Spacing included) */}
@@ -180,7 +180,7 @@ export default function ProfilePage({ onRenew }) {
             onPress={() =>
               Alert.alert('Sign Out', 'Are you sure?', [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Sign Out', style: 'destructive', onPress: () => console.log("Logout") },
+                { text: 'Sign Out', style: 'destructive', onPress: () => { } },
               ])
             }
           >
@@ -210,19 +210,19 @@ export default function ProfilePage({ onRenew }) {
 const MenuItem = ({ icon, title, subtitle, badge }) => (
   <TouchableOpacity style={styles.menuItem}>
     <View style={styles.menuIconCircle}>
-        {icon}
+      {icon}
     </View>
-    
+
     <View style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         <Text style={styles.menuTitle}>{title}</Text>
         {badge && (
-            <Text style={styles.badgeText}>{badge}</Text>
+          <Text style={styles.badgeText}>{badge}</Text>
         )}
       </View>
       {subtitle && <Text style={styles.menuSub}>{subtitle}</Text>}
     </View>
-    
+
     <ChevronRight size={20} color="#9CA3AF" />
   </TouchableOpacity>
 );
@@ -242,7 +242,7 @@ const styles = {
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  
+
   // Scroll Content
   scrollContent: {
     paddingBottom: 50,
@@ -254,7 +254,7 @@ const styles = {
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 12 : 50,
     paddingBottom: 60,
     paddingHorizontal: 10,
-    height:200,
+    height: 200,
   },
   headerContent: {
     flexDirection: 'row',
@@ -302,7 +302,7 @@ const styles = {
     paddingTop: 60,
     //paddingBottom: 20,
     paddingHorizontal: 16,
-    
+
     marginTop: -65,
   },
 
@@ -318,7 +318,7 @@ const styles = {
     backgroundColor: '#fff',
     borderRadius: 60,
     position: 'relative',
-   
+
   },
   avatar: {
     width: 80,
@@ -353,13 +353,13 @@ const styles = {
 
   // Profile Info
   profileInfo: {
-    bottom:8,
+    bottom: 8,
     alignItems: 'center',
     marginBottom: 13,
   },
   name: {
     fontSize: 20,
-    fontFamily:'Manrope_600SemiBold',
+    fontFamily: 'Manrope_600SemiBold',
     fontWeight: '600',
     color: '#111827',
     marginBottom: 2,
@@ -390,7 +390,7 @@ const styles = {
   subscriptionLeft: {
     flex: 1,
     justifyContent: 'center',
-    paddingVertical:0,
+    paddingVertical: 0,
   },
   subscriptionLabel: {
     fontSize: 14,
@@ -404,15 +404,15 @@ const styles = {
     gap: 6,
   },
   subscriptionPrice: {
-    fontFamily:'Poppins_600SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 24,
     //fontWeight: '700',
     color: '#111827',
-    
+
   },
   expiryText: {
     fontSize: 12,
-    
+
     color: '#EF4444',
     fontWeight: '400',
   },
@@ -425,7 +425,7 @@ const styles = {
   contentSection: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    
+
   },
 
   // Lists
@@ -445,7 +445,7 @@ const styles = {
     marginVertical: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    
+
   },
   menuIconCircle: {
     width: 44,
@@ -455,7 +455,7 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-    borderWidth:1,
+    borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   menuTitle: {
@@ -495,10 +495,10 @@ const styles = {
   },
 
   // Modal
-  overlay: { 
-    flex: 1, 
-    backgroundColor: 'rgba(0,0,0,0.5)', 
-    justifyContent: 'flex-end' 
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end'
   },
   sheet: {
     backgroundColor: '#fff',
@@ -506,19 +506,19 @@ const styles = {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
   },
-  handle: { 
-    width: 40, 
-    height: 4, 
-    backgroundColor: '#E5E7EB', 
-    borderRadius: 2, 
-    alignSelf: 'center', 
-    marginBottom: 16 
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16
   },
-  sheetTitle: { 
-    textAlign: 'center', 
-    fontSize: 18, 
-    fontWeight: '700', 
-    marginBottom: 24 
+  sheetTitle: {
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 24
   },
   sheetBtn: {
     backgroundColor: '#F3F4F6',
@@ -527,9 +527,9 @@ const styles = {
     alignItems: 'center',
     marginBottom: 12,
   },
-  sheetBtnText: { 
-    fontSize: 16, 
-    fontWeight: '600', 
-    color: '#374151' 
+  sheetBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151'
   },
 };

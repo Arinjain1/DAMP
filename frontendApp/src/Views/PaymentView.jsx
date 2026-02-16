@@ -11,7 +11,7 @@ export default function PaymentView() {
   const { selectedDeal } = useSelector(state => state.deals);
   const { properties } = useSelector(state => state.properties);
   const [activeTab, setActiveTab] = useState('Negotiation');
-  
+
   // Form states
   const [expectedPrice, setExpectedPrice] = useState('');
   const [expectedUnit, setExpectedUnit] = useState('Thousands');
@@ -21,7 +21,7 @@ export default function PaymentView() {
   const [ownerUnit, setOwnerUnit] = useState('Crore');
   const [finalPrice, setFinalPrice] = useState('');
   const [finalUnit, setFinalUnit] = useState('Crore');
-  
+
   // Token form states
   const [tokenAmount, setTokenAmount] = useState('');
   const [tokenUnit, setTokenUnit] = useState('Thousands');
@@ -30,7 +30,7 @@ export default function PaymentView() {
   const [tokenTransactionId, setTokenTransactionId] = useState('');
   const [showTokenUnitModal, setShowTokenUnitModal] = useState(false);
   const [showPaymentModeModal, setShowPaymentModeModal] = useState(false);
-  
+
   // Full Settlement form states
   const [showAddTransactionModal, setShowAddTransactionModal] = useState(false);
   const [showFullSettlementModal, setShowFullSettlementModal] = useState(false);
@@ -45,34 +45,34 @@ export default function PaymentView() {
   const [showSettlementUnitModal, setShowSettlementUnitModal] = useState(false);
   const [showSettlementModeModal, setShowSettlementModeModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  
+
   // Full Settlement specific states
   const [fullSettlementMode, setFullSettlementMode] = useState('UPI');
   const [fullSettlementTransactionId, setFullSettlementTransactionId] = useState('');
   const [fullSettlementRemark, setFullSettlementRemark] = useState('');
   const [showFullSettlementModeModal, setShowFullSettlementModeModal] = useState(false);
-  
+
   // Transaction ID modal for completing pending transactions
   const [showTransactionIdModal, setShowTransactionIdModal] = useState(false);
   const [completingTransactionId, setCompletingTransactionId] = useState(null);
   const [completingTransactionIdInput, setCompletingTransactionIdInput] = useState('');
-  
+
   // Get property details
   const property = properties.find(p => p.id === selectedDeal?.propertyId);
   const propertyPrice = property?.price || 0;
-  
+
   // Deal Amount - get from selectedDeal or use property price
   const dealAmount = selectedDeal?.dealAmount || propertyPrice;
-  
+
   // Calculate remaining amount
   const paidAmount = selectedDeal?.paidAmount || 0;
   const remainingAmount = dealAmount - paidAmount;
-  
+
   // Load saved negotiation data when component mounts or deal changes
   useEffect(() => {
     if (selectedDeal?.negotiation) {
       const neg = selectedDeal.negotiation;
-      
+
       // Load saved values and units (skip expectedPrice - it should always be property price)
       if (neg.customerOfferValue !== undefined) {
         setCustomerOffer(neg.customerOfferValue.toString());
@@ -87,7 +87,7 @@ export default function PaymentView() {
         setFinalUnit(neg.finalPriceUnit || 'Crore');
       }
     }
-    
+
     // Always set expected price to property price
     if (propertyPrice > 0) {
       // Convert property price to appropriate unit
@@ -106,31 +106,31 @@ export default function PaymentView() {
       }
     }
   }, [selectedDeal?.id, propertyPrice]);
-  
+
   // Modal states
   const [showExpectedModal, setShowExpectedModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showOwnerModal, setShowOwnerModal] = useState(false);
   const [showFinalModal, setShowFinalModal] = useState(false);
-  
+
   const units = ['Thousands', 'Lakh', 'Crore'];
   const paymentModes = ['UPI', 'Cash', 'Bank Transfer', 'Cheque', 'RTGS', 'NEFT'];
   const statusOptions = ['Paid', 'Pending'];
-  
+
   // Calculate actual value based on unit
   const getMultiplier = (unit) => {
-    switch(unit) {
+    switch (unit) {
       case 'Thousands': return 1000;
       case 'Lakh': return 100000;
       case 'Crore': return 10000000;
       default: return 1;
     }
   };
-  
+
   const handleSave = () => {
     // Calculate final value
     const finalValue = parseFloat(finalPrice) * getMultiplier(finalUnit);
-    
+
     if (!isNaN(finalValue) && finalValue > 0) {
       // Update the deal with new amount in Redux
       const updatedDeal = {
@@ -153,20 +153,16 @@ export default function PaymentView() {
           finalPriceUnit: finalUnit
         }
       };
-      
+
       dispatch(updateDeal(updatedDeal));
-      
-      console.log('Saved Values:', {
-        dealAmount: finalValue,
-        negotiation: updatedDeal.negotiation
-      });
+
     }
   };
-  
+
   const handleCompleteNegotiation = () => {
     // Calculate final value
     const finalValue = parseFloat(finalPrice) * getMultiplier(finalUnit);
-    
+
     if (!isNaN(finalValue) && finalValue > 0) {
       // Update the deal with negotiation completed flag
       const updatedDeal = {
@@ -190,20 +186,20 @@ export default function PaymentView() {
           finalPriceUnit: finalUnit
         }
       };
-      
+
       dispatch(updateDeal(updatedDeal));
-      
+
       // Then switch to Token tab
       setActiveTab('Token');
     }
   };
-  
+
   // Check if negotiation is completed
   const isNegotiationCompleted = selectedDeal?.negotiationCompleted || false;
-  
+
   // Check if token is paid
   const isTokenPaid = selectedDeal?.tokenPayment !== undefined;
-  
+
   // Handle tab click with validation
   const handleTabClick = (tabName) => {
     if (tabName === 'Negotiation') {
@@ -226,17 +222,17 @@ export default function PaymentView() {
       );
     }
   };
-  
+
   const handleTokenSubmit = () => {
     const tokenValue = parseFloat(tokenAmount) * getMultiplier(tokenUnit);
-    
+
     if (!isNaN(tokenValue) && tokenValue > 0) {
       // Validate transaction ID for non-cash payments
       if (paymentMode !== 'Cash' && !tokenTransactionId.trim()) {
         Alert.alert('Error', 'Transaction ID is required for non-cash payments');
         return;
       }
-      
+
       // Show confirmation alert
       Alert.alert(
         'Confirm Transaction',
@@ -251,7 +247,7 @@ export default function PaymentView() {
             onPress: () => {
               // Update paid amount
               const newPaidAmount = paidAmount + tokenValue;
-              
+
               const updatedDeal = {
                 ...selectedDeal,
                 paidAmount: newPaidAmount,
@@ -264,17 +260,17 @@ export default function PaymentView() {
                   date: new Date().toISOString()
                 }
               };
-              
+
               dispatch(updateDeal(updatedDeal));
-              
+
               // Clear form
               setTokenAmount('');
               setRemark('');
               setTokenTransactionId('');
-              
+
               // Switch to Full Settlement tab
               setActiveTab('Full Settlement');
-              
+
               Alert.alert('Success', 'Token payment submitted successfully!');
             }
           }
@@ -284,17 +280,17 @@ export default function PaymentView() {
       Alert.alert('Error', 'Please enter a valid amount');
     }
   };
-  
+
   const handleAddTransaction = () => {
     const settlementValue = parseFloat(settlementAmount) * getMultiplier(settlementUnit);
-    
+
     if (!isNaN(settlementValue) && settlementValue > 0) {
       // Validate transaction ID for paid non-cash transactions
       if (transactionStatus === 'Paid' && settlementMode !== 'Cash' && !transactionId.trim()) {
         Alert.alert('Error', 'Transaction ID is required for paid non-cash transactions');
         return;
       }
-      
+
       // If Paid, show confirmation alert
       if (transactionStatus === 'Paid') {
         Alert.alert(
@@ -319,10 +315,10 @@ export default function PaymentView() {
       Alert.alert('Error', 'Please enter a valid amount');
     }
   };
-  
+
   const addTransactionToStore = () => {
     const settlementValue = parseFloat(settlementAmount) * getMultiplier(settlementUnit);
-    
+
     const newTransaction = {
       id: Date.now(),
       amount: settlementValue,
@@ -334,20 +330,20 @@ export default function PaymentView() {
       date: new Date().toISOString(),
       status: transactionStatus === 'Paid' ? 'Completed' : 'Pending'
     };
-    
+
     const existingTransactions = selectedDeal?.settlements || [];
-    
+
     // Only add to paid amount if status is Paid
     const newPaidAmount = transactionStatus === 'Paid' ? paidAmount + settlementValue : paidAmount;
-    
+
     const updatedDeal = {
       ...selectedDeal,
       paidAmount: newPaidAmount,
       settlements: [...existingTransactions, newTransaction]
     };
-    
+
     dispatch(updateDeal(updatedDeal));
-    
+
     // Clear form and close modal
     setSettlementAmount('');
     setSettlementRemark('');
@@ -355,10 +351,10 @@ export default function PaymentView() {
     setTransactionStatus('Pending');
     setDueDate(new Date());
     setShowAddTransactionModal(false);
-    
+
     Alert.alert('Success', 'Transaction added successfully!');
   };
-  
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-GB', {
@@ -367,12 +363,12 @@ export default function PaymentView() {
       year: 'numeric'
     });
   };
-  
+
   const handleCompleteTransaction = (transactionId) => {
     const transaction = selectedDeal?.settlements?.find(t => t.id === transactionId);
-    
+
     if (!transaction) return;
-    
+
     // If not cash and no transaction ID, ask for it first
     if (transaction.paymentMode !== 'Cash' && !transaction.transactionId) {
       setCompletingTransactionId(transactionId);
@@ -396,16 +392,16 @@ export default function PaymentView() {
       );
     }
   };
-  
+
   const handleTransactionIdSubmit = () => {
     if (!completingTransactionIdInput.trim()) {
       Alert.alert('Error', 'Transaction ID is required for non-cash payments');
       return;
     }
-    
+
     // Close modal and show confirmation
     setShowTransactionIdModal(false);
-    
+
     setTimeout(() => {
       Alert.alert(
         'Mark as Complete',
@@ -431,7 +427,7 @@ export default function PaymentView() {
       );
     }, 300);
   };
-  
+
   const completeTransactionWithId = (transactionId, transId) => {
     const updatedSettlements = selectedDeal.settlements.map(t => {
       if (t.id === transactionId) {
@@ -444,17 +440,17 @@ export default function PaymentView() {
       }
       return t;
     });
-    
+
     // Calculate new paid amount (add only this transaction amount)
     const transaction = selectedDeal.settlements.find(t => t.id === transactionId);
     const newPaidAmount = paidAmount + transaction.amount;
-    
+
     const updatedDeal = {
       ...selectedDeal,
       paidAmount: newPaidAmount,
       settlements: updatedSettlements
     };
-    
+
     dispatch(updateDeal(updatedDeal));
     Alert.alert('Success', 'Transaction marked as completed!');
   };
@@ -516,8 +512,8 @@ export default function PaymentView() {
   };
 
   return (
-    <ScrollView 
-      className="flex-1" 
+    <ScrollView
+      className="flex-1"
       contentContainerStyle={{ paddingBottom: 160, marginTop: 6 }}
       showsVerticalScrollIndicator={false}
     >
@@ -526,12 +522,12 @@ export default function PaymentView() {
 
       {/* Action Buttons */}
       <View className="flex-row justify-between mb-6 mt-2 border border-gray-300 py-5 px-3 rounded-2xl">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="w-[23%] items-center gap-2"
           onPress={() => setActiveTab('Negotiation')}
         >
-          <View 
-            className="w-14 h-14 rounded-2xl items-center justify-center" 
+          <View
+            className="w-14 h-14 rounded-2xl items-center justify-center"
             style={{ backgroundColor: activeTab === 'Negotiation' ? '#9A8CFC' : '#414141' }}
           >
             <ArrowDown size={22} color="#fff" />
@@ -541,11 +537,11 @@ export default function PaymentView() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           className="w-[23%] items-center gap-2"
           onPress={() => handleTabClick('Token')}
         >
-          <View 
+          <View
             className="w-14 h-14 rounded-2xl items-center justify-center"
             style={{ backgroundColor: activeTab === 'Token' ? '#9A8CFC' : '#414141' }}
           >
@@ -556,11 +552,11 @@ export default function PaymentView() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           className="w-[23%] items-center gap-2"
           onPress={() => handleTabClick('Full Settlement')}
         >
-          <View 
+          <View
             className="w-14 h-14 rounded-2xl items-center justify-center"
             style={{ backgroundColor: activeTab === 'Full Settlement' ? '#9A8CFC' : '#414141' }}
           >
@@ -571,11 +567,11 @@ export default function PaymentView() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           className="w-[23%] items-center gap-2"
           onPress={() => handleTabClick('History')}
         >
-          <View 
+          <View
             className="w-14 h-14 rounded-2xl items-center justify-center"
             style={{ backgroundColor: activeTab === 'History' ? '#9A8CFC' : '#414141' }}
           >
@@ -603,7 +599,7 @@ export default function PaymentView() {
                   value={expectedPrice}
                   onChangeText={setExpectedPrice}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   className="flex-row items-center px-3 py-3 border-l border-gray-200"
                   onPress={() => setShowExpectedModal(true)}
                 >
@@ -624,7 +620,7 @@ export default function PaymentView() {
                   value={customerOffer}
                   onChangeText={setCustomerOffer}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   className="flex-row items-center px-3 py-3 border-l border-gray-200"
                   onPress={() => setShowCustomerModal(true)}
                 >
@@ -647,7 +643,7 @@ export default function PaymentView() {
                   value={ownerCounter}
                   onChangeText={setOwnerCounter}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   className="flex-row items-center px-3 py-3 border-l border-gray-200"
                   onPress={() => setShowOwnerModal(true)}
                 >
@@ -668,7 +664,7 @@ export default function PaymentView() {
                   value={finalPrice}
                   onChangeText={setFinalPrice}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   className="flex-row items-center px-3 py-3 border-l border-gray-200"
                   onPress={() => setShowFinalModal(true)}
                 >
@@ -681,14 +677,14 @@ export default function PaymentView() {
 
           {/* Complete Negotiation Button */}
           <View className="flex-row gap-3 mt-6">
-            <TouchableOpacity 
+            <TouchableOpacity
               className="w-[23%] bg-black rounded-2xl py-4 items-center justify-center"
               onPress={handleSave}
             >
               <Text className="text-base font-semibold text-white">Save</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               className="flex-1 bg-[#9A8CFC] rounded-2xl py-4 items-center justify-center"
               onPress={handleCompleteNegotiation}
             >
@@ -713,7 +709,7 @@ export default function PaymentView() {
                   value={tokenAmount}
                   onChangeText={setTokenAmount}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   className="flex-row items-center px-6 py-3 border-l border-gray-200"
                   onPress={() => setShowTokenUnitModal(true)}
                 >
@@ -726,7 +722,7 @@ export default function PaymentView() {
 
           {/* Payment Mode */}
           <Text className="text-base font-semibold text-[#3E3E3E] mb-3">Payment Mode</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-4 mb-3"
             onPress={() => setShowPaymentModeModal(true)}
           >
@@ -762,7 +758,7 @@ export default function PaymentView() {
           />
 
           {/* Submit Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             className="bg-[#9A8CFC] rounded-2xl py-4 items-center"
             onPress={handleTokenSubmit}
           >
@@ -776,7 +772,7 @@ export default function PaymentView() {
           {/* Schedule Header */}
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-lg font-bold text-[#3E3E3E]">Schedule</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               className="bg-[#9A8CFC] rounded-full px-6 py-2 flex-row items-center gap-2"
               onPress={() => setShowAddTransactionModal(true)}
             >
@@ -811,7 +807,7 @@ export default function PaymentView() {
 
                 {/* Mark as Complete Button (for Pending) */}
                 {transaction.status === 'Pending' && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     className="bg-[#9A8CFC] rounded-xl py-3 items-center mt-4"
                     onPress={() => handleCompleteTransaction(transaction.id)}
                   >
@@ -828,7 +824,7 @@ export default function PaymentView() {
 
           {/* Full Settlement Button - Only show if remaining amount > 0 */}
           {remainingAmount > 0 && (
-            <TouchableOpacity 
+            <TouchableOpacity
               className="bg-[#9A8CFC] rounded-2xl py-4 items-center mt-8 mb-4"
               onPress={() => setShowFullSettlementModal(true)}
             >
@@ -841,7 +837,7 @@ export default function PaymentView() {
       {activeTab === 'History' && (
         <View className="px-1">
           <Text className="text-lg font-bold text-[#3E3E3E] mb-4">Payment History</Text>
-          
+
           {/* Token Payment History */}
           {selectedDeal?.tokenPayment && (
             <View className="mb-4">
@@ -889,7 +885,7 @@ export default function PaymentView() {
                       <Text className="text-lg font-semibold text-gray-800">{transaction.paymentMode}</Text>
                       <Text className="text-base font-semibold text-green-500">Completed</Text>
                     </View>
-                    
+
                     <View className="flex-row justify-between items-end mb-3">
                       <View>
                         <Text className="text-sm text-gray-500 mb-1">Amount</Text>
@@ -926,10 +922,10 @@ export default function PaymentView() {
           )}
         </View>
       )}
-      
+
       {/* Unit Selection Modals */}
       <Modal visible={showExpectedModal} transparent animationType="fade">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-1 bg-black/50 justify-center items-center"
           activeOpacity={1}
           onPress={() => setShowExpectedModal(false)}
@@ -955,7 +951,7 @@ export default function PaymentView() {
       </Modal>
 
       <Modal visible={showCustomerModal} transparent animationType="fade">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-1 bg-black/50 justify-center items-center"
           activeOpacity={1}
           onPress={() => setShowCustomerModal(false)}
@@ -981,7 +977,7 @@ export default function PaymentView() {
       </Modal>
 
       <Modal visible={showOwnerModal} transparent animationType="fade">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-1 bg-black/50 justify-center items-center"
           activeOpacity={1}
           onPress={() => setShowOwnerModal(false)}
@@ -1007,7 +1003,7 @@ export default function PaymentView() {
       </Modal>
 
       <Modal visible={showFinalModal} transparent animationType="fade">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-1 bg-black/50 justify-center items-center"
           activeOpacity={1}
           onPress={() => setShowFinalModal(false)}
@@ -1034,7 +1030,7 @@ export default function PaymentView() {
 
       {/* Token Unit Modal */}
       <Modal visible={showTokenUnitModal} transparent animationType="fade">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-1 bg-black/50 justify-center items-center"
           activeOpacity={1}
           onPress={() => setShowTokenUnitModal(false)}
@@ -1061,7 +1057,7 @@ export default function PaymentView() {
 
       {/* Payment Mode Modal */}
       <Modal visible={showPaymentModeModal} transparent animationType="fade">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-1 bg-black/50 justify-center items-center"
           activeOpacity={1}
           onPress={() => setShowPaymentModeModal(false)}
@@ -1109,7 +1105,7 @@ export default function PaymentView() {
                   value={settlementAmount}
                   onChangeText={setSettlementAmount}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   className="flex-row items-center px-3 py-3 border-l border-gray-200"
                   onPress={() => setShowSettlementUnitModal(true)}
                 >
@@ -1120,7 +1116,7 @@ export default function PaymentView() {
 
               {/* Payment Mode */}
               <Text className="text-sm font-semibold text-[#3E3E3E] mb-2">Payment Mode</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 mb-4"
                 onPress={() => setShowSettlementModeModal(true)}
               >
@@ -1130,7 +1126,7 @@ export default function PaymentView() {
 
               {/* Status */}
               <Text className="text-sm font-semibold text-[#3E3E3E] mb-2">Status</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 mb-4"
                 onPress={() => setShowStatusModal(true)}
               >
@@ -1154,7 +1150,7 @@ export default function PaymentView() {
 
               {/* Due Date */}
               <Text className="text-sm font-semibold text-[#3E3E3E] mb-2">Due Date</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 mb-4"
                 onPress={() => setShowDatePicker(true)}
               >
@@ -1192,7 +1188,7 @@ export default function PaymentView() {
               />
 
               {/* Submit Button */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="bg-[#9A8CFC] rounded-2xl py-4 items-center"
                 onPress={handleAddTransaction}
               >
@@ -1205,7 +1201,7 @@ export default function PaymentView() {
 
       {/* Settlement Unit Modal */}
       <Modal visible={showSettlementUnitModal} transparent animationType="fade">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-1 bg-black/50 justify-center items-center"
           activeOpacity={1}
           onPress={() => setShowSettlementUnitModal(false)}
@@ -1232,7 +1228,7 @@ export default function PaymentView() {
 
       {/* Settlement Mode Modal */}
       <Modal visible={showSettlementModeModal} transparent animationType="fade">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-1 bg-black/50 justify-center items-center"
           activeOpacity={1}
           onPress={() => setShowSettlementModeModal(false)}
@@ -1259,7 +1255,7 @@ export default function PaymentView() {
 
       {/* Status Modal */}
       <Modal visible={showStatusModal} transparent animationType="fade">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-1 bg-black/50 justify-center items-center"
           activeOpacity={1}
           onPress={() => setShowStatusModal(false)}
@@ -1309,7 +1305,7 @@ export default function PaymentView() {
               autoFocus
             />
 
-            <TouchableOpacity 
+            <TouchableOpacity
               className="bg-[#C4B5FD] rounded-2xl py-4 items-center"
               onPress={handleTransactionIdSubmit}
             >
@@ -1339,7 +1335,7 @@ export default function PaymentView() {
 
               {/* Payment Mode */}
               <Text className="text-sm font-semibold text-[#3E3E3E] mb-2">Payment Mode</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 mb-4"
                 onPress={() => setShowFullSettlementModeModal(true)}
               >
@@ -1375,7 +1371,7 @@ export default function PaymentView() {
               />
 
               {/* Submit Button */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="bg-[#9A8CFC] rounded-2xl py-4 items-center"
                 onPress={handleFullSettlement}
               >
@@ -1388,7 +1384,7 @@ export default function PaymentView() {
 
       {/* Full Settlement Mode Modal */}
       <Modal visible={showFullSettlementModeModal} transparent animationType="fade">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-1 bg-black/50 justify-center items-center"
           activeOpacity={1}
           onPress={() => setShowFullSettlementModeModal(false)}

@@ -3,15 +3,15 @@ import { router } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 import { useDispatch } from 'react-redux';
@@ -23,7 +23,7 @@ export default function ResetOTP() {
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
-  
+
   const inputRefs = useRef([]);
 
   useEffect(() => {
@@ -78,7 +78,6 @@ export default function ResetOTP() {
     setTimer(60);
     setCanResend(false);
     setOtp(['', '', '', '']);
-    console.log('Resending Reset OTP...');
   };
 
   const handleBack = () => {
@@ -90,7 +89,7 @@ export default function ResetOTP() {
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
-      
+
       {/* GRADIENT */}
       <LinearGradient
         colors={['#DAD5FB', '#F3F4F6', '#FFFFFF']}
@@ -154,7 +153,7 @@ export default function ResetOTP() {
             </View>
 
             {/* CONTINUE BUTTON */}
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handleVerify}
               disabled={!isOtpComplete || loading}
               style={[

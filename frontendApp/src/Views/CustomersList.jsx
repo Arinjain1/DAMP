@@ -1,10 +1,10 @@
 import { ChevronDown, ChevronRight, ChevronUp, CirclePlus, MessageCircle, Phone, Search } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    ImageBackground, Linking, Platform, ScrollView, StatusBar, StyleSheet, Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ImageBackground, Linking, Platform, ScrollView, StatusBar, StyleSheet, Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 // --- 1. UPDATED STAGES LIST ---
@@ -55,7 +55,6 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
     if (phone) {
       Linking.openURL(`tel:${phone}`);
     } else {
-      console.log(`No phone available`);
     }
   };
 
@@ -74,23 +73,23 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
   // Mock current tasks for each customer
   const getCurrentTask = (customerId) => {
     const tasks = {
-      'c1': { 
-        title: 'Schedule site visit', 
+      'c1': {
+        title: 'Schedule site visit',
         time: 'Today 2:30 PM',
         type: 'Site Visit'
       },
-      'c2': { 
-        title: 'Token payment follow-up', 
+      'c2': {
+        title: 'Token payment follow-up',
         time: 'Tomorrow 11:00 AM',
         type: 'Follow-up'
       },
-      'c3': { 
-        title: 'Initial contact call', 
+      'c3': {
+        title: 'Initial contact call',
         time: 'Today 4:00 PM',
         type: 'Call'
       },
-      'c4': { 
-        title: 'Document handover', 
+      'c4': {
+        title: 'Document handover',
         time: 'Completed',
         type: 'Documentation'
       },
@@ -106,21 +105,21 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
   const StageIndicator = ({ currentStage }) => {
     const currentIndex = SALES_STAGES.findIndex(s => s.id === currentStage);
     const lastStageIndex = SALES_STAGES.length - 1;
-    
+
     // Debug log to check if stage is being received
     //console.log('StageIndicator - currentStage:', currentStage, 'currentIndex:', currentIndex);
-    
+
     return (
       <View style={styles.stageContainer}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.stageScrollContent}
         >
           {SALES_STAGES.map((stage, index) => {
             const isCompleted = currentIndex > index;
             const isLastStage = index === lastStageIndex;
-            
+
             // Choose background image based on stage status
             let backgroundImage;
             if (stage.isFirst) {
@@ -140,7 +139,7 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
               // Future middle stages use regular Middle Bg
               backgroundImage = require('../../assets/images/Middle Bg.png');
             }
-            
+
             return (
               <View key={stage.id} style={styles.stageWrapper}>
                 <ImageBackground
@@ -175,7 +174,7 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
       {/* HEADER */}
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Leads</Text>
-        
+
         {/* Search Bar and Add Button Row */}
         <View style={styles.searchRow}>
           <View style={styles.searchBar}>
@@ -188,8 +187,8 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
               style={styles.searchInput}
             />
           </View>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.addButton}
             onPress={onAddCustomer}
           >
@@ -197,10 +196,10 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
             <Text style={styles.addButtonText}>Add Clients</Text>
           </TouchableOpacity>
         </View>
-        
+
         {/* Type Filter - Horizontal Scrollable Chips with Underline */}
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterChipsContainer}
         >
@@ -239,7 +238,7 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
               const colorTheme = getRandomColor(customer.name.charAt(0));
               const isExpanded = expandedCards.has(customer.id);
               const currentTask = getCurrentTask(customer.id);
-              
+
               return (
                 <View
                   key={customer.id}
@@ -261,9 +260,9 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
                         {customer.status || 'New'}
                       </Text>
                     </View>
-                    
+
                     {/* Dropdown Arrow */}
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.dropdownButton}
                       onPress={() => toggleCardExpansion(customer.id)}
                     >
@@ -295,14 +294,14 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
                   {isExpanded && (
                     <>
                       <View style={styles.cardActions}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={styles.actionButton}
                           onPress={() => handleCall(customer.phone, customer.name)}
                         >
                           <Phone size={18} color="#16a34a" />
                           <Text style={styles.actionText}>Call</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={styles.actionButton}
                           onPress={() => Linking.openURL(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}`)}
                         >
@@ -310,9 +309,9 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
                           <Text style={styles.actionText}>Message</Text>
                         </TouchableOpacity>
                       </View>
-                      
+
                       {/* View Details Button */}
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.viewDetailsButton}
                         onPress={() => {
                           if (isBeyondInterested(customer.stage) && onOpenDeal) {
@@ -349,7 +348,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingBottom: 10,
     borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
     backgroundColor: '#ffffff',
-    alignItems:'center'
+    alignItems: 'center'
   },
   headerTitle: { fontSize: 24, fontWeight: '700', color: '#3E3E3E', marginBottom: 16 },
   searchRow: {
@@ -383,7 +382,7 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   filterChipWrapper: {
-    alignItems:'flex-start',
+    alignItems: 'flex-start',
     paddingHorizontal: 4,
   },
   filterChipText: {
@@ -405,14 +404,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#1f2937',
     borderRadius: 2,
   },
-  searchInput: { marginLeft: 10, flex: 1, fontSize: 16, color: '#111827', fontWeight: '500', alignItems:'center' },
-  scrollView: { flex: 1 , backgroundColor: '#ffffff',},
+  searchInput: { marginLeft: 10, flex: 1, fontSize: 16, color: '#111827', fontWeight: '500', alignItems: 'center' },
+  scrollView: { flex: 1, backgroundColor: '#ffffff', },
   scrollContent: { paddingTop: 4, paddingBottom: 100, paddingHorizontal: 20 },
   gridContainer: { gap: 10 },
   card: {
     backgroundColor: 'white', borderRadius: 16, padding: 16,
     borderWidth: 1, borderColor: '#e5e7eb',
-     marginBottom: 12,
+    marginBottom: 12,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
   avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
@@ -422,7 +421,7 @@ const styles = StyleSheet.create({
   budgetText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   statusText: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  
+
   // --- STAGE SCROLL STYLES ---
   stageSection: {
     marginBottom: 6,
@@ -443,7 +442,7 @@ const styles = StyleSheet.create({
   },
   stageArrow: {
     height: 36,
-    minWidth: 100, 
+    minWidth: 100,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 6,
@@ -464,7 +463,7 @@ const styles = StyleSheet.create({
 
   // Task Section Styles
   taskSection: {
-    
+
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
@@ -511,7 +510,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb',
   },
   actionText: { fontSize: 13, fontWeight: '600', color: '#374151' },
-  
+
   // View Details Button
   viewDetailsButton: {
     flexDirection: 'row',
@@ -528,7 +527,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
-  
+
   emptyState: { alignItems: 'center', marginTop: 80 },
   emptyText: { marginTop: 16, fontSize: 16, fontWeight: '600', color: '#9ca3af' },
 });

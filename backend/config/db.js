@@ -15,11 +15,10 @@ const pool = new Pool({
 const testConnection = async () => {
   try {
     const client = await pool.connect();
-    console.log('✅ Successfully connected to Supabase PostgreSQL Database');
-    client.release(); 
+    client.release();
   } catch (err) {
     console.error('❌ Database Connection Error:', err.stack);
-    process.exit(1); 
+    process.exit(1);
   }
 };
 

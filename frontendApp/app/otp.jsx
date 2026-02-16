@@ -3,15 +3,15 @@ import { router } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../src/store/slices/authSlice';
@@ -22,7 +22,7 @@ export default function OTP() {
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
-  
+
   const inputRefs = useRef([]);
 
   useEffect(() => {
@@ -77,7 +77,6 @@ export default function OTP() {
     setTimer(60);
     setCanResend(false);
     setOtp(['', '', '', '']);
-    console.log('Resending OTP...');
   };
 
   const handleBack = () => {
@@ -89,7 +88,7 @@ export default function OTP() {
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
-      
+
       {/* GRADIENT */}
       <LinearGradient
         colors={['#DAD5FB', '#F3F4F6', '#FFFFFF']}
@@ -153,7 +152,7 @@ export default function OTP() {
             </View>
 
             {/* CONTINUE BUTTON */}
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handleVerify}
               disabled={!isOtpComplete || loading}
               style={[
@@ -214,7 +213,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     fontFamily: 'Montserrat_500Medium',
-    fontWeight:600,
+    fontWeight: 600,
     color: 'black',
   },
 
@@ -248,7 +247,7 @@ const styles = StyleSheet.create({
 
   /* RESEND */
   resendContainer: {
-    alignItems:'center',
+    alignItems: 'center',
     marginTop: 58,
   },
   timerText: {

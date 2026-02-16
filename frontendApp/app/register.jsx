@@ -6,18 +6,18 @@ import { router } from 'expo-router';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { height } = Dimensions.get('window');
@@ -64,7 +64,7 @@ export default function Register() {
 
       // 2. Get Coordinates
       let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      
+
       // 3. Reverse Geocode (Native Device Method - Free & Fast)
       let address = await Location.reverseGeocodeAsync({
         latitude: location.coords.latitude,
@@ -75,8 +75,8 @@ export default function Register() {
         const addr = address[0];
         // Construct smart string: e.g., "Indore, Madhya Pradesh"
         const city = addr.city || addr.subregion || addr.district; // Fallbacks
-        const region = addr.region || addr.country; 
-        
+        const region = addr.region || addr.country;
+
         const locationString = [city, region].filter(Boolean).join(', ');
         handleChange('location', locationString);
       } else {
@@ -84,7 +84,6 @@ export default function Register() {
       }
 
     } catch (error) {
-      console.log(error);
       Alert.alert('Error', 'Make sure Location/GPS is enabled on your device.');
     } finally {
       setLocationLoading(false);
@@ -131,110 +130,110 @@ export default function Register() {
 
           {/* FORM */}
           <View style={styles.form}>
-              {/* NAME */}
+            {/* NAME */}
+            <TextInput
+              style={styles.input}
+              value={formData.name}
+              onChangeText={(v) => handleChange('name', v)}
+              placeholder="Full Name"
+              placeholderTextColor="#9CA3AF"
+            />
+
+            {/* EMAIL */}
+            <TextInput
+              style={styles.input}
+              value={formData.email}
+              onChangeText={(v) => handleChange('email', v)}
+              placeholder="Email Address"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            {/* PHONE & AGE ROW */}
+            <View style={styles.rowContainer}>
               <TextInput
-                style={styles.input}
-                value={formData.name}
-                onChangeText={(v) => handleChange('name', v)}
-                placeholder="Full Name"
+                style={[styles.input, styles.halfInput]}
+                value={formData.phone}
+                onChangeText={(v) => handleChange('phone', v)}
+                placeholder="Phone"
                 placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
               />
-
-              {/* EMAIL */}
               <TextInput
-                style={styles.input}
-                value={formData.email}
-                onChangeText={(v) => handleChange('email', v)}
-                placeholder="Email Address"
+                style={[styles.input, styles.halfInput]}
+                value={formData.age}
+                onChangeText={(v) => handleChange('age', v)}
+                placeholder="Age"
                 placeholderTextColor="#9CA3AF"
-                keyboardType="email-address"
-                autoCapitalize="none"
+                keyboardType="numeric"
+                maxLength={2}
               />
-
-              {/* PHONE & AGE ROW */}
-              <View style={styles.rowContainer}>
-                <TextInput
-                  style={[styles.input, styles.halfInput]}
-                  value={formData.phone}
-                  onChangeText={(v) => handleChange('phone', v)}
-                  placeholder="Phone"
-                  placeholderTextColor="#9CA3AF"
-                  keyboardType="phone-pad"
-                />
-                <TextInput
-                  style={[styles.input, styles.halfInput]}
-                  value={formData.age}
-                  onChangeText={(v) => handleChange('age', v)}
-                  placeholder="Age"
-                  placeholderTextColor="#9CA3AF"
-                  keyboardType="numeric"
-                  maxLength={2}
-                />
-              </View>
-
-              {/* LOCATION */}
-              <View style={styles.locationContainer}>
-                <TextInput
-                  style={styles.locationInput}
-                  value={formData.location}
-                  onChangeText={(v) => handleChange('location', v)}
-                  placeholder="City, State"
-                  placeholderTextColor="#9CA3AF"
-                />
-                <TouchableOpacity 
-                  onPress={handleGetLocation}
-                  disabled={locationLoading}
-                  style={styles.gpsButton}
-                >
-                  {locationLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.gpsText}>GPS</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {/* PASSWORD */}
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={styles.passwordInput}
-                  value={formData.password}
-                  onChangeText={(v) => handleChange('password', v)}
-                  placeholder="Password"
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity
-                  style={styles.eyeButton}
-                  onPress={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff size={20} color="#9CA3AF" />
-                  ) : (
-                    <Eye size={20} color="#9CA3AF" />
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {/* BUTTON */}
-              <TouchableOpacity
-                style={[styles.continueBtn, loading && { opacity: 0.75 }]}
-                onPress={handleRegister}
-                disabled={loading}
-              >
-                <Text style={styles.continueText}>
-                  {loading ? 'Creating Account...' : 'Sign Up'}
-                </Text>
-              </TouchableOpacity>
-
-              {/* LOGIN LINK */}
-              <View style={styles.signupRow}>
-                <Text style={styles.signupText}>Already have an account?</Text>
-                <TouchableOpacity onPress={() => router.back()}>
-                  <Text style={styles.signupLink}> Log In</Text>
-                </TouchableOpacity>
-              </View>
             </View>
+
+            {/* LOCATION */}
+            <View style={styles.locationContainer}>
+              <TextInput
+                style={styles.locationInput}
+                value={formData.location}
+                onChangeText={(v) => handleChange('location', v)}
+                placeholder="City, State"
+                placeholderTextColor="#9CA3AF"
+              />
+              <TouchableOpacity
+                onPress={handleGetLocation}
+                disabled={locationLoading}
+                style={styles.gpsButton}
+              >
+                {locationLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.gpsText}>GPS</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* PASSWORD */}
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                value={formData.password}
+                onChangeText={(v) => handleChange('password', v)}
+                placeholder="Password"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <EyeOff size={20} color="#9CA3AF" />
+                ) : (
+                  <Eye size={20} color="#9CA3AF" />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* BUTTON */}
+            <TouchableOpacity
+              style={[styles.continueBtn, loading && { opacity: 0.75 }]}
+              onPress={handleRegister}
+              disabled={loading}
+            >
+              <Text style={styles.continueText}>
+                {loading ? 'Creating Account...' : 'Sign Up'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* LOGIN LINK */}
+            <View style={styles.signupRow}>
+              <Text style={styles.signupText}>Already have an account?</Text>
+              <TouchableOpacity onPress={() => router.back()}>
+                <Text style={styles.signupLink}> Log In</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {/* FOOTER */}
           <View style={styles.footer}>

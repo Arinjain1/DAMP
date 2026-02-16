@@ -10,7 +10,7 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
   const dispatch = useDispatch();
   const { customers } = useSelector(state => state.customers);
   const { properties } = useSelector(state => state.properties);
-  
+
   const [showAddModal, setShowAddModal] = useState(false);
 
   const meetings = selectedDeal.meetings || [];
@@ -20,16 +20,6 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
   };
 
   const handleSaveTask = (taskData) => {
-    console.log('Saving task with data:', taskData); // Debug log
-    
-    // Save to followUps slice
-    const newTask = {
-      ...taskData,
-      id: Math.random().toString(36).substring(2, 11),
-      status: 'Pending'
-    };
-    
-    console.log('New task to be saved:', newTask); // Debug log
     dispatch(addFollowUp(newTask));
 
     // Also update deal's meetings
@@ -38,7 +28,7 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
 
     const newMeeting = {
       id: newTask.id,
-      title: `${taskData.type}`, 
+      title: `${taskData.type}`,
       date: taskData.date,
       status: 'upcoming',
       type: taskData.type,
@@ -101,15 +91,15 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
 
   return (
     <View className="flex-1 relative">
-      <ScrollView 
-        className="flex-1" 
+      <ScrollView
+        className="flex-1"
         contentContainerClassName="pb-[100px]"
       >
         {/* Schedule Header */}
         <View className="flex-row justify-between items-center mb-[26px]">
           <Text className="text-lg font-bold text-[#1f2937] left-[10px]">Schedule</Text>
-          <TouchableOpacity 
-            className="flex-row items-center gap-[6px] bg-[#9A8CFC] px-3 py-2 rounded-[20px] border border-[#9A8CFC]" 
+          <TouchableOpacity
+            className="flex-row items-center gap-[6px] bg-[#9A8CFC] px-3 py-2 rounded-[20px] border border-[#9A8CFC]"
             onPress={handleAddMeeting}
           >
             <CirclePlus size={20} color="#ffffff" strokeWidth={2} />
@@ -135,21 +125,19 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
               .map((item) => (
                 <View
                   key={item.id}
-                  className={`bg-white rounded-2xl p-4 border border-[#e5e7eb] ${
-                    item.status === 'completed' ? 'bg-[#f9fafb]' : ''
-                  }`}
+                  className={`bg-white rounded-2xl p-4 border border-[#e5e7eb] ${item.status === 'completed' ? 'bg-[#f9fafb]' : ''
+                    }`}
                 >
                   <View className="flex-row justify-between items-start mb-2">
                     <View className="flex-1">
-                      <Text 
-                        className={`text-lg font-bold text-[#1f2937] mb-1 ${
-                          item.status === 'completed' ? 'text-[#6b7280]' : ''
-                        }`}
+                      <Text
+                        className={`text-lg font-bold text-[#1f2937] mb-1 ${item.status === 'completed' ? 'text-[#6b7280]' : ''
+                          }`}
                       >
                         {item.title}
                       </Text>
-                      
-                      
+
+
                       {item.note && (
                         <Text className="text-[12px] text-[#9ca3af] mb-1">
                           {item.note}
@@ -209,7 +197,7 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
         onClose={() => setShowAddModal(false)}
         type="FollowUp"
         onSave={handleSaveTask}
-        onUpdate={() => {}} // Empty function for now, not needed in add mode
+        onUpdate={() => { }} // Empty function for now, not needed in add mode
         initialCustomer={selectedDeal ? customers.find(c => c.id === selectedDeal.customerId) : null}
         initialPropertyIds={selectedDeal?.propertyId ? [selectedDeal.propertyId] : []}
         initialTaskType="Meeting"

@@ -15,7 +15,7 @@ export default function DealPage() {
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState('Meeting');
   const [reminderEnabled, setReminderEnabled] = useState(false);
-  
+
   // Custom alert states
   const [showReminderSetAlert, setShowReminderSetAlert] = useState(false);
   const [showMeetingReminderAlert, setShowMeetingReminderAlert] = useState(false);
@@ -56,7 +56,6 @@ export default function DealPage() {
         setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error), 1000);
         setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success), 1500);
       } catch (error) {
-        console.log('Haptics not available:', error);
       }
 
       // Show custom alert
@@ -101,7 +100,7 @@ export default function DealPage() {
 
   const handleSnoozeReminder = async () => {
     setShowMeetingReminderAlert(false);
-    
+
     if (currentReminder) {
       setTimeout(() => {
         setShowMeetingReminderAlert(true);
@@ -120,14 +119,10 @@ export default function DealPage() {
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (error) {
-        console.log('Haptics not available:', error);
       }
 
       // Dispatch action to complete agreement
       dispatch(completeAgreement(customer.id));
-
-      // Show success feedback (you can add a modal or toast here if desired)
-      console.log('Agreement marked as complete for customer:', customer.name);
     }
   };
 
@@ -216,16 +211,16 @@ export default function DealPage() {
 
         {/* Tab Content - Render different views based on active tab */}
         {activeTab === 'Meeting' && (
-          <MeetingView 
+          <MeetingView
             selectedDeal={selectedDeal}
             reminderEnabled={reminderEnabled}
             setReminderEnabled={setReminderEnabled}
             setShowReminderSetAlert={setShowReminderSetAlert}
           />
         )}
-        
+
         {activeTab === 'Payment' && <PaymentView />}
-        
+
         {activeTab === 'Agreement' && <AgreementView onMarkAgreementDone={handleMarkAgreementDone} />}
       </ScrollView>
 
