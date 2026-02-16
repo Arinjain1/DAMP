@@ -162,11 +162,11 @@ const AddModal = ({
     const handleTrackPress = (evt, type = 'budget') => {
         const { locationX } = evt.nativeEvent;
         const clickedValue = type === 'budget' ? positionToBudget(locationX) : positionToPrice(locationX);
-        
+
         if (type === 'budget') {
             const distanceToMin = Math.abs(clickedValue - budgetRange.min);
             const distanceToMax = Math.abs(clickedValue - budgetRange.max);
-            
+
             if (distanceToMin < distanceToMax) {
                 handleBudgetChange('min', clickedValue);
             } else {
@@ -175,7 +175,7 @@ const AddModal = ({
         } else {
             const distanceToMin = Math.abs(clickedValue - priceRange.min);
             const distanceToMax = Math.abs(clickedValue - priceRange.max);
-            
+
             if (distanceToMin < distanceToMax) {
                 handlePriceChange('min', clickedValue);
             } else {
@@ -366,7 +366,7 @@ const AddModal = ({
         debounceTimer.current = setTimeout(async () => {
             setLocationLoading(true);
             try {
-                const API_KEY = 'AIzaSyBh6QaQefnuItu6ntz4Z3xiH4pLt4b48pA';
+                const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
                 const url = 'https://places.googleapis.com/v1/places:autocomplete';
                 const response = await fetch(url, {
                     method: 'POST',
@@ -503,12 +503,12 @@ const AddModal = ({
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView 
+                        <ScrollView
                             ref={scrollViewRef}
-                            className="flex-1 px-6 pt-4" 
-                            contentContainerStyle={{ paddingBottom: 100 }} 
-                            showsVerticalScrollIndicator={false} 
-                            keyboardShouldPersistTaps="handled" 
+                            className="flex-1 px-6 pt-4"
+                            contentContainerStyle={{ paddingBottom: 100 }}
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
                             nestedScrollEnabled={true}
                             scrollEventThrottle={16}
                         >
@@ -612,7 +612,7 @@ const AddModal = ({
                                                     } else if (formData.type === 'Hospitality') {
                                                         configs = ['Guesthouse', 'Banquet Halls', 'Hotels/Resorts'];
                                                     }
-                                                    
+
                                                     return configs.map((config) => {
                                                         const isSelected = formData.commercialConfig === config;
                                                         return (
@@ -631,26 +631,26 @@ const AddModal = ({
                                     )}
 
                                     {/* Furnishing (Residential excluding Plot and Farmhouse, Commercial only for Office and Shop/Showroom excluding Bareshell Office) */}
-                                    {((formData.category === 'Residential' && formData.type !== 'Plot' && formData.type !== 'Farmhouse') || 
-                                      (formData.category === 'Commercial' && (formData.type === 'Office' || formData.type === 'Shop/Showroom') && formData.commercialConfig !== 'Bareshell Office')) && (
-                                        <View style={styles.section}>
-                                            <Text style={styles.inputLabel}>Furnishing</Text>
-                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.furnishingScrollContainer}>
-                                                {['Unfurnished', 'Semi', 'Furnished'].map((furn) => {
-                                                    const isSelected = formData.furnishing === furn;
-                                                    return (
-                                                        <TouchableOpacity key={furn} onPress={() => handleChange('furnishing', furn)}
-                                                            style={[styles.radioOption, isSelected ? styles.radioOptionSelected : null]}>
-                                                            <View style={[styles.radioButtonSmall, isSelected ? styles.radioButtonSelected : styles.radioButtonUnselected]}>
-                                                                {isSelected && <View style={styles.radioButtonInner} />}
-                                                            </View>
-                                                            <Text style={[styles.radioTextSmall, isSelected ? styles.radioTextSelected : styles.radioTextUnselected]}>{furn}</Text>
-                                                        </TouchableOpacity>
-                                                    );
-                                                })}
-                                            </ScrollView>
-                                        </View>
-                                    )}
+                                    {((formData.category === 'Residential' && formData.type !== 'Plot' && formData.type !== 'Farmhouse') ||
+                                        (formData.category === 'Commercial' && (formData.type === 'Office' || formData.type === 'Shop/Showroom') && formData.commercialConfig !== 'Bareshell Office')) && (
+                                            <View style={styles.section}>
+                                                <Text style={styles.inputLabel}>Furnishing</Text>
+                                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.furnishingScrollContainer}>
+                                                    {['Unfurnished', 'Semi', 'Furnished'].map((furn) => {
+                                                        const isSelected = formData.furnishing === furn;
+                                                        return (
+                                                            <TouchableOpacity key={furn} onPress={() => handleChange('furnishing', furn)}
+                                                                style={[styles.radioOption, isSelected ? styles.radioOptionSelected : null]}>
+                                                                <View style={[styles.radioButtonSmall, isSelected ? styles.radioButtonSelected : styles.radioButtonUnselected]}>
+                                                                    {isSelected && <View style={styles.radioButtonInner} />}
+                                                                </View>
+                                                                <Text style={[styles.radioTextSmall, isSelected ? styles.radioTextSelected : styles.radioTextUnselected]}>{furn}</Text>
+                                                            </TouchableOpacity>
+                                                        );
+                                                    })}
+                                                </ScrollView>
+                                            </View>
+                                        )}
 
                                     {/* State Dropdown */}
                                     <View style={styles.section}>
@@ -717,16 +717,16 @@ const AddModal = ({
                                         <Text style={styles.inputLabel}>Price</Text>
                                         <View style={styles.rowInputs}>
                                             <View style={styles.priceInputContainer}>
-                                                <TextInput 
-                                                    keyboardType="numeric" 
-                                                    value={String(formData.priceValue || '')} 
-                                                    onChangeText={(t) => handleChange('priceValue', t)} 
-                                                    placeholder="Enter price" 
-                                                    style={styles.textInputStyled} 
+                                                <TextInput
+                                                    keyboardType="numeric"
+                                                    value={String(formData.priceValue || '')}
+                                                    onChangeText={(t) => handleChange('priceValue', t)}
+                                                    placeholder="Enter price"
+                                                    style={styles.textInputStyled}
                                                 />
                                             </View>
                                             <View style={styles.priceUnitContainer}>
-                                                <TouchableOpacity 
+                                                <TouchableOpacity
                                                     style={styles.dropdownStyled}
                                                     onPress={() => setShowPriceUnitPicker(!showPriceUnitPicker)}
                                                 >
@@ -738,7 +738,7 @@ const AddModal = ({
                                                 {showPriceUnitPicker && (
                                                     <View style={styles.dropdownOptions}>
                                                         {['Thousands', 'Lakh', 'Crore'].map((unit) => (
-                                                            <TouchableOpacity 
+                                                            <TouchableOpacity
                                                                 key={unit}
                                                                 style={styles.dropdownOption}
                                                                 onPress={() => {
@@ -759,12 +759,12 @@ const AddModal = ({
                                     {formData.listingType === 'Rent' && (
                                         <View style={styles.section}>
                                             <Text style={styles.inputLabel}>Bond</Text>
-                                            <TextInput 
-                                                keyboardType="numeric" 
-                                                value={String(formData.bond || '')} 
-                                                onChangeText={(t) => handleChange('bond', t)} 
-                                                placeholder="Enter bond" 
-                                                style={styles.textInputStyled} 
+                                            <TextInput
+                                                keyboardType="numeric"
+                                                value={String(formData.bond || '')}
+                                                onChangeText={(t) => handleChange('bond', t)}
+                                                placeholder="Enter bond"
+                                                style={styles.textInputStyled}
                                             />
                                         </View>
                                     )}
@@ -774,16 +774,16 @@ const AddModal = ({
                                         <Text style={styles.inputLabel}>Size</Text>
                                         <View style={styles.rowInputs}>
                                             <View style={styles.priceInputContainer}>
-                                                <TextInput 
-                                                    keyboardType="numeric" 
-                                                    value={String(formData.sizeValue || '')} 
-                                                    onChangeText={(t) => handleChange('sizeValue', t)} 
-                                                    placeholder="Enter size" 
-                                                    style={styles.textInputStyled} 
+                                                <TextInput
+                                                    keyboardType="numeric"
+                                                    value={String(formData.sizeValue || '')}
+                                                    onChangeText={(t) => handleChange('sizeValue', t)}
+                                                    placeholder="Enter size"
+                                                    style={styles.textInputStyled}
                                                 />
                                             </View>
                                             <View style={styles.priceUnitContainer}>
-                                                <TouchableOpacity 
+                                                <TouchableOpacity
                                                     style={styles.dropdownStyled}
                                                     onPress={() => setShowSizeUnitPicker(!showSizeUnitPicker)}
                                                 >
@@ -796,7 +796,7 @@ const AddModal = ({
                                                     <View style={styles.dropdownOptions}>
                                                         <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
                                                             {['Sq. Ft.', 'Sq. M.', 'Sq. Yd.', 'Acre', 'Hectare', 'Bigha', 'Katha', 'Kattha', 'Biswa', 'Guntha', 'Cent', 'Ground', 'Kanal', 'Marla', 'Chatak', 'Dhur', 'Decimal', 'Perch', 'Rood', 'Are', 'Carat'].map((unit) => (
-                                                                <TouchableOpacity 
+                                                                <TouchableOpacity
                                                                     key={unit}
                                                                     style={styles.dropdownOption}
                                                                     onPress={() => {
@@ -820,22 +820,22 @@ const AddModal = ({
                                             <View style={styles.rowInputs}>
                                                 <View style={styles.halfInput}>
                                                     <Text style={styles.inputLabel}>Length (ft)</Text>
-                                                    <TextInput 
-                                                        keyboardType="numeric" 
-                                                        value={String(formData.length || '')} 
-                                                        onChangeText={(t) => handleChange('length', t)} 
-                                                        placeholder="0" 
-                                                        style={styles.textInputStyled} 
+                                                    <TextInput
+                                                        keyboardType="numeric"
+                                                        value={String(formData.length || '')}
+                                                        onChangeText={(t) => handleChange('length', t)}
+                                                        placeholder="0"
+                                                        style={styles.textInputStyled}
                                                     />
                                                 </View>
                                                 <View style={styles.halfInput}>
                                                     <Text style={styles.inputLabel}>Width (ft)</Text>
-                                                    <TextInput 
-                                                        keyboardType="numeric" 
-                                                        value={String(formData.width || '')} 
-                                                        onChangeText={(t) => handleChange('width', t)} 
-                                                        placeholder="0" 
-                                                        style={styles.textInputStyled} 
+                                                    <TextInput
+                                                        keyboardType="numeric"
+                                                        value={String(formData.width || '')}
+                                                        onChangeText={(t) => handleChange('width', t)}
+                                                        placeholder="0"
+                                                        style={styles.textInputStyled}
                                                     />
                                                 </View>
                                             </View>
@@ -997,7 +997,7 @@ const AddModal = ({
                                                     } else if (formData.type === 'Hospitality') {
                                                         configs = ['Guesthouse', 'Banquet Halls', 'Hotels/Resorts'];
                                                     }
-                                                    
+
                                                     return configs.map((config) => {
                                                         const isSelected = formData.commercialConfig === config;
                                                         return (
@@ -1016,26 +1016,26 @@ const AddModal = ({
                                     )}
 
                                     {/* Furnishing (Residential excluding Plot and Farmhouse, Commercial only for Office and Shop/Showroom excluding Bareshell Office) */}
-                                    {((formData.category === 'Residential' && formData.type !== 'Plot' && formData.type !== 'Farmhouse') || 
-                                      (formData.category === 'Commercial' && (formData.type === 'Office' || formData.type === 'Shop/Showroom') && formData.commercialConfig !== 'Bareshell Office')) && (
-                                        <View style={styles.section}>
-                                            <Text style={styles.inputLabel}>Furnishing</Text>
-                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.furnishingScrollContainer}>
-                                                {['Unfurnished', 'Semi', 'Furnished'].map((furn) => {
-                                                    const isSelected = formData.furnishing === furn;
-                                                    return (
-                                                        <TouchableOpacity key={furn} onPress={() => handleChange('furnishing', furn)}
-                                                            style={[styles.radioOption, isSelected ? styles.radioOptionSelected : null]}>
-                                                            <View style={[styles.radioButtonSmall, isSelected ? styles.radioButtonSelected : styles.radioButtonUnselected]}>
-                                                                {isSelected && <View style={styles.radioButtonInner} />}
-                                                            </View>
-                                                            <Text style={[styles.radioTextSmall, isSelected ? styles.radioTextSelected : styles.radioTextUnselected]}>{furn}</Text>
-                                                        </TouchableOpacity>
-                                                    );
-                                                })}
-                                            </ScrollView>
-                                        </View>
-                                    )}
+                                    {((formData.category === 'Residential' && formData.type !== 'Plot' && formData.type !== 'Farmhouse') ||
+                                        (formData.category === 'Commercial' && (formData.type === 'Office' || formData.type === 'Shop/Showroom') && formData.commercialConfig !== 'Bareshell Office')) && (
+                                            <View style={styles.section}>
+                                                <Text style={styles.inputLabel}>Furnishing</Text>
+                                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.furnishingScrollContainer}>
+                                                    {['Unfurnished', 'Semi', 'Furnished'].map((furn) => {
+                                                        const isSelected = formData.furnishing === furn;
+                                                        return (
+                                                            <TouchableOpacity key={furn} onPress={() => handleChange('furnishing', furn)}
+                                                                style={[styles.radioOption, isSelected ? styles.radioOptionSelected : null]}>
+                                                                <View style={[styles.radioButtonSmall, isSelected ? styles.radioButtonSelected : styles.radioButtonUnselected]}>
+                                                                    {isSelected && <View style={styles.radioButtonInner} />}
+                                                                </View>
+                                                                <Text style={[styles.radioTextSmall, isSelected ? styles.radioTextSelected : styles.radioTextUnselected]}>{furn}</Text>
+                                                            </TouchableOpacity>
+                                                        );
+                                                    })}
+                                                </ScrollView>
+                                            </View>
+                                        )}
 
                                     {/* Customer Name */}
                                     <View style={styles.section}>
@@ -1062,33 +1062,33 @@ const AddModal = ({
                                             <Text style={styles.budgetLabel}>
                                                 {formatBudget(budgetRange.min)} - {formatBudget(budgetRange.max)}
                                             </Text>
-                                            
+
                                             {/* Draggable Range Slider */}
                                             <View style={styles.budgetSliderContainer}>
-                                                <TouchableOpacity 
+                                                <TouchableOpacity
                                                     style={styles.budgetSlider}
                                                     activeOpacity={1}
                                                     onPress={(evt) => handleTrackPress(evt, 'budget')}
                                                 >
                                                     {/* Background track */}
                                                     <View style={styles.budgetSliderTrack} />
-                                                    
+
                                                     {/* Active range track */}
                                                     <View style={[styles.budgetTrack, {
                                                         left: budgetToPosition(budgetRange.min),
                                                         width: budgetToPosition(budgetRange.max) - budgetToPosition(budgetRange.min)
                                                     }]} />
-                                                    
+
                                                     {/* Min thumb (draggable) */}
-                                                    <View 
+                                                    <View
                                                         style={[styles.budgetThumb, {
                                                             left: budgetToPosition(budgetRange.min) - 8
                                                         }]}
                                                         {...minThumbPanResponder.panHandlers}
                                                     />
-                                                    
+
                                                     {/* Max thumb (draggable) */}
-                                                    <View 
+                                                    <View
                                                         style={[styles.budgetThumb, {
                                                             left: budgetToPosition(budgetRange.max) - 8
                                                         }]}
@@ -1096,7 +1096,7 @@ const AddModal = ({
                                                     />
                                                 </TouchableOpacity>
                                             </View>
-                                            
+
                                             <View style={styles.budgetRangeLabels}>
                                                 <Text style={styles.budgetRangeText}>{formatBudget(minBudget)}</Text>
                                                 <Text style={styles.budgetRangeText}>{formatBudget(maxBudget)}+</Text>
@@ -1107,10 +1107,10 @@ const AddModal = ({
                                     {/* Details */}
                                     <View style={styles.section}>
                                         <Text style={styles.inputLabel}>Details</Text>
-                                        <TextInput 
-                                            value={formData.details || ''} 
-                                            onChangeText={(t) => handleChange('details', t)} 
-                                            placeholder="Add property detail here..." 
+                                        <TextInput
+                                            value={formData.details || ''}
+                                            onChangeText={(t) => handleChange('details', t)}
+                                            placeholder="Add property detail here..."
                                             style={[styles.textInputStyled, styles.textAreaInput]}
                                             multiline={true}
                                             numberOfLines={4}
@@ -1125,8 +1125,8 @@ const AddModal = ({
                                     {/* Customer Selection */}
                                     <View style={styles.section}>
                                         <Text style={styles.inputLabel}>Customer</Text>
-                                        <TouchableOpacity 
-                                            style={[styles.dropdownButton, initialCustomer && { backgroundColor: '#f9fafb' }]} 
+                                        <TouchableOpacity
+                                            style={[styles.dropdownButton, initialCustomer && { backgroundColor: '#f9fafb' }]}
                                             onPress={() => !initialCustomer && setShowCustomerDropdown(!showCustomerDropdown)}
                                         >
                                             <Text style={formData.customerId ? styles.dropdownSelected : styles.dropdownPlaceholder}>
@@ -1134,16 +1134,16 @@ const AddModal = ({
                                             </Text>
                                             {!initialCustomer && <ChevronDown size={18} color="#9ca3af" />}
                                         </TouchableOpacity>
-                                        
+
                                         {showCustomerDropdown && (
                                             <View style={styles.customerDropdown}>
                                                 <ScrollView style={styles.customerScrollView} nestedScrollEnabled={true} keyboardShouldPersistTaps="handled">
                                                     {customers.map((customer) => (
-                                                        <TouchableOpacity 
-                                                            key={customer.id} 
-                                                            style={styles.customerItem} 
-                                                            onPress={() => { 
-                                                                handleChange('customerId', customer.id); 
+                                                        <TouchableOpacity
+                                                            key={customer.id}
+                                                            style={styles.customerItem}
+                                                            onPress={() => {
+                                                                handleChange('customerId', customer.id);
                                                                 setShowCustomerDropdown(false);
                                                             }}
                                                         >
@@ -1183,8 +1183,8 @@ const AddModal = ({
                                     <View style={styles.section}>
                                         <Text style={styles.inputLabel}>Schedule</Text>
                                         <View style={styles.rowContainer}>
-                                            <TouchableOpacity 
-                                                style={[styles.halfWidth, styles.dropdownButton]} 
+                                            <TouchableOpacity
+                                                style={[styles.halfWidth, styles.dropdownButton]}
                                                 onPress={() => setShowDatePicker(true)}
                                             >
                                                 <Text style={styles.dropdownSelected}>
@@ -1192,9 +1192,9 @@ const AddModal = ({
                                                 </Text>
                                                 <Calendar size={16} color="#bfb7fd" />
                                             </TouchableOpacity>
-                                            
-                                            <TouchableOpacity 
-                                                style={[styles.halfWidth, styles.dropdownButton]} 
+
+                                            <TouchableOpacity
+                                                style={[styles.halfWidth, styles.dropdownButton]}
                                                 onPress={() => setShowTimePicker(true)}
                                             >
                                                 <Text style={styles.dropdownSelected}>
@@ -1208,30 +1208,30 @@ const AddModal = ({
                                     {/* Properties (Optional) */}
                                     <View style={styles.section}>
                                         <Text style={styles.inputLabel}>Related Properties (Optional)</Text>
-                                        <TouchableOpacity 
-                                            style={styles.dropdownButton} 
+                                        <TouchableOpacity
+                                            style={styles.dropdownButton}
                                             onPress={() => setShowPropertyDropdown(!showPropertyDropdown)}
                                         >
                                             <Text style={formData.propertyIds?.length > 0 ? styles.dropdownSelected : styles.dropdownPlaceholder}>
-                                                {formData.propertyIds?.length > 0 
+                                                {formData.propertyIds?.length > 0
                                                     ? `${formData.propertyIds.length} ${formData.propertyIds.length === 1 ? 'property' : 'properties'} selected`
                                                     : 'Select properties'}
                                             </Text>
                                             <ChevronDown size={18} color="#9ca3af" />
                                         </TouchableOpacity>
-                                        
+
                                         {showPropertyDropdown && (
                                             <View style={styles.propertyDropdown}>
                                                 <ScrollView style={styles.propertyScrollView} nestedScrollEnabled={true} keyboardShouldPersistTaps="handled">
                                                     {properties.map((property) => {
                                                         const isSelected = formData.propertyIds?.includes(property.id);
                                                         return (
-                                                            <TouchableOpacity 
-                                                                key={property.id} 
-                                                                style={styles.propertyItem} 
+                                                            <TouchableOpacity
+                                                                key={property.id}
+                                                                style={styles.propertyItem}
                                                                 onPress={() => {
                                                                     const currentIds = formData.propertyIds || [];
-                                                                    const newIds = isSelected 
+                                                                    const newIds = isSelected
                                                                         ? currentIds.filter(id => id !== property.id)
                                                                         : [...currentIds, property.id];
                                                                     handleChange('propertyIds', newIds);
@@ -1252,9 +1252,9 @@ const AddModal = ({
                                         {formData.propertyIds?.length > 0 && (
                                             <View style={{ marginTop: 12, gap: 8 }}>
                                                 {properties.filter(p => formData.propertyIds.includes(p.id)).map((property) => (
-                                                    <View key={property.id} style={{ 
-                                                        backgroundColor: '#f9fafb', 
-                                                        borderRadius: 12, 
+                                                    <View key={property.id} style={{
+                                                        backgroundColor: '#f9fafb',
+                                                        borderRadius: 12,
                                                         padding: 12,
                                                         borderWidth: 1,
                                                         borderColor: '#e5e7eb',
@@ -1270,15 +1270,15 @@ const AddModal = ({
                                                                 {property.location}
                                                             </Text>
                                                         </View>
-                                                        <TouchableOpacity 
+                                                        <TouchableOpacity
                                                             onPress={() => {
                                                                 const newIds = formData.propertyIds.filter(id => id !== property.id);
                                                                 handleChange('propertyIds', newIds);
                                                             }}
-                                                            style={{ 
-                                                                backgroundColor: '#fee2e2', 
-                                                                borderRadius: 8, 
-                                                                padding: 6 
+                                                            style={{
+                                                                backgroundColor: '#fee2e2',
+                                                                borderRadius: 8,
+                                                                padding: 6
                                                             }}
                                                         >
                                                             <X size={16} color="#dc2626" />
@@ -1292,10 +1292,10 @@ const AddModal = ({
                                     {/* Notes */}
                                     <View style={styles.section}>
                                         <Text style={styles.inputLabel}>Notes</Text>
-                                        <TextInput 
-                                            value={formData.note || ''} 
-                                            onChangeText={(t) => handleChange('note', t)} 
-                                            placeholder="Add task details..." 
+                                        <TextInput
+                                            value={formData.note || ''}
+                                            onChangeText={(t) => handleChange('note', t)}
+                                            placeholder="Add task details..."
                                             style={[styles.textInputStyled, styles.textAreaInput]}
                                             multiline={true}
                                             numberOfLines={4}
@@ -1341,7 +1341,7 @@ const styles = StyleSheet.create({
     formContainer: { gap: 16 },
     section: { marginBottom: 4, position: 'relative' },
     inputLabel: { fontSize: 12, fontWeight: '500', color: '#6b7280', marginBottom: 8, fontFamily: 'Montserrat_500Medium' },
-    
+
     // SCROLL CONTAINERS FOR RADIO BUTTONS
     listingTypeScrollContainer: { flexDirection: 'row', gap: 8, paddingRight: 16 },
     categoryScrollContainer: { flexDirection: 'row', gap: 8, paddingRight: 16 },
@@ -1349,9 +1349,9 @@ const styles = StyleSheet.create({
     commercialScrollContainer: { flexDirection: 'row', gap: 8, paddingRight: 16 },
     furnishingScrollContainer: { flexDirection: 'row', gap: 8, paddingRight: 16 },
     propertyTypeScrollContainer: { flexDirection: 'row', paddingRight: 16 },
-    
+
     categoryRadioContainer: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-    
+
     // UPDATED RADIO OPTION STYLE (PILL BORDER) - SMALLER PADDING
     radioOption: {
         flexDirection: 'row',
@@ -1410,7 +1410,7 @@ const styles = StyleSheet.create({
     dropdownPlaceholder: { fontSize: 14, color: '#9ca3af' },
     dropdownSelected: { color: '#374151', fontWeight: '600' },
     textInputStyled: { padding: 14, backgroundColor: 'white', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, fontSize: 14 },
-    
+
     // ROW LAYOUT STYLES
     rowContainer: { flexDirection: 'row', gap: 12 },
     halfWidth: { flex: 1 },
@@ -1418,15 +1418,15 @@ const styles = StyleSheet.create({
     halfInput: { flex: 1 },
     priceInputContainer: { flex: 1.5 },
     priceUnitContainer: { flex: 1, position: 'relative' },
-    dropdownStyled: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        justifyContent: 'space-between', 
-        padding: 14, 
-        backgroundColor: 'white', 
-        borderWidth: 1, 
-        borderColor: '#e5e7eb', 
-        borderRadius: 8 
+    dropdownStyled: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 14,
+        backgroundColor: 'white',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        borderRadius: 8
     },
     dropdownOptions: {
         position: 'absolute',
@@ -1454,7 +1454,7 @@ const styles = StyleSheet.create({
         color: '#374151',
         fontWeight: '500',
     },
-    
+
     imageUpload: { width: '100%', height: 160, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: '#d1d5db', backgroundColor: '#f9fafb', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
     uploadedImage: { width: '100%', height: '100%' },
     uploadPlaceholder: { alignItems: 'center', justifyContent: 'center', flexDirection: 'column' },
@@ -1462,7 +1462,7 @@ const styles = StyleSheet.create({
     uploadText: { fontSize: 12, color: '#9ca3af', textAlign: 'center' },
     purpleSubmitButton: { width: '100%', padding: 16, backgroundColor: '#bfb7fd', borderRadius: 12, marginTop: 24, alignItems: 'center' },
     purpleSubmitButtonText: { color: 'white', fontSize: 14, fontWeight: '700' },
-    
+
     // AMENITIES STYLES
     amenityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
     amenityChipCompact: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb' },
@@ -1473,14 +1473,14 @@ const styles = StyleSheet.create({
     amenityTextUnselected: { color: '#6b7280' },
     noAmenitiesContainer: { padding: 20, alignItems: 'center' },
     noAmenitiesText: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic' },
-    
+
     // BUDGET SLIDER STYLES
     budgetContainer: { marginTop: 8 },
     budgetLabel: { fontSize: 16, fontWeight: '700', color: '#bfb7fd', textAlign: 'center', marginBottom: 5 },
-    
+
     budgetSliderContainer: { marginBottom: 2, paddingHorizontal: 10 },
-    budgetSlider: { 
-        height: 40, 
+    budgetSlider: {
+        height: 40,
         justifyContent: 'center',
         position: 'relative',
         width: '100%'
@@ -1494,38 +1494,38 @@ const styles = StyleSheet.create({
         top: '50%',
         marginTop: -1.5
     },
-    budgetTrack: { 
-        position: 'absolute', 
-        height: 3, 
-        backgroundColor: '#111827', 
+    budgetTrack: {
+        position: 'absolute',
+        height: 3,
+        backgroundColor: '#111827',
         borderRadius: 1.5,
         top: '50%',
         marginTop: -1.5
     },
-    budgetThumb: { 
-        position: 'absolute', 
+    budgetThumb: {
+        position: 'absolute',
         top: '50%',
-        width: 16, 
-        height: 16, 
-        backgroundColor: '#111827', 
+        width: 16,
+        height: 16,
+        backgroundColor: '#111827',
         borderRadius: 8,
         marginTop: -8,
         zIndex: 10
     },
     budgetRangeLabels: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10 },
     budgetRangeText: { fontSize: 11, color: '#6b7280' },
-    
+
     // TEXT AREA INPUT
     textAreaInput: { height: 100, textAlignVertical: 'top', paddingTop: 14 },
-    
+
     // DROPDOWN STYLES FOR FOLLOWUP
-    customerDropdown: { 
+    customerDropdown: {
         position: 'relative', // Part of the flow normally
-        backgroundColor: 'white', 
-        borderWidth: 1, 
-        borderColor: '#e5e7eb', 
-        borderRadius: 8, 
-        maxHeight: 200, 
+        backgroundColor: 'white',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        borderRadius: 8,
+        maxHeight: 200,
         zIndex: 5000,
         elevation: 10,
         shadowColor: '#000',
@@ -1546,39 +1546,39 @@ const styles = StyleSheet.create({
     customerItemContent: { flexDirection: 'column' },
     customerText: { fontSize: 14, fontWeight: '600', color: '#1f2937' },
     customerSubText: { fontSize: 12, color: '#6b7280', marginTop: 2 },
-    
+
     // SEARCH STYLES
-    searchContainer: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        padding: 12, 
-        borderBottomWidth: 1, 
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
         backgroundColor: '#f9fafb'
     },
-    searchInput: { 
-        flex: 1, 
-        marginLeft: 8, 
-        fontSize: 14, 
+    searchInput: {
+        flex: 1,
+        marginLeft: 8,
+        fontSize: 14,
         color: '#1f2937',
         paddingVertical: 4
     },
-    noResultsContainer: { 
-        padding: 20, 
-        alignItems: 'center' 
+    noResultsContainer: {
+        padding: 20,
+        alignItems: 'center'
     },
-    noResultsText: { 
-        fontSize: 14, 
-        color: '#9ca3af', 
-        fontStyle: 'italic' 
+    noResultsText: {
+        fontSize: 14,
+        color: '#9ca3af',
+        fontStyle: 'italic'
     },
-    
+
     propertyDropdown: { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'white', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, maxHeight: 200, zIndex: 5000 },
     propertyScrollView: { maxHeight: 200 },
     propertyItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
     propertyItemContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     propertyText: { fontSize: 14, fontWeight: '600', flex: 1 },
-    
+
     dropdownButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, backgroundColor: 'white', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8 },
     dropdownPlaceholder: { fontSize: 14, color: '#9ca3af' },
     dropdownSelected: { fontSize: 14, color: '#374151', fontWeight: '600' },
