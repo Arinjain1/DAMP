@@ -156,10 +156,7 @@ export default function PaymentView() {
       
       dispatch(updateDeal(updatedDeal));
       
-      console.log('Saved Values:', {
-        dealAmount: finalValue,
-        negotiation: updatedDeal.negotiation
-      });
+      
     }
   };
   

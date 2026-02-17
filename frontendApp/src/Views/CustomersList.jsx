@@ -107,9 +107,6 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal, on
     const currentIndex = SALES_STAGES.findIndex(s => s.id === currentStage);
     const lastStageIndex = SALES_STAGES.length - 1;
     
-    // Debug log to check if stage is being received
-    //console.log('StageIndicator - currentStage:', currentStage, 'currentIndex:', currentIndex);
-    
     return (
       <View style={styles.stageContainer}>
         <ScrollView 

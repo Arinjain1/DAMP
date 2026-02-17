@@ -19,7 +19,6 @@ async function runMigration() {
   const client = await pool.connect();
   
   try {
-    console.log('🔄 Running migration: add_profile_image_column.sql');
     
     // Read the SQL file
     const __filename = fileURLToPath(import.meta.url);
@@ -30,8 +29,6 @@ async function runMigration() {
     // Execute the migration
     await client.query(sql);
     
-    console.log('✅ Migration completed successfully!');
-    console.log('✅ profile_image column added to users table');
     
   } catch (error) {
     console.error('❌ Migration failed:', error.message);

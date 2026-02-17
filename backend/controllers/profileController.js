@@ -4,15 +4,14 @@ export const getProfile = async (req, res, next) => {
   const userId = req.user.id;
 
   try {
-    console.log('=== Get Profile Request ===');
-    console.log('User ID:', userId);
+    
     
     const result = await query(
       'SELECT id, full_name, email, phone_number, role, age, city, created_at FROM users WHERE id = $1',
       [userId]
     );
 
-    console.log('=== Query Result ===', result.rows);
+    
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: "User not found" });

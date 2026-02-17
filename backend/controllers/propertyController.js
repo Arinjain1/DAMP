@@ -4,8 +4,6 @@ import { query } from '../config/db.js';
 export const createProperty = async (req, res, next) => {
   const brokerId = req.user.id;
   
-  console.log('=== Received Request Body ===', req.body);
-  console.log('=== Broker ID ===', brokerId);
   
   const {
     listing_type,
@@ -33,7 +31,7 @@ export const createProperty = async (req, res, next) => {
 
   try {
     if (!listing_type || !category || !city || !price) {
-      console.log('=== Validation Failed ===', { listing_type, category, city, price });
+      
       return res.status(400).json({ 
         success: false, 
         message: "Please fill in required fields (Type, Category, City, Price)." 
@@ -42,8 +40,7 @@ export const createProperty = async (req, res, next) => {
     
     const generatedTitle = project_name || address || `${configuration || ''} ${property_type} for ${listing_type} in ${city}`.trim();
     
-    console.log('=== Generated Title ===', generatedTitle);
-    console.log('=== Inserting into DB ===');
+    
 
     const result = await query(
       `INSERT INTO properties (
@@ -85,7 +82,7 @@ export const createProperty = async (req, res, next) => {
       ]
     );
     
-    console.log('=== Property Created Successfully ===', result.rows[0]);
+    
     
     res.status(201).json({
       success: true,
@@ -103,10 +100,6 @@ export const updateProperty = async (req, res, next) => {
   const brokerId = req.user.id;
   const { id } = req.params;
   
-  console.log('=== Update Property Request ===');
-  console.log('Property ID:', id);
-  console.log('Broker ID:', brokerId);
-  console.log('Request Body:', req.body);
   
   const {
     listing_type,
@@ -147,7 +140,6 @@ export const updateProperty = async (req, res, next) => {
     }
 
     if (!listing_type || !category || !city || !price) {
-      console.log('=== Validation Failed ===', { listing_type, category, city, price });
       return res.status(400).json({ 
         success: false, 
         message: "Please fill in required fields (Type, Category, City, Price)." 
@@ -156,8 +148,6 @@ export const updateProperty = async (req, res, next) => {
     
     const generatedTitle = project_name || address || `${configuration || ''} ${property_type} for ${listing_type} in ${city}`.trim();
     
-    console.log('=== Generated Title ===', generatedTitle);
-    console.log('=== Updating in DB ===');
 
     const result = await query(
       `UPDATE properties SET
@@ -214,7 +204,6 @@ export const updateProperty = async (req, res, next) => {
       ]
     );
     
-    console.log('=== Property Updated Successfully ===', result.rows[0]);
     
     res.status(200).json({
       success: true,
@@ -231,10 +220,6 @@ export const updateProperty = async (req, res, next) => {
 export const getProperties = async (req, res, next) => {
   const brokerId = req.user.id;
   const { search, category, listing_type, property_type, min_price, max_price } = req.query;
-  
-  console.log('=== Get Properties Request ===');
-  console.log('Broker ID:', brokerId);
-  console.log('Query params:', { search, category, listing_type, property_type, min_price, max_price });
   
   try {
     let sql = `SELECT * FROM properties WHERE broker_id = $1 AND status = 'Available'`;
@@ -269,12 +254,8 @@ export const getProperties = async (req, res, next) => {
     }
     sql += ` ORDER BY created_at DESC`;
     
-    console.log('=== SQL Query ===', sql);
-    console.log('=== Params ===', params);
-    
     const result = await query(sql, params);
     
-    console.log('=== Properties Found ===', result.rowCount);
     
     res.json({
       success: true,

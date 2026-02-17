@@ -20,7 +20,6 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
   };
 
   const handleSaveTask = (taskData) => {
-    console.log('Saving task with data:', taskData); // Debug log
     
     // Save to followUps slice
     const newTask = {
@@ -28,8 +27,6 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
       id: Math.random().toString(36).substring(2, 11),
       status: 'Pending'
     };
-    
-    console.log('New task to be saved:', newTask); // Debug log
     dispatch(addFollowUp(newTask));
 
     // Also update deal's meetings

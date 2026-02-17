@@ -126,8 +126,7 @@ export default function DealPage() {
       // Dispatch action to complete agreement
       dispatch(completeAgreement(customer.id));
 
-      // Show success feedback (you can add a modal or toast here if desired)
-      console.log('Agreement marked as complete for customer:', customer.name);
+     
     }
   };
 
