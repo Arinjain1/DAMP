@@ -85,11 +85,24 @@ export const createProperty = async (req, res, next) => {
 
 export const getProperties = async (req, res, next) => {
   const brokerId = req.user.id;
-  const { search, category, listing_type, property_type, min_price, max_price } = req.query;
+  const { 
+    search, 
+    category,      
+    listing_type,  
+    property_type, 
+    status,        
+    min_price, 
+    max_price 
+  } = req.query;
   try {
-    let sql = `SELECT * FROM properties WHERE broker_id = $1 AND status = 'Available'`;
+    let sql = `SELECT * FROM properties WHERE broker_id = $1`;
     let params = [brokerId];
     let paramIndex = 2;
+    if (status && status !== 'All') {
+        sql += ` AND status = $${paramIndex}`;
+        params.push(status);
+        paramIndex++;
+    }
     if (listing_type) {
       sql += ` AND listing_type = $${paramIndex}`;
       params.push(listing_type);
@@ -105,14 +118,19 @@ export const getProperties = async (req, res, next) => {
       params.push(property_type);
       paramIndex++;
     }
-
     if (min_price && max_price) {
         sql += ` AND price BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
         params.push(min_price, max_price);
         paramIndex += 2;
     }
     if (search) {
-      sql += ` AND (city ILIKE $${paramIndex} OR project_name ILIKE $${paramIndex} OR locality ILIKE $${paramIndex} OR owner_name ILIKE $${paramIndex})`;
+      sql += ` AND (
+        city ILIKE $${paramIndex} OR 
+        project_name ILIKE $${paramIndex} OR 
+        locality ILIKE $${paramIndex} OR 
+        owner_name ILIKE $${paramIndex} OR
+        title ILIKE $${paramIndex}
+      )`;
       params.push(`%${search}%`);
       paramIndex++;
     }

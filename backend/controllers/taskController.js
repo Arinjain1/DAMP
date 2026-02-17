@@ -1,29 +1,37 @@
 import { query } from '../config/db.js';
+
 export const getTasks = async (req, res, next) => {
   const brokerId = req.user.id;
-  const { status = 'pending' } = req.query; 
-
+  const { status = 'pending', date } = req.query; 
   try {
-    const sql = `
+    let sql = `
       SELECT 
         t.*, 
         c.name as client_name, c.phone as client_phone,
+        -- Fetch Property Details directly from the Task link
         p.id as property_id,
         p.title as property_title, 
         p.address as property_address,
         p.price as property_price,
-        p.plot_area_sqft as property_size,
         p.cover_image_url as property_image
       FROM tasks t
       LEFT JOIN contacts c ON t.client_id = c.id
-      LEFT JOIN deals d ON t.deal_id = d.id
-      LEFT JOIN properties p ON d.property_id = p.id
-      WHERE t.broker_id = $1 AND t.status = $2
-      ORDER BY t.due_date ASC
+      LEFT JOIN properties p ON t.property_id = p.id 
+      WHERE t.broker_id = $1
     `;
-    
-    const result = await query(sql, [brokerId, status]);
-
+    const params = [brokerId];
+    let paramIndex = 2;
+    if (status && status !== 'All') {
+      sql += ` AND t.status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+    if (date) {
+      sql += ` AND DATE(t.due_date) = $${paramIndex}`;
+      params.push(date);
+    }
+    sql += ` ORDER BY t.due_date ASC`;
+    const result = await query(sql, params);
     res.json({
       success: true,
       count: result.rowCount,
@@ -36,20 +44,50 @@ export const getTasks = async (req, res, next) => {
 
 export const createTask = async (req, res, next) => {
   const brokerId = req.user.id;
-  const { title, description, due_date, client_id, task_type } = req.body;
+  const { 
+    client_id,      
+    property_id,   
+    task_type,     
+    schedule_date,  
+    schedule_time,  
+    notes           
+  } = req.body;
   try {
-    if (!title || !due_date) {
-      return res.status(400).json({ message: "Title and Date are required" });
+    if (!client_id || !task_type || !schedule_date || !schedule_time) {
+      return res.status(400).json({ success: false, message: "Please fill in all required fields." });
+    }
+    const finalDueDate = `${schedule_date} ${schedule_time}`;
+    let title = `${task_type}`;
+    const clientCheck = await query(`SELECT name FROM contacts WHERE id = $1`, [client_id]);
+    if (clientCheck.rows.length > 0) {
+      title = `${task_type} with ${clientCheck.rows[0].name}`;
     }
     const result = await query(
-      `INSERT INTO tasks (broker_id, title, description, due_date, client_id, task_type, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'pending') 
+      `INSERT INTO tasks (
+         broker_id, 
+         client_id, 
+         property_id, 
+         title, 
+         description, 
+         task_type, 
+         due_date, 
+         status
+       ) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending') 
        RETURNING *`,
-      [brokerId, title, description || '', due_date, client_id || null, task_type || 'Call']
+      [
+        brokerId, 
+        client_id, 
+        property_id || null,
+        title, 
+        notes || '', 
+        task_type, 
+        finalDueDate
+      ]
     );
     res.status(201).json({
       success: true,
-      message: "Task created successfully!",
+      message: "Task scheduled successfully!",
       data: result.rows[0]
     });
   } catch (err) {
@@ -57,30 +95,27 @@ export const createTask = async (req, res, next) => {
   }
 };
 
-
 export const toggleTaskStatus = async (req, res, next) => {
   const brokerId = req.user.id;
   const taskId = req.params.id;
-
   try {
-    const check = await query('SELECT status FROM tasks WHERE id = $1', [taskId]);
-    if (check.rows.length === 0) return res.status(404).json({ message: "Task not found" });
-    const currentStatus = check.rows[0].status;
-    const newStatus = currentStatus === 'pending' ? 'completed' : 'pending';
-
     const result = await query(
-      `UPDATE tasks SET status = $1, updated_at = NOW() 
-       WHERE id = $2 AND broker_id = $3 
+      `UPDATE tasks 
+       SET status = CASE WHEN status = 'pending' THEN 'completed' ELSE 'pending' END,
+           updated_at = NOW() 
+       WHERE id = $1 AND broker_id = $2 
        RETURNING *`,
-      [newStatus, taskId, brokerId]
+      [taskId, brokerId]
     );
-
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+    const newStatus = result.rows[0].status;
     res.json({
       success: true,
       message: newStatus === 'completed' ? "Task marked as Done! ✅" : "Task reopened.",
       data: result.rows[0]
     });
-
   } catch (err) {
     next(err);
   }
