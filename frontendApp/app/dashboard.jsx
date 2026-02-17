@@ -1,7 +1,8 @@
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { View } from "react-native";
-import { useDispatch } from "react-redux";
+import { useEffect, useMemo, lazy, Suspense } from "react";
+import { Alert, View, ActivityIndicator } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
 
 // Views
 import Dashboard from "../src/Views/Dashboard";
@@ -11,10 +12,13 @@ import FAB from "../src/Components/FAB";
 import AddModal from "../src/Modal and Sheets/AddModal";
 import CollaborationSheet from "../src/Modal and Sheets/CollaborationSheet";
 import CustomerDetailSheet from "../src/Modal and Sheets/CustomerDetailSheet";
-import PropertyDetailSheet from "../src/Modal and Sheets/PropertyDetailSheet";
+const PropertyDetailSheet = lazy(() => import("../src/Modal and Sheets/PropertyDetailSheet"));
 import { SiteVisitSheet } from "../src/Modal and Sheets/SiteVisitSheet";
 import SubscriptionSheet from "../src/Modal and Sheets/SubscriptionSheet";
 import VisitFeedbackSheet from "../src/Modal and Sheets/VisitFeedbackSheet";
+
+// API
+import { propertiesAPI, customersAPI } from "../src/config/api";
 
 // Redux
 import {
@@ -44,11 +48,13 @@ import {
   addProperty,
   clearSelectedProperty,
   updateProperty,
+  setProperties,
+  setLoading,
+  setError,
 } from "../src/store/slices/propertiesSlice";
 
 import { activateSubscription } from "../src/store/slices/subscriptionSlice";
 
-import { useAppSelector } from "@/src/redux/hooks";
 import {
   clearEditItem,
   setCollabOpen,
@@ -61,42 +67,63 @@ export default function DashboardPage() {
   const dispatch = useDispatch();
   const router = useRouter();
 
-  // Redux state - Optimized selectors
-  const reduxState = useAppSelector((state) => ({
-    properties: state.properties.properties,
-    selectedProperty: state.properties.selectedProperty,
-    customers: state.customers.customers,
-    selectedCustomer: state.customers.selectedCustomer,
-    followUps: state.followUps.followUps,
-    activeSiteVisit: state.followUps.activeSiteVisit,
-    showFeedback: state.followUps.showFeedback,
-    deals: state.deals.deals,
-    selectedDeal: state.deals.selectedDeal,
-    unreadCount: state.notifications.unreadCount,
-    showPaywall: state.subscription.showPaywall,
-    modalOpen: state.ui.modalOpen,
-    modalType: state.ui.modalType,
-    editItem: state.ui.editItem,
-    collabOpen: state.ui.collabOpen,
-  }));
+  // Redux state - Individual selectors to avoid unnecessary rerenders
+  const properties = useSelector((state) => state.properties.properties);
+  const selectedProperty = useSelector((state) => state.properties.selectedProperty);
+  const customers = useSelector((state) => state.customers.customers);
+  const selectedCustomer = useSelector((state) => state.customers.selectedCustomer);
+  const followUps = useSelector((state) => state.followUps.followUps);
+  const activeSiteVisit = useSelector((state) => state.followUps.activeSiteVisit);
+  const showFeedback = useSelector((state) => state.followUps.showFeedback);
+  const deals = useSelector((state) => state.deals.deals);
+  const selectedDeal = useSelector((state) => state.deals.selectedDeal);
+  const unreadCount = useSelector((state) => state.notifications.unreadCount);
+  const showPaywall = useSelector((state) => state.subscription.showPaywall);
+  const modalOpen = useSelector((state) => state.ui.modalOpen);
+  const modalType = useSelector((state) => state.ui.modalType);
+  const editItem = useSelector((state) => state.ui.editItem);
+  const collabOpen = useSelector((state) => state.ui.collabOpen);
 
-  const {
-    properties,
-    selectedProperty,
-    customers,
-    selectedCustomer,
-    followUps,
-    activeSiteVisit,
-    showFeedback,
-    deals,
-    selectedDeal,
-    unreadCount,
-    showPaywall,
-    modalOpen,
-    modalType,
-    editItem,
-    collabOpen,
-  } = reduxState;
+  // Fetch properties on component mount
+  useEffect(() => {
+    fetchProperties();
+  }, []);
+
+  const fetchProperties = async () => {
+    try {
+      dispatch(setLoading(true));
+      const response = await propertiesAPI.getAll();
+      
+      if (response.data.success) {
+        const mappedProperties = response.data.data.map(prop => ({
+          id: prop.id,
+          title: prop.title,
+          listingType: prop.listing_type,
+          category: prop.category || prop.property_category,
+          type: prop.property_type,
+          bhk: prop.configuration,
+          furnishing: prop.furnishing_status,
+          location: prop.locality || prop.city,
+          city: prop.city,
+          state: prop.state,
+          price: prop.price,
+          size: `${prop.size_sqft} ${prop.size_unit}`,
+          image: prop.cover_image_url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
+          status: prop.status,
+          owner: prop.owner_name,
+          ownerPhone: prop.owner_phone,
+          amenities: prop.amenities || [],
+        }));
+        
+        dispatch(setProperties(mappedProperties));
+      }
+    } catch (error) {
+      console.error('Error fetching properties:', error);
+      dispatch(setError(error.response?.data?.message || 'Failed to fetch properties'));
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
 
   // Navigation handler
   const handleNavigation = (path) => {
@@ -123,14 +150,111 @@ export default function DashboardPage() {
   };
 
   // Add
-  const handleAdd = (data) => {
-    const item = { ...data, id: generateId() };
+  const handleAdd = async (data) => {
+    try {
+      if (modalType === "Property") {
+        // Map form data to API structure
+        const apiPayload = {
+          listing_type: data.listingType || 'Sell',
+          category: data.category || 'Residential', // Required NOT NULL field
+          property_category: data.category || 'Residential', // Additional field
+          property_type: data.type || '',
+          configuration: data.bhk || data.commercialConfig || null,
+          furnishing_status: data.furnishing || null,
+          state: data.state || '',
+          city: data.city || '',
+          locality: data.location || '',
+          project_name: data.title || '',
+          address: data.owner || '',
+          price: calculatePrice(data.priceValue, data.priceUnit),
+          size: parseFloat(data.sizeValue) || 0,
+          size_unit: data.sizeUnit || 'Sq. Ft.',
+          length_ft: parseFloat(data.length) || 0,
+          width_ft: parseFloat(data.width) || 0,
+          owner_name: data.ownerName || '',
+          owner_phone: data.ownerPhone || '',
+          amenities: data.amenities || [],
+          bond: data.bond ? parseFloat(data.bond) : null,
+          image_url: data.image || null,
+        };
 
-    if (modalType === "Property") dispatch(addProperty(item));
-    if (modalType === "Customer") dispatch(addCustomer(item));
-    if (modalType === "FollowUp") dispatch(addFollowUp(item));
+        const response = await propertiesAPI.create(apiPayload);
+        
+        if (response.data.success) {
+          dispatch(addProperty(response.data.data));
+          dispatch(setModalOpen(false));
+          Alert.alert('Success', 'Property created successfully!');
+          // Refresh properties list
+          fetchProperties();
+        }
+      } else if (modalType === "Customer") {
+        // Map customer form data to API structure
+        const apiPayload = {
+          name: data.name || '',
+          phone: data.phone || '',
+          requirement_type: data.listingType === 'Buy' ? 'Buy' : 'Rent',
+          property_category: data.category || 'Residential',
+          property_type: data.type || '',
+          configuration: data.bhk || data.commercialConfig || null,
+          furnishing_status: data.furnishing || null,
+          budget_min: data.budgetMin || 0,
+          budget_max: data.budgetMax || 0,
+          preferred_location: data.preferredLocation || '',
+          notes: data.details || '',
+        };
 
-    dispatch(setModalOpen(false));
+        const response = await customersAPI.create(apiPayload);
+        
+        if (response.data.success) {
+          // Map backend response to frontend format
+          const mappedCustomer = {
+            id: response.data.data.id,
+            name: response.data.data.name,
+            phone: response.data.data.phone,
+            status: response.data.data.status,
+            requirement: response.data.data.requirement_type,
+            category: response.data.data.property_category,
+            type: response.data.data.property_type,
+            bhk: response.data.data.configuration,
+            furnishing: response.data.data.furnishing_status,
+            budgetMin: response.data.data.budget_min,
+            budgetMax: response.data.data.budget_max,
+            location: response.data.data.preferred_location,
+            notes: response.data.data.notes,
+          };
+          
+          dispatch(addCustomer(mappedCustomer));
+          dispatch(setModalOpen(false));
+          Alert.alert('Success', 'Customer added successfully!');
+        }
+      } else {
+        // For FollowUp, keep the existing logic
+        const item = { ...data, id: generateId() };
+        if (modalType === "FollowUp") dispatch(addFollowUp(item));
+        dispatch(setModalOpen(false));
+      }
+    } catch (error) {
+      console.error('Error creating item:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to create item. Please try again.';
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  // Helper function to calculate price based on unit
+  const calculatePrice = (value, unit) => {
+    if (!value) return 0;
+    const numValue = parseFloat(value);
+    
+    switch (unit) {
+      case 'Thousands':
+        return numValue * 1000;
+      case 'Lakh':
+        return numValue * 100000;
+      case 'Crore':
+        return numValue * 10000000;
+      default:
+        return numValue;
+    }
   };
 
   // Edit
@@ -140,12 +264,54 @@ export default function DashboardPage() {
     dispatch(setModalOpen(true));
   };
 
-  const handleUpdate = (item) => {
-    if (modalType === "Property") dispatch(updateProperty(item));
-    if (modalType === "Customer") dispatch(updateCustomer(item));
-    if (modalType === "FollowUp") dispatch(updateFollowUp(item));
-    dispatch(clearEditItem());
-    dispatch(setModalOpen(false));
+  const handleUpdate = async (data) => {
+    try {
+      if (modalType === "Property") {
+        const apiPayload = {
+          listing_type: data.listingType || 'Sell',
+          category: data.category || 'Residential',
+          property_category: data.category || 'Residential',
+          property_type: data.type || '',
+          configuration: data.bhk || data.commercialConfig || null,
+          furnishing_status: data.furnishing || null,
+          state: data.state || '',
+          city: data.city || '',
+          locality: data.location || '',
+          project_name: data.title || '',
+          address: data.owner || '',
+          price: calculatePrice(data.priceValue, data.priceUnit),
+          size: parseFloat(data.sizeValue) || 0,
+          size_unit: data.sizeUnit || 'Sq. Ft.',
+          length_ft: parseFloat(data.length) || 0,
+          width_ft: parseFloat(data.width) || 0,
+          owner_name: data.ownerName || '',
+          owner_phone: data.ownerPhone || '',
+          amenities: data.amenities || [],
+          bond: data.bond ? parseFloat(data.bond) : null,
+          image_url: data.image || null,
+        };
+
+        const response = await propertiesAPI.update(data.id, apiPayload);
+        
+        if (response.data.success) {
+          dispatch(updateProperty(response.data.data));
+          dispatch(clearEditItem());
+          dispatch(setModalOpen(false));
+          Alert.alert('Success', 'Property updated successfully!');
+          fetchProperties();
+        }
+      } else {
+        // For Customer and FollowUp, keep existing logic
+        if (modalType === "Customer") dispatch(updateCustomer(data));
+        if (modalType === "FollowUp") dispatch(updateFollowUp(data));
+        dispatch(clearEditItem());
+        dispatch(setModalOpen(false));
+      }
+    } catch (error) {
+      console.error('Error updating item:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to update item. Please try again.';
+      Alert.alert('Error', errorMessage);
+    }
   };
 
   // Deals
@@ -259,11 +425,13 @@ export default function DashboardPage() {
       />
 
       {selectedProperty && (
-        <PropertyDetailSheet
-          property={selectedProperty}
-          onEdit={handleEdit}
-          onClose={() => dispatch(clearSelectedProperty())}
-        />
+        <Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color="#A78BFA" /></View>}>
+          <PropertyDetailSheet
+            property={selectedProperty}
+            onEdit={handleEdit}
+            onClose={() => dispatch(clearSelectedProperty())}
+          />
+        </Suspense>
       )}
 
       {selectedCustomer && (

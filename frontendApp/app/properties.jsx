@@ -1,9 +1,10 @@
-import { StatusBar, View } from 'react-native';
+import { useEffect, lazy, Suspense } from 'react';
+import { Alert, StatusBar, View, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
 // Components
 import AddModal from '../src/Modal and Sheets/AddModal.jsx';
-import PropertyDetailSheet from '../src/Modal and Sheets/PropertyDetailSheet.jsx';
+const PropertyDetailSheet = lazy(() => import('../src/Modal and Sheets/PropertyDetailSheet.jsx'));
 
 // Redux actions
 import { addDeal } from '@/src/store/slices/dealsSlice.js';
@@ -12,7 +13,10 @@ import {
     addProperty,
     clearSelectedProperty,
     setSelectedProperty,
-    updateProperty
+    updateProperty,
+    setProperties,
+    setLoading,
+    setError
 } from '../src/store/slices/propertiesSlice.js';
 import {
     clearEditItem,
@@ -21,14 +25,59 @@ import {
     setModalType
 } from '../src/store/slices/uiSlice.js';
 
+// API
+import { propertiesAPI } from '../src/config/api.js';
+
 export default function Properties() {
   const dispatch = useDispatch();
   
   // Redux state
-  const { properties, selectedProperty } = useSelector(state => state.properties);
+  const { properties, selectedProperty, loading } = useSelector(state => state.properties);
   const { customers } = useSelector(state => state.customers);
   const { modalOpen, modalType, editItem } = useSelector(state => state.ui);
 
+  // Fetch properties on component mount
+  useEffect(() => {
+    fetchProperties();
+  }, []);
+
+  const fetchProperties = async () => {
+    try {
+      dispatch(setLoading(true));
+      
+      const response = await propertiesAPI.getAll();
+      
+      if (response.data.success) {
+        // Map backend data to frontend format
+        const mappedProperties = response.data.data.map(prop => ({
+          id: prop.id,
+          title: prop.title,
+          listingType: prop.listing_type,
+          category: prop.category || prop.property_category,
+          type: prop.property_type,
+          bhk: prop.configuration,
+          furnishing: prop.furnishing_status,
+          location: prop.locality || prop.city,
+          city: prop.city,
+          state: prop.state,
+          price: prop.price,
+          size: `${prop.size_sqft} ${prop.size_unit}`,
+          image: prop.cover_image_url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
+          status: prop.status,
+          owner: prop.owner_name,
+          ownerPhone: prop.owner_phone,
+          amenities: prop.amenities || [],
+        }));
+        
+        dispatch(setProperties(mappedProperties));
+      }
+    } catch (error) {
+      console.error('Error fetching properties:', error);
+      dispatch(setError(error.response?.data?.message || 'Failed to fetch properties'));
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
   
   const generateId = () => Math.random().toString(36).substring(2, 11);
 
@@ -39,10 +88,65 @@ export default function Properties() {
     dispatch(setModalOpen(true));
   };
 
-  const handleAdd = (data) => {
-    const newProperty = { ...data, id: generateId() };
-    dispatch(addProperty(newProperty));
-    dispatch(setModalOpen(false));
+  const handleAdd = async (data) => {
+    try {
+      // Map form data to API structure
+      const apiPayload = {
+        listing_type: data.listingType || 'Sell',
+        category: data.category || 'Residential', // Required NOT NULL field
+        property_category: data.category || 'Residential', // Additional field
+        property_type: data.type || '',
+        configuration: data.bhk || data.commercialConfig || null,
+        furnishing_status: data.furnishing || null,
+        state: data.state || '',
+        city: data.city || '',
+        locality: data.location || '',
+        project_name: data.title || '',
+        address: data.owner || '',
+        price: calculatePrice(data.priceValue, data.priceUnit),
+        size: parseFloat(data.sizeValue) || 0,
+        size_unit: data.sizeUnit || 'Sq. Ft.',
+        length_ft: parseFloat(data.length) || 0,
+        width_ft: parseFloat(data.width) || 0,
+        owner_name: data.ownerName || '',
+        owner_phone: data.ownerPhone || '',
+        amenities: data.amenities || [],
+        bond: data.bond ? parseFloat(data.bond) : null,
+        image_url: data.image || null,
+      };
+
+      const response = await propertiesAPI.create(apiPayload);
+      
+      if (response.data.success) {
+        // Add the property returned from backend to Redux store
+        dispatch(addProperty(response.data.data));
+        dispatch(setModalOpen(false));
+        Alert.alert('Success', 'Property created successfully!');
+        // Refresh the properties list
+        fetchProperties();
+      }
+    } catch (error) {
+      console.error('Error creating property:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to create property. Please try again.';
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  // Helper function to calculate price based on unit
+  const calculatePrice = (value, unit) => {
+    if (!value) return 0;
+    const numValue = parseFloat(value);
+    
+    switch (unit) {
+      case 'Thousands':
+        return numValue * 1000;
+      case 'Lakh':
+        return numValue * 100000;
+      case 'Crore':
+        return numValue * 10000000;
+      default:
+        return numValue;
+    }
   };
 
   const handleEdit = (item, type) => {
@@ -51,10 +155,47 @@ export default function Properties() {
     dispatch(setModalOpen(true));
   };
 
-  const handleUpdate = (updatedItem) => {
-    dispatch(updateProperty(updatedItem));
-    dispatch(clearEditItem());
-    dispatch(setModalOpen(false));
+  const handleUpdate = async (data) => {
+    try {
+      // Map form data to API structure
+      const apiPayload = {
+        listing_type: data.listingType || 'Sell',
+        category: data.category || 'Residential',
+        property_category: data.category || 'Residential',
+        property_type: data.type || '',
+        configuration: data.bhk || data.commercialConfig || null,
+        furnishing_status: data.furnishing || null,
+        state: data.state || '',
+        city: data.city || '',
+        locality: data.location || '',
+        project_name: data.title || '',
+        address: data.owner || '',
+        price: calculatePrice(data.priceValue, data.priceUnit),
+        size: parseFloat(data.sizeValue) || 0,
+        size_unit: data.sizeUnit || 'Sq. Ft.',
+        length_ft: parseFloat(data.length) || 0,
+        width_ft: parseFloat(data.width) || 0,
+        owner_name: data.ownerName || '',
+        owner_phone: data.ownerPhone || '',
+        amenities: data.amenities || [],
+        bond: data.bond ? parseFloat(data.bond) : null,
+        image_url: data.image || null,
+      };
+
+      const response = await propertiesAPI.update(data.id, apiPayload);
+      
+      if (response.data.success) {
+        dispatch(updateProperty(response.data.data));
+        dispatch(clearEditItem());
+        dispatch(setModalOpen(false));
+        Alert.alert('Success', 'Property updated successfully!');
+        fetchProperties();
+      }
+    } catch (error) {
+      console.error('Error updating property:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to update property. Please try again.';
+      Alert.alert('Error', errorMessage);
+    }
   };
 
   // Handle deal creation from property detail sheet
@@ -91,14 +232,16 @@ export default function Properties() {
       
       {/* Detail Bottom Sheet */}
       {selectedProperty && (
-        <PropertyDetailSheet 
-          property={selectedProperty} 
-          onClose={() => dispatch(clearSelectedProperty())} 
-          onEdit={handleEdit}
-          customers={customers}
-          properties={properties}
-          onCreateDeal={handleCreateDeal}
-        />
+        <Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color="#A78BFA" /></View>}>
+          <PropertyDetailSheet 
+            property={selectedProperty} 
+            onClose={() => dispatch(clearSelectedProperty())} 
+            onEdit={handleEdit}
+            customers={customers}
+            properties={properties}
+            onCreateDeal={handleCreateDeal}
+          />
+        </Suspense>
       )}
     </View>
   );

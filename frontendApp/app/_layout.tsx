@@ -47,7 +47,6 @@ LogBox.ignoreLogs([
 function AppNavigator() {
   const { isAuthenticated } = useSelector(state => state.auth);
 
-
   if (!isAuthenticated) {
     return (
       <Stack screenOptions={{ headerShown: false }}>
@@ -118,6 +117,20 @@ function AppNavigator() {
       />
 
       {/* Hidden Screens */}
+      <Tabs.Screen
+        name="profile-information"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+      <Tabs.Screen
+        name="support-hub"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
       <Tabs.Screen
         name="deals"
         options={{

@@ -156,6 +156,7 @@ export default function PaymentView() {
 
       dispatch(updateDeal(updatedDeal));
 
+
     }
   };
 

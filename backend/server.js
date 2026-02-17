@@ -10,6 +10,7 @@ import taskRoutes from './routes/taskRoutes.js';
 import propertyRoutes from './routes/propertyRoutes.js';
 import collabRoutes from './routes/collabRouters.js';
 import clientRoutes from './routes/clientRoutes.js';
+import profileRoutes from './routes/profileRoutes.js';
 dotenv.config();
 
 const app = express();
@@ -27,9 +28,10 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/collab', collabRoutes);
 app.use('/api/clients', clientRoutes);
+app.use('/api/profile', profileRoutes);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT,"0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

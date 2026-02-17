@@ -123,6 +123,8 @@ export default function DealPage() {
 
       // Dispatch action to complete agreement
       dispatch(completeAgreement(customer.id));
+
+
     }
   };
 

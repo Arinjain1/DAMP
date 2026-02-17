@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, ChevronUp, CirclePlus, MessageCircle, Phone, Search } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, ChevronUp, CirclePlus, MessageCircle, Phone, Search, Edit2 } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   ImageBackground, Linking, Platform, ScrollView, StatusBar, StyleSheet, Text,
@@ -32,13 +32,13 @@ const getRandomColor = (char) => {
   return { bg: colors[index], text: textColors[index] };
 };
 
-const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) => {
+const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal, onEditCustomer, loading = false }) => {
   const [query, setQuery] = useState('');
   const [expandedCards, setExpandedCards] = useState(new Set());
   const [typeFilter, setTypeFilter] = useState('All'); // 'All', 'Rent', 'Sell'
 
   const filteredCustomers = customers.filter((c) => {
-    const matchesSearch = c.name.toLowerCase().includes(query.toLowerCase());
+    const matchesSearch = c.name?.toLowerCase().includes(query.toLowerCase()) ?? false;
     // Check both 'type' (for mock data) and 'requirement_type' (for backend data)
     const customerType = c.requirement_type || c.type;
     const matchesType = typeFilter === 'All' || customerType === typeFilter;
@@ -105,9 +105,6 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
   const StageIndicator = ({ currentStage }) => {
     const currentIndex = SALES_STAGES.findIndex(s => s.id === currentStage);
     const lastStageIndex = SALES_STAGES.length - 1;
-
-    // Debug log to check if stage is being received
-    //console.log('StageIndicator - currentStage:', currentStage, 'currentIndex:', currentIndex);
 
     return (
       <View style={styles.stageContainer}>
@@ -227,7 +224,26 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {filteredCustomers.length === 0 ? (
+        {loading ? (
+          // Skeleton Loader
+          <View style={styles.gridContainer}>
+            {[1, 2, 3, 4, 5].map((index) => (
+              <View key={index} style={styles.skeletonCard}>
+                <View style={styles.skeletonHeader}>
+                  <View style={styles.skeletonAvatar} />
+                  <View style={styles.skeletonInfo}>
+                    <View style={styles.skeletonName} />
+                    <View style={styles.skeletonBudget} />
+                  </View>
+                  <View style={styles.skeletonBadge} />
+                </View>
+                <View style={styles.skeletonStage} />
+                <View style={styles.skeletonTask} />
+                <View style={styles.skeletonActions} />
+              </View>
+            ))}
+          </View>
+        ) : filteredCustomers.length === 0 ? (
           <View style={styles.emptyState}>
             <Search size={40} color="#e5e7eb" />
             <Text style={styles.emptyText}>No leads found</Text>
@@ -253,13 +269,21 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
                     </View>
                     <View style={styles.headerInfo}>
                       <Text style={styles.nameText} numberOfLines={1}>{customer.name}</Text>
-                      <Text style={styles.budgetText}>{formatCurrency(customer.budget)}</Text>
+                      <Text style={styles.budgetText}>{formatCurrency(customer.budgetMax || customer.budget || 0)}</Text>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: customer.status === 'Hot' ? '#fee2e2' : '#f3f4f6' }]}>
                       <Text style={[styles.statusText, { color: customer.status === 'Hot' ? '#ef4444' : '#4b5563' }]}>
                         {customer.status || 'New'}
                       </Text>
                     </View>
+
+                    {/* Edit Icon */}
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() => onEditCustomer && onEditCustomer(customer)}
+                    >
+                      <Edit2 size={18} color="#6b7280" />
+                    </TouchableOpacity>
 
                     {/* Dropdown Arrow */}
                     <TouchableOpacity
@@ -272,72 +296,76 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal }) 
                         <ChevronDown size={20} color="#6b7280" />
                       )}
                     </TouchableOpacity>
-                  </View>
+                  </View >
 
                   {/* Stage Scroll Section */}
-                  <View style={styles.stageSection}>
+                  < View style={styles.stageSection} >
                     <StageIndicator currentStage={customer.stage || 'New'} />
-                  </View>
+                  </View >
 
                   {/* Expanded Task Section */}
-                  {isExpanded && currentTask && (
-                    <View style={styles.taskSection}>
-                      <Text style={styles.taskName}>{currentTask.title}</Text>
-                      <View style={styles.taskDetails}>
-                        <Text style={styles.taskType}>{currentTask.type}</Text>
-                        <Text style={styles.taskTime}>{currentTask.time}</Text>
+                  {
+                    isExpanded && currentTask && (
+                      <View style={styles.taskSection}>
+                        <Text style={styles.taskName}>{currentTask.title}</Text>
+                        <View style={styles.taskDetails}>
+                          <Text style={styles.taskType}>{currentTask.type}</Text>
+                          <Text style={styles.taskTime}>{currentTask.time}</Text>
+                        </View>
                       </View>
-                    </View>
-                  )}
+                    )
+                  }
 
                   {/* Actions - Only show when expanded */}
-                  {isExpanded && (
-                    <>
-                      <View style={styles.cardActions}>
-                        <TouchableOpacity
-                          style={styles.actionButton}
-                          onPress={() => handleCall(customer.phone, customer.name)}
-                        >
-                          <Phone size={18} color="#16a34a" />
-                          <Text style={styles.actionText}>Call</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.actionButton}
-                          onPress={() => Linking.openURL(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}`)}
-                        >
-                          <MessageCircle size={18} color="#25D366" />
-                          <Text style={styles.actionText}>Message</Text>
-                        </TouchableOpacity>
-                      </View>
+                  {
+                    isExpanded && (
+                      <>
+                        <View style={styles.cardActions}>
+                          <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={() => handleCall(customer.phone, customer.name)}
+                          >
+                            <Phone size={18} color="#16a34a" />
+                            <Text style={styles.actionText}>Call</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={() => Linking.openURL(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}`)}
+                          >
+                            <MessageCircle size={18} color="#25D366" />
+                            <Text style={styles.actionText}>Message</Text>
+                          </TouchableOpacity>
+                        </View>
 
-                      {/* View Details Button */}
-                      <TouchableOpacity
-                        style={styles.viewDetailsButton}
-                        onPress={() => {
-                          if (isBeyondInterested(customer.stage) && onOpenDeal) {
-                            // Open deal manager if customer is beyond Interested stage
-                            onOpenDeal(customer);
-                          } else {
-                            // Open customer details sheet
-                            onSelect(customer);
-                          }
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.viewDetailsText}>
-                          {isBeyondInterested(customer.stage) ? 'View Deal' : 'View Details'}
-                        </Text>
-                        <ChevronRight size={18} color="#ffffff" />
-                      </TouchableOpacity>
-                    </>
-                  )}
-                </View>
+                        {/* View Details Button */}
+                        <TouchableOpacity
+                          style={styles.viewDetailsButton}
+                          onPress={() => {
+                            if (isBeyondInterested(customer.stage) && onOpenDeal) {
+                              // Open deal manager if customer is beyond Interested stage
+                              onOpenDeal(customer);
+                            } else {
+                              // Open customer details sheet
+                              onSelect(customer);
+                            }
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.viewDetailsText}>
+                            {isBeyondInterested(customer.stage) ? 'View Deal' : 'View Details'}
+                          </Text>
+                          <ChevronRight size={18} color="#ffffff" />
+                        </TouchableOpacity>
+                      </>
+                    )
+                  }
+                </View >
               );
             })}
-          </View>
+          </View >
         )}
-      </ScrollView>
-    </View>
+      </ScrollView >
+    </View >
   );
 };
 
@@ -421,6 +449,14 @@ const styles = StyleSheet.create({
   budgetText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   statusText: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  editButton: {
+    padding: 0,
+    marginLeft: 0,
+  },
+  dropdownButton: {
+    padding: 0,
+    marginLeft: 0,
+  },
 
   // --- STAGE SCROLL STYLES ---
   stageSection: {
@@ -530,6 +566,67 @@ const styles = StyleSheet.create({
 
   emptyState: { alignItems: 'center', marginTop: 80 },
   emptyText: { marginTop: 16, fontSize: 16, fontWeight: '600', color: '#9ca3af' },
+
+  // Skeleton Loader Styles
+  skeletonCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginBottom: 12,
+  },
+  skeletonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  skeletonAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#e5e7eb',
+  },
+  skeletonInfo: {
+    flex: 1,
+    gap: 8,
+  },
+  skeletonName: {
+    height: 16,
+    width: '60%',
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonBudget: {
+    height: 14,
+    width: '40%',
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonBadge: {
+    width: 60,
+    height: 24,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 8,
+  },
+  skeletonStage: {
+    height: 32,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  skeletonTask: {
+    height: 80,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  skeletonActions: {
+    height: 40,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 10,
+  },
 });
 
 export default CustomersList;

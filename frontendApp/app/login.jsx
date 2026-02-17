@@ -10,6 +10,7 @@ import { router } from 'expo-router';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 import { useState } from 'react';
 import {
+    Alert,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -21,6 +22,7 @@ import {
     View,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
+import { authAPI, setAuthToken } from '../src/config/api';
 import { loginSuccess } from '../src/store/slices/authSlice';
 
 export default function Login() {
@@ -41,12 +43,45 @@ export default function Login() {
 
   if (!fontsLoaded) return null;
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    // Validation
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter email and password');
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await authAPI.login({ email, password });
+      
+      if (response.data) {
+        // Backend returns user data directly (no success flag)
+        const { id, full_name, email: userEmail, role, token } = response.data;
+        
+        // Set auth token for future API calls
+        setAuthToken(token);
+        
+        // You can also store token in AsyncStorage for persistence
+        // await AsyncStorage.setItem('authToken', token);
+        
+        dispatch(loginSuccess({ 
+          id, 
+          name: full_name, 
+          email: userEmail, 
+          role, 
+          token 
+        }));
+        
+        // Don't navigate - let the auth state change handle the navigation automatically
+        // The AppNavigator will switch from Stack to Tabs when isAuthenticated becomes true
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      const errorMessage = error.response?.data?.message || 'Unable to connect to server. Please check your connection.';
+      Alert.alert('Login Failed', errorMessage);
+    } finally {
       setLoading(false);
-      dispatch(loginSuccess({ id: 1, name: 'User', email }));
-    }, 1200);
+    }
   };
 
   return (

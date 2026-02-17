@@ -19,6 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { authAPI } from '../src/config/api';
 
 const { height } = Dimensions.get('window');
 
@@ -90,12 +91,51 @@ export default function Register() {
     }
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
+    // Validation
+    if (!formData.name || !formData.email || !formData.phone || !formData.password) {
+      Alert.alert('Error', 'Please fill all required fields');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
+    try {
+      // Map frontend field names to backend expected names
+      const registerData = {
+        full_name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        phone_number: formData.phone,
+        age: formData.age ? parseInt(formData.age) : null,
+        city: formData.location || ''
+      };
+
+      const response = await authAPI.register(registerData);
+      
+      if (response.data) {
+        Alert.alert(
+          'Success', 
+          'Account created successfully! Please login.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/login')
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      const errorMessage = error.response?.data?.message || 'Unable to connect to server. Please check your connection.';
+      Alert.alert('Registration Failed', errorMessage);
+    } finally {
       setLoading(false);
-      router.push('/otp');
-    }, 1200);
+    }
   };
 
   return (

@@ -1,4 +1,4 @@
-import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import {
   Bell,
   ChevronRight,
@@ -9,12 +9,9 @@ import {
   FileText,
   Lock
 } from 'lucide-react-native';
-import { useState } from 'react';
 import {
   Alert,
   Dimensions,
-  Image,
-  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -22,36 +19,23 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useDispatch } from 'react-redux';
-// import { logout } from '../store/slices/authSlice'; // Uncomment when using redux
-import { INITIAL_PROFILE } from '../MockData/Mockdata';
+import { useSelector } from 'react-redux';
 import { SUBSCRIPTION_PLANS } from '../Constants/Constants';
+import { Image } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
 export default function ProfilePage({ onRenew }) {
-  const dispatch = useDispatch();
-  const [profileImage, setProfileImage] = useState(INITIAL_PROFILE?.avatar || null);
-  const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
+  const router = useRouter();
 
-  const name = INITIAL_PROFILE?.name || 'User';
-  const email = INITIAL_PROFILE?.email || '';
+  // Get logged-in user from Redux
+  const { user } = useSelector(state => state.auth);
+
+  const name = user?.name || user?.full_name || 'User';
+  const email = user?.email || '';
   const subscriptionPrice = SUBSCRIPTION_PLANS?.[0]?.price ? `₹ ${SUBSCRIPTION_PLANS[0].price}` : '₹ 99';
   const expiryDate = 'Expire on 12th July';
   const unreadCount = 2; // Mock notification count
-
-  const openGallery = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!res.canceled) {
-      setProfileImage(res.assets[0].uri);
-    }
-    setPhotoSheetVisible(false);
-  };
 
   const getInitials = (name) => {
     if (!name) return "?";
@@ -91,27 +75,15 @@ export default function ProfilePage({ onRenew }) {
         <View style={styles.profileCard}>
           {/* PROFILE IMAGE (Half in / Half out) */}
           <View style={styles.avatarContainer}>
-            <TouchableOpacity
-              onPress={() => setPhotoSheetVisible(true)}
-              activeOpacity={0.9}
-              style={styles.avatarTouchable}
-            >
-              {profileImage ? (
-                <Image
-                  source={{ uri: profileImage }}
-                  style={styles.avatar}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarInitial}>
-                    {getInitials(name)}
-                  </Text>
-                </View>
-              )}
+            <View style={styles.avatarTouchable}>
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarInitial}>
+                  {getInitials(name)}
+                </Text>
+              </View>
               {/* Green Status Dot */}
               <View style={styles.statusDot} />
-            </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.profileInfo}>
@@ -149,6 +121,7 @@ export default function ProfilePage({ onRenew }) {
             icon={<User size={22} color="#6B7280" />}
             title="Profile Information"
             subtitle="Manage account details"
+            onPress={() => router.push('/profile-information')}
           />
 
           <MenuItem
@@ -164,6 +137,8 @@ export default function ProfilePage({ onRenew }) {
           <MenuItem
             icon={<HelpCircle size={22} color="#6B7280" />}
             title="Support Hub"
+            subtitle="FAQs and help center"
+            onPress={() => router.push('/support-hub')}
           />
           <MenuItem
             icon={<FileText size={22} color="#6B7280" />}
@@ -190,25 +165,13 @@ export default function ProfilePage({ onRenew }) {
         </View>
       </ScrollView>
 
-      {/* BOTTOM SHEET MODAL */}
-      <Modal transparent visible={photoSheetVisible} animationType="slide">
-        <TouchableOpacity style={styles.overlay} onPress={() => setPhotoSheetVisible(false)}>
-          <View style={styles.sheet}>
-            <View style={styles.handle} />
-            <Text style={styles.sheetTitle}>Profile Photo</Text>
-            <SheetBtn text="🖼️ Gallery" onPress={openGallery} />
-            <SheetBtn text="Cancel" danger onPress={() => setPhotoSheetVisible(false)} />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
     </View>
   );
 }
 
 /* --- REUSABLE COMPONENT --- */
-const MenuItem = ({ icon, title, subtitle, badge }) => (
-  <TouchableOpacity style={styles.menuItem}>
+const MenuItem = ({ icon, title, subtitle, badge, onPress }) => (
+  <TouchableOpacity style={styles.menuItem} onPress={onPress}>
     <View style={styles.menuIconCircle}>
       {icon}
     </View>
@@ -224,15 +187,6 @@ const MenuItem = ({ icon, title, subtitle, badge }) => (
     </View>
 
     <ChevronRight size={20} color="#9CA3AF" />
-  </TouchableOpacity>
-);
-
-const SheetBtn = ({ text, onPress, danger }) => (
-  <TouchableOpacity
-    onPress={onPress}
-    style={[styles.sheetBtn, danger && { backgroundColor: '#FEE2E2' }]}
-  >
-    <Text style={[styles.sheetBtnText, danger && { color: '#B91C1C' }]}>{text}</Text>
   </TouchableOpacity>
 );
 
@@ -492,44 +446,5 @@ const styles = {
     fontWeight: '600',
     fontSize: 16,
     marginLeft: 8,
-  },
-
-  // Modal
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end'
-  },
-  sheet: {
-    backgroundColor: '#fff',
-    padding: 24,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 16
-  },
-  sheetTitle: {
-    textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 24
-  },
-  sheetBtn: {
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sheetBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151'
   },
 };

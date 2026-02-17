@@ -20,6 +20,13 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
   };
 
   const handleSaveTask = (taskData) => {
+
+    // Save to followUps slice
+    const newTask = {
+      ...taskData,
+      id: Math.random().toString(36).substring(2, 11),
+      status: 'Pending'
+    };
     dispatch(addFollowUp(newTask));
 
     // Also update deal's meetings

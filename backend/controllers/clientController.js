@@ -52,6 +52,61 @@ export const getClients = async (req, res, next) => {
   }
 };
 
+export const updateClient = async (req, res, next) => {
+  const brokerId = req.user.id;
+  const clientId = req.params.id;
+  const { 
+    name, 
+    phone, 
+    requirement_type,   
+    property_category,  
+    property_type,      
+    configuration,     
+    furnishing_status,  
+    budget_min,         
+    budget_max,         
+    preferred_location, 
+    notes               
+  } = req.body;
+
+  try {
+    if (!name || !phone) {
+      return res.status(400).json({ success: false, message: "Name and Phone are required" });
+    }
+
+    const result = await query(
+      `UPDATE contacts 
+       SET name = $1, phone = $2, 
+           requirement_type = $3, property_category = $4, property_type = $5, 
+           configuration = $6, furnishing_status = $7, 
+           budget_min = $8, budget_max = $9, preferred_location = $10, notes = $11
+       WHERE id = $12 AND broker_id = $13
+       RETURNING *`,
+      [
+        name, phone, 
+        requirement_type, property_category, property_type, 
+        configuration, furnishing_status, 
+        budget_min || 0, budget_max || 0, preferred_location || '', notes || '',
+        clientId, brokerId
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Client not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Client updated successfully!",
+      data: result.rows[0]
+    });
+
+  } catch (err) {
+    console.error("Update Client Error:", err);
+    next(err);
+  }
+};
+
 export const getClientDetails = async (req, res, next) => {
   const brokerId = req.user.id;
   const clientId = req.params.id;

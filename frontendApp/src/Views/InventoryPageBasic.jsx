@@ -11,6 +11,7 @@ import {
 import { useMemo, useState } from 'react';
 import {
   Dimensions,
+  Image,
   ImageBackground,
   Modal,
   Platform,
@@ -53,17 +54,22 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
 
   const filteredProperties = useMemo(() => {
     if (!Array.isArray(properties)) return [];
-    return properties.filter(p => {
+    
+    const filtered = properties.filter(p => {
       if (!p || typeof p !== 'object') return false;
+      
       const matchListing = (p.listingType || 'Sell') === listingFilter;
       const matchCategory = (p.category || 'Residential') === activeCategory;
       const matchType = activeType === 'All' || p.type === activeType;
       const matchBHK = activeBHK === 'All' || p.bhk === activeBHK;
       const matchCommercialConfig = activeCommercialConfig === 'All' || p.commercialConfig === activeCommercialConfig;
       const matchFurnishing = activeFurnishing === 'All' || p.furnishing === activeFurnishing;
+      
       return matchListing && matchCategory && matchType && matchBHK && matchCommercialConfig && matchFurnishing;
     });
-  }, [properties, listingFilter, activeCategory, activeType, activeBHK]);
+    
+    return filtered;
+  }, [properties, listingFilter, activeCategory, activeType, activeBHK, activeCommercialConfig, activeFurnishing]);
 
   const getStatusBadgeStyle = (status) => {
     if (status?.toLowerCase() === 'sold') {
@@ -207,13 +213,13 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
             style={styles.propertyCard}
             activeOpacity={0.9}
           >
-            <ImageBackground
-              source={{ uri: property.image }}
-              style={styles.propertyImage}
-              imageStyle={styles.propertyImageStyle}
-            >
-              <View style={{flex:1, backgroundColor:'rgba(0,0,0,0.1)'}}>
-                 <View style={styles.propertyImageOverlay}>
+            <View style={styles.propertyImageContainer}>
+              <Image
+                source={{ uri: property.image }}
+                style={styles.propertyImage}
+                resizeMode="cover"
+              />
+              <View style={styles.propertyImageOverlay}>
                 <View style={styles.propertyImageContent}>
                   <View style={styles.propertyBadges}>
                     <View style={getStatusBadgeStyle(property.status)}>
@@ -232,9 +238,8 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                     <Edit3 size={16} color="white" />
                   </TouchableOpacity>
                 </View>
-                </View>
               </View>
-            </ImageBackground>
+            </View>
 
             <View style={styles.propertyInfo}>
               <Text style={styles.propertyTitle} numberOfLines={1}>
@@ -719,20 +724,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     marginBottom: 16,
     borderRadius: 16,
-   borderWidth: 1,
-   borderColor: '#e5e7eb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
     overflow: 'hidden',
+  },
+  propertyImageContainer: {
+    height: 200,
+    width: '100%',
+    position: 'relative',
+    backgroundColor: '#f3f4f6',
   },
   propertyImage: {
     height: 200,
     width: '100%',
-  },
-  propertyImageStyle: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
   propertyImageOverlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.1)',
     justifyContent: 'space-between',
     padding: 16,
   },
@@ -782,6 +796,7 @@ const styles = StyleSheet.create({
   },
   propertyInfo: {
     padding: 16,
+     
   },
   propertyTitle: {
     fontSize: 18,
@@ -789,6 +804,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_700Bold',
     color: '#111827',
     marginBottom: 8,
+    
   },
   propertyLocation: {
     flexDirection: 'row',
