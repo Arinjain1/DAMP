@@ -11,6 +11,7 @@ import propertyRoutes from './routes/propertyRoutes.js';
 import collabRoutes from './routes/collabRouters.js';
 import clientRoutes from './routes/clientRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
+import visitRoutes from './routes/visitRoutes.js';
 dotenv.config();
 
 const app = express();
@@ -29,6 +30,7 @@ app.use('/api/properties', propertyRoutes);
 app.use('/api/collab', collabRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/visits', visitRoutes);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
