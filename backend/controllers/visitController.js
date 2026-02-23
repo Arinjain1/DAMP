@@ -48,8 +48,8 @@ export const getVisitDetails = async (req, res, next) => {
     const result = await query(
       `SELECT 
          i.id as item_id, i.status as visit_status, i.outcome,
-         p.id as property_id, p.title, p.address, p.price, p.cover_image_url, 
-         p.owner_name, p.owner_phone, p.map_location -- Assuming you have lat/lng
+         p.id as property_id, p.title, p.address, p.locality, p.price, p.cover_image_url, 
+         p.owner_name, p.owner_phone, p.map_location
        FROM site_visit_items i
        JOIN properties p ON i.property_id = p.id
        WHERE i.site_visit_id = $1

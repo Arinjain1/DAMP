@@ -1,13 +1,15 @@
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { LogBox, View, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Provider, useSelector } from 'react-redux';
+import { Provider, useSelector, useDispatch } from 'react-redux';
 
 import { Stack, Tabs } from 'expo-router';
 import { Briefcase, Calendar, Home, User, Users } from 'lucide-react-native';
 import "../global.css";
 import { store } from '../src/store/store';
+import { loginSuccess } from '../src/store/slices/authSlice';
+import { setAuthToken } from '../src/config/api';
 
 // 🔤 FONT LOADING
 import {
@@ -45,7 +47,15 @@ LogBox.ignoreLogs([
 ]);
 
 function AppNavigator() {
-  const { isAuthenticated } = useSelector(state => state.auth);
+  const dispatch = useDispatch();
+  const { isAuthenticated, user } = useSelector(state => state.auth);
+
+  // Set token if user exists
+  useEffect(() => {
+    if (user?.token) {
+      setAuthToken(user.token);
+    }
+  }, [user]);
 
   if (!isAuthenticated) {
     return (

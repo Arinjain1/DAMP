@@ -19,14 +19,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { SUBSCRIPTION_PLANS } from '../Constants/Constants';
 import { Image } from 'react-native';
+import { logout } from '../store/slices/authSlice';
+import { clearAuthToken } from '../config/api';
 
 const { width } = Dimensions.get('window');
 
 export default function ProfilePage({ onRenew }) {
   const router = useRouter();
+  const dispatch = useDispatch();
 
   // Get logged-in user from Redux
   const { user } = useSelector(state => state.auth);
@@ -40,6 +43,16 @@ export default function ProfilePage({ onRenew }) {
   const getInitials = (name) => {
     if (!name) return "?";
     return name.trim().charAt(0).toUpperCase();
+  };
+
+  const handleLogout = () => {
+    // Clear token from API config
+    clearAuthToken();
+    
+    // Dispatch logout action
+    dispatch(logout());
+    
+    // Navigation will be handled automatically by auth state change
   };
 
   return (
@@ -155,7 +168,7 @@ export default function ProfilePage({ onRenew }) {
             onPress={() =>
               Alert.alert('Sign Out', 'Are you sure?', [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Sign Out', style: 'destructive', onPress: () => { } },
+                { text: 'Sign Out', style: 'destructive', onPress: handleLogout },
               ])
             }
           >

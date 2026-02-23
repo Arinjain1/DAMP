@@ -1,69 +1,112 @@
 import { Calendar, CheckCircle, CirclePlus } from 'lucide-react-native';
-import { useState } from 'react';
-import { ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ScrollView, Switch, Text, TouchableOpacity, View, Alert } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateDeal } from '../store/slices/dealsSlice';
-import { addFollowUp } from '../store/slices/followUpsSlice';
+import { setFollowUps, setLoading, setError } from '../store/slices/followUpsSlice';
 import AddModal from '../Modal and Sheets/AddModal';
+import { tasksAPI } from '../config/api';
 
 export default function MeetingView({ selectedDeal, reminderEnabled, setReminderEnabled, setShowReminderSetAlert }) {
   const dispatch = useDispatch();
   const { customers } = useSelector(state => state.customers);
   const { properties } = useSelector(state => state.properties);
+  const { followUps, loading } = useSelector(state => state.followUps);
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [localMeetings, setLocalMeetings] = useState([]);
 
-  const meetings = selectedDeal.meetings || [];
+  // Fetch tasks from backend
+  useEffect(() => {
+    fetchTasks();
+  }, [selectedDeal]);
+
+  const fetchTasks = async () => {
+    try {
+      dispatch(setLoading(true));
+      const response = await tasksAPI.getAll({ 
+        status: 'All',
+        task_type: 'Meeting' 
+      });
+      
+      if (response.data.success) {
+        const tasks = response.data.data;
+        dispatch(setFollowUps(tasks));
+        
+        // Filter tasks for this deal's client
+        if (selectedDeal?.customerId) {
+          const dealTasks = tasks.filter(t => t.client_id === selectedDeal.customerId);
+          const formattedMeetings = dealTasks.map(task => ({
+            id: task.id,
+            title: task.title,
+            date: task.due_date,
+            status: task.status === 'completed' ? 'completed' : 'upcoming',
+            type: task.task_type,
+            note: task.description,
+            client_name: task.client_name,
+            property_title: task.property_title
+          }));
+          setLocalMeetings(formattedMeetings);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      dispatch(setError(error.message));
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
 
   const handleAddMeeting = () => {
     setShowAddModal(true);
   };
 
-  const handleSaveTask = (taskData) => {
+  const handleSaveTask = async (taskData) => {
+    try {
+      dispatch(setLoading(true));
+      
+      // Prepare data for backend
+      const backendData = {
+        client_id: taskData.customerId,
+        property_id: taskData.propertyIds?.[0] || null,
+        task_type: taskData.type || 'Meeting',
+        schedule_date: taskData.date.split('T')[0],
+        schedule_time: taskData.date.split('T')[1]?.substring(0, 5) || '10:00',
+        notes: taskData.note || ''
+      };
 
-    // Save to followUps slice
-    const newTask = {
-      ...taskData,
-      id: Math.random().toString(36).substring(2, 11),
-      status: 'Pending'
-    };
-    dispatch(addFollowUp(newTask));
-
-    // Also update deal's meetings
-    const customer = customers.find(c => c.id === taskData.customerId);
-    const selectedProperties = properties.filter(p => taskData.propertyIds?.includes(p.id));
-
-    const newMeeting = {
-      id: newTask.id,
-      title: `${taskData.type}`,
-      date: taskData.date,
-      status: 'upcoming',
-      type: taskData.type,
-      customer: customer?.name,
-      properties: selectedProperties.map(p => p.title).join(', '),
-      note: taskData.note
-    };
-
-    const updatedDeal = {
-      ...selectedDeal,
-      meetings: [...meetings, newMeeting]
-    };
-
-    dispatch(updateDeal(updatedDeal));
-    setShowAddModal(false);
+      const response = await tasksAPI.create(backendData);
+      
+      if (response.data.success) {
+        Alert.alert('Success', 'Task scheduled successfully!');
+        fetchTasks(); // Refresh tasks
+        setShowAddModal(false);
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to create task');
+    } finally {
+      dispatch(setLoading(false));
+    }
   };
 
-  const handleMarkDone = (meetingId) => {
-    const updatedMeetings = meetings.map(m =>
-      m.id === meetingId ? { ...m, status: 'completed' } : m
-    );
-
-    const updatedDeal = {
-      ...selectedDeal,
-      meetings: updatedMeetings
-    };
-
-    dispatch(updateDeal(updatedDeal));
+  const handleMarkDone = async (meetingId) => {
+    try {
+      const response = await tasksAPI.toggleStatus(meetingId);
+      
+      if (response.data.success) {
+        // Update local state
+        setLocalMeetings(prev => 
+          prev.map(m => 
+            m.id === meetingId ? { ...m, status: 'completed' } : m
+          )
+        );
+        Alert.alert('Success', 'Task marked as done!');
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+      Alert.alert('Error', 'Failed to update task');
+    }
   };
 
   const handleReminderToggle = (value) => {
@@ -115,9 +158,9 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
         </View>
 
         {/* Schedule Items */}
-        {meetings.length > 0 ? (
+        {localMeetings.length > 0 ? (
           <View className="gap-3 mb-6">
-            {[...meetings]
+            {[...localMeetings]
               .sort((a, b) => {
                 if (a.status === 'upcoming' && b.status === 'completed') return -1;
                 if (a.status === 'completed' && b.status === 'upcoming') return 1;
@@ -144,6 +187,11 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
                         {item.title}
                       </Text>
 
+                      {item.property_title && (
+                        <Text className="text-[12px] text-[#6366f1] mb-1">
+                          Property: {item.property_title}
+                        </Text>
+                      )}
 
                       {item.note && (
                         <Text className="text-[12px] text-[#9ca3af] mb-1">
@@ -176,7 +224,9 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
         ) : (
           <View className="items-center py-10">
             <Calendar size={40} color="#d1d5db" />
-            <Text className="mt-3 text-sm text-[#9ca3af]">No tasks scheduled yet</Text>
+            <Text className="mt-3 text-sm text-[#9ca3af]">
+              {loading ? 'Loading tasks...' : 'No tasks scheduled yet'}
+            </Text>
           </View>
         )}
       </ScrollView>

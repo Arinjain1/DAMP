@@ -13,7 +13,7 @@ import { addFollowUp, deleteFollowUp, updateFollowUp } from '../src/store/slices
 import { clearEditItem, setEditItem, setModalOpen, setModalType } from '../src/store/slices/uiSlice';
 
 // API
-import { customersAPI } from '../src/config/api';
+import { customersAPI, tasksAPI, visitsAPI } from '../src/config/api';
 
 export default function Customers() {
   const dispatch = useDispatch();
@@ -232,20 +232,78 @@ export default function Customers() {
     }
   };
 
-  const handleAddFollowUpFromCustomer = (taskData) => {
-    // If taskData is a full task object, add it directly
-    if (taskData && taskData.customerId) {
-      const newTask = {
-        ...taskData,
-        id: taskData.id || Math.random().toString(36).substring(2, 11),
-        status: taskData.status || 'Pending'
-      };
-      dispatch(addFollowUp(newTask));
-    } else {
-      // Otherwise, open modal for adding new task
-      dispatch(setEditItem({ customerId: taskData?.id })); 
-      dispatch(setModalType('FollowUp'));
-      dispatch(setModalOpen(true));
+  const handleAddFollowUpFromCustomer = async (taskData) => {
+    try {
+      // If taskData is a full task object, create it in backend
+      if (taskData && taskData.customerId) {
+        // Check if it's a site visit with multiple properties
+        if ((taskData.type === 'Site Visit' || taskData.type === 'Visit') && taskData.propertyIds?.length > 0) {
+          // Create site visit (this will also create task in backend)
+          const visitResponse = await visitsAPI.create({
+            client_id: taskData.customerId,
+            property_ids: taskData.propertyIds,
+            scheduled_date: taskData.date.split('T')[0],
+            scheduled_time: taskData.date.split('T')[1]?.substring(0, 5) || '10:00'
+          });
+          
+          if (visitResponse.data.success) {
+            Alert.alert('Success', 'Site visit scheduled!');
+            
+            // Fetch updated tasks and add to Redux
+            const tasksResponse = await tasksAPI.getAll({ status: 'All' });
+            if (tasksResponse.data.success) {
+              const transformedTasks = tasksResponse.data.data.map(task => ({
+                id: task.id,
+                customerId: task.client_id,
+                propertyIds: task.property_id ? [task.property_id] : [],
+                type: task.task_type || 'Meeting',
+                date: task.due_date,
+                note: task.description || '',
+                status: task.status === 'completed' ? 'Done' : 'Pending',
+                siteVisitId: task.site_visit_id,
+                propertyCount: task.site_visit_property_count || 0
+              }));
+              
+              // Update Redux with all tasks
+              dispatch({ type: 'followUps/setFollowUps', payload: transformedTasks });
+            }
+          }
+        } else {
+          // Create regular task
+          const taskResponse = await tasksAPI.create({
+            client_id: taskData.customerId,
+            property_id: taskData.propertyIds?.[0] || null,
+            task_type: taskData.type || 'Meeting',
+            schedule_date: taskData.date.split('T')[0],
+            schedule_time: taskData.date.split('T')[1]?.substring(0, 5) || '10:00',
+            notes: taskData.note || ''
+          });
+          
+          if (taskResponse.data.success) {
+            Alert.alert('Success', 'Task created!');
+            
+            // Transform and add to Redux for immediate UI update
+            const newTask = {
+              id: taskResponse.data.data.id,
+              customerId: taskData.customerId,
+              propertyIds: taskData.propertyIds || [],
+              type: taskData.type,
+              date: taskData.date,
+              note: taskData.note || '',
+              status: 'Pending'
+            };
+            dispatch(addFollowUp(newTask));
+          }
+        }
+      } else {
+        // Otherwise, open modal for adding new task
+        dispatch(setEditItem({ customerId: taskData?.id })); 
+        dispatch(setModalType('FollowUp'));
+        dispatch(setModalOpen(true));
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to create task');
     }
   };
 
@@ -332,10 +390,19 @@ export default function Customers() {
           onEditTask={handleEditTask}
           onDeleteTask={handleDeleteTask}
           onUpdateStatus={(id, status) => dispatch(updateCustomerStatus({ id, status }))}
-          onUpdateStage={(id, stage) => {
-            const customer = customers.find(c => c.id === id);
-            if (customer) {
-              dispatch(updateCustomer({ ...customer, stage }));
+          onUpdateStage={async (id, stage) => {
+            try {
+              const response = await customersAPI.updateStage(id, stage);
+              if (response.data.success) {
+                const customer = customers.find(c => c.id === id);
+                if (customer) {
+                  dispatch(updateCustomer({ ...customer, stage }));
+                }
+                Alert.alert('Success', `Moved to ${stage}`);
+              }
+            } catch (error) {
+              console.error('Error updating stage:', error);
+              Alert.alert('Error', error.response?.data?.message || 'Failed to update stage');
             }
           }}
           onSelectProperties={(id, selectedProperties, interestedProperties, holdProperties) => {
