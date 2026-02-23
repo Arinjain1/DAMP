@@ -103,3 +103,32 @@ export const submitVisitFeedback = async (req, res, next) => {
     next(err);
   }
 };
+
+export const getPropertiesByOutcome = async (req, res, next) => {
+  const visitId = req.params.id;
+  const outcomeFilter = req.query.outcome;
+  try {
+    let sqlQuery = `
+      SELECT 
+         i.id as item_id, i.status as visit_status, i.outcome,
+         p.id as property_id, p.title, p.address, p.locality, p.price, p.cover_image_url, 
+         p.owner_name, p.owner_phone, p.map_location
+      FROM site_visit_items i
+      JOIN properties p ON i.property_id = p.id
+      WHERE i.site_visit_id = $1
+    `;
+    const queryParams = [visitId];
+    if (outcomeFilter) {
+      sqlQuery += ` AND i.outcome = $2`;
+      queryParams.push(outcomeFilter);
+    }
+    sqlQuery += ` ORDER BY i.created_at ASC`;
+    const result = await query(sqlQuery, queryParams);
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (err) {
+    next(err);
+  }
+};
