@@ -90,6 +90,7 @@ export const customersAPI = {
   getById: (id) => api.get(`/clients/${id}`),
   create: (data) => api.post('/clients', data),
   update: (id, data) => api.put(`/clients/${id}`, data),
+  updateStage: (id, status) => api.put(`/clients/${id}/stage`, { status }),
   delete: (id) => api.delete(`/clients/${id}`),
 };
 
@@ -100,6 +101,20 @@ export const dealsAPI = {
   create: (data) => api.post('/deals', data),
   update: (id, data) => api.put(`/deals/${id}`, data),
   delete: (id) => api.delete(`/deals/${id}`),
+};
+
+// Tasks/FollowUps API endpoints
+export const tasksAPI = {
+  getAll: (params) => api.get('/tasks', { params }),
+  create: (data) => api.post('/tasks', data),
+  toggleStatus: (id) => api.put(`/tasks/${id}/status`),
+};
+
+// Site Visits API endpoints
+export const visitsAPI = {
+  create: (data) => api.post('/visits', data),
+  getById: (id) => api.get(`/visits/${id}`),
+  submitFeedback: (itemId, data) => api.put(`/visits/item/${itemId}`, data),
 };
 
 export default api;

@@ -40,7 +40,7 @@ export const getClients = async (req, res, next) => {
       sql += ' AND (c.name ILIKE $2 OR c.phone ILIKE $2)';
       params.push(`%${search}%`);
     }
-    sql += ' ORDER BY c.updated_at DESC';
+    sql += ' ORDER BY created_at DESC';
     const result = await query(sql, params);
     res.json({
       success: true,
@@ -157,7 +157,7 @@ export const updateClientStage = async (req, res, next) => {
 
   try {
     const result = await query(
-      `UPDATE contacts SET status = $1, updated_at = NOW() WHERE id = $2 AND broker_id = $3 RETURNING *`,
+      `UPDATE contacts SET status = $1 WHERE id = $2 AND broker_id = $3 RETURNING *`,
       [status, clientId, brokerId]
     );
     res.json({ success: true, message: `Moved to ${status}`, data: result.rows[0] });

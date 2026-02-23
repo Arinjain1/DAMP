@@ -58,19 +58,19 @@ export default function Login() {
         // Backend returns user data directly (no success flag)
         const { id, full_name, email: userEmail, role, token } = response.data;
         
-        // Set auth token for future API calls
-        setAuthToken(token);
-        
-        // You can also store token in AsyncStorage for persistence
-        // await AsyncStorage.setItem('authToken', token);
-        
-        dispatch(loginSuccess({ 
+        const userData = { 
           id, 
           name: full_name, 
+          full_name,
           email: userEmail, 
           role, 
           token 
-        }));
+        };
+        
+        // Set auth token for future API calls
+        setAuthToken(token);
+        
+        dispatch(loginSuccess(userData));
         
         // Don't navigate - let the auth state change handle the navigation automatically
         // The AppNavigator will switch from Stack to Tabs when isAuthenticated becomes true

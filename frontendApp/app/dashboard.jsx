@@ -442,6 +442,19 @@ export default function DashboardPage() {
           followUps={followUps}
           onClose={() => dispatch(clearSelectedCustomer())}
           onStartDeal={handleStartDeal}
+          onUpdateStage={async (id, stage) => {
+            try {
+              const response = await customersAPI.updateStage(id, stage);
+              if (response.data.success) {
+                const customer = customers.find(c => c.id === id);
+                if (customer) {
+                  dispatch(updateCustomer({ ...customer, stage }));
+                }
+              }
+            } catch (error) {
+              console.error('Error updating stage:', error);
+            }
+          }}
         />
       )}
 

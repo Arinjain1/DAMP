@@ -9,17 +9,20 @@ import {
     Plus,
     Trash2
 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
+    Alert,
     Linking,
     ScrollView,
     StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
+    RefreshControl
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { useFocusEffect } from '@react-navigation/native';
 
 // Components
 import WhatsAppIcon from '@/src/Components/WhatsAppIcon';
@@ -27,13 +30,15 @@ import AddModal from '@/src/Modal and Sheets/AddModal';
 import SiteVisitMapModal from '@/src/Modal and Sheets/SiteVisitMapModal';
 import { clearEditItem, setEditItem, setModalOpen, setModalType } from '@/src/store/slices/uiSlice';
 import {
-    addFollowUp,
+    setFollowUps,
     deleteFollowUp,
     setActiveSiteVisit,
     updateFollowUp,
-    updateFollowUpStatus
+    updateFollowUpStatus,
+    setLoading
 } from '../src/store/slices/followUpsSlice';
 import { updateCustomer } from '../src/store/slices/customersSlice';
+import { tasksAPI, visitsAPI } from '../src/config/api';
 
 // Helper for generating IDs
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -45,12 +50,71 @@ export default function FollowUps() {
   const [showSiteVisitModal, setShowSiteVisitModal] = useState(false);
   const [siteVisitCustomer, setSiteVisitCustomer] = useState(null);
   const [siteVisitProperties, setSiteVisitProperties] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Redux state
-  const { followUps, activeSiteVisit } = useSelector(state => state.followUps);
+  const { followUps, activeSiteVisit, loading } = useSelector(state => state.followUps);
   const { customers } = useSelector(state => state.customers);
   const { properties } = useSelector(state => state.properties);
   const { modalOpen, modalType, editItem } = useSelector(state => state.ui);
+  const { user } = useSelector(state => state.auth); // Get logged-in user
+  
+  // Fetch tasks from backend on mount
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  // Refresh tasks when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchTasks();
+    }, [])
+  );
+
+  const fetchTasks = async () => {
+    try {
+      dispatch(setLoading(true));
+      const response = await tasksAPI.getAll({ status: 'All' });
+      
+      if (response.data.success) {
+        // Transform backend data to frontend format
+        const transformedTasks = response.data.data.map(task => {
+          // For site visits, use site_visit_properties array
+          let propertyIds = [];
+          if (task.site_visit_properties && Array.isArray(task.site_visit_properties)) {
+            propertyIds = task.site_visit_properties.map(p => p.property_id);
+          } else if (task.property_id) {
+            propertyIds = [task.property_id];
+          }
+
+          return {
+            id: task.id,
+            customerId: task.client_id,
+            propertyIds: propertyIds,
+            type: task.task_type || 'Meeting',
+            date: task.due_date,
+            note: task.description || '',
+            status: task.status === 'completed' ? 'Done' : 'Pending',
+            siteVisitId: task.site_visit_id,
+            propertyCount: task.site_visit_property_count || 0,
+            siteVisitProperties: task.site_visit_properties || []
+          };
+        });
+        dispatch(setFollowUps(transformedTasks));
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      Alert.alert('Error', 'Failed to load tasks');
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchTasks();
+    setRefreshing(false);
+  };
   
   
   
@@ -98,21 +162,96 @@ export default function FollowUps() {
     if(phone) Linking.openURL(`tel:${phone}`);
   };
 
-  const handleWhatsApp = (phone) => {
-    if(phone) Linking.openURL(`https://wa.me/${phone}`);
-  };
-
-  const handleUpdateStatus = (taskId, status) => {
-    dispatch(updateFollowUpStatus({ id: taskId, status }));
-  };
-
-  const handleStartVisit = (visitData) => {
-    // Open Site Visit Map Modal with properties
-    const { customer, properties: visitProps } = visitData;
+  const handleWhatsApp = (phone, task, customer) => {
+    if (!phone) return;
     
-    setSiteVisitCustomer(customer);
-    setSiteVisitProperties(visitProps);
-    setShowSiteVisitModal(true);
+    // Get broker name
+    const brokerName = user?.name || user?.full_name || 'Your Property Broker';
+    
+    // Create pre-filled message based on task type
+    const date = new Date(task.date);
+    const formattedDate = date.toLocaleDateString('en-IN', { 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric' 
+    });
+    const formattedTime = date.toLocaleTimeString('en-IN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    
+    let message = '';
+    
+    if (task.type === 'Site Visit' || task.type === 'Visit') {
+      message = `Hi ${customer?.name || 'there'},\n\nThis is a reminder for your property site visit scheduled on ${formattedDate} at ${formattedTime}.\n\nLooking forward to showing you the properties!\n\nBest regards,\n${brokerName}`;
+    } else if (task.type === 'Meeting') {
+      message = `Hi ${customer?.name || 'there'},\n\nReminder: We have a meeting scheduled on ${formattedDate} at ${formattedTime}.\n\n${task.note ? `Agenda: ${task.note}\n\n` : ''}See you soon!\n\nBest regards,\n${brokerName}`;
+    } else if (task.type === 'Follow-up' || task.type === 'Call') {
+      message = `Hi ${customer?.name || 'there'},\n\nJust following up on our previous discussion about the property.\n\n${task.note ? `Note: ${task.note}\n\n` : ''}Feel free to reach out if you have any questions!\n\nBest regards,\n${brokerName}`;
+    } else {
+      // Generic message for other task types
+      message = `Hi ${customer?.name || 'there'},\n\nReminder for: ${task.type}\nScheduled: ${formattedDate} at ${formattedTime}\n\n${task.note ? `${task.note}\n\n` : ''}Best regards,\n${brokerName}`;
+    }
+    
+    // Encode message for URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Clean phone number and add +91 if not present
+    let cleanPhone = phone.replace(/[^0-9]/g, '');
+    
+    // Add +91 if number doesn't start with 91 and is 10 digits
+    if (cleanPhone.length === 10) {
+      cleanPhone = '91' + cleanPhone;
+    } else if (!cleanPhone.startsWith('91') && cleanPhone.length > 10) {
+      cleanPhone = '91' + cleanPhone;
+    }
+    
+    Linking.openURL(`https://wa.me/${cleanPhone}?text=${encodedMessage}`);
+  };
+
+  const handleUpdateStatus = async (taskId, status) => {
+    try {
+      const response = await tasksAPI.toggleStatus(taskId);
+      
+      if (response.data.success) {
+        dispatch(updateFollowUpStatus({ id: taskId, status }));
+        Alert.alert('Success', response.data.message);
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+      Alert.alert('Error', 'Failed to update task status');
+    }
+  };
+
+  const handleStartVisit = async (visitData) => {
+    // If site visit already exists, fetch details
+    if (visitData.siteVisitId) {
+      try {
+        const response = await visitsAPI.getById(visitData.siteVisitId);
+        if (response.data.success) {
+          const visitProperties = response.data.data.map(item => ({
+            ...properties.find(p => p.id === item.property_id),
+            visitItemId: item.item_id,
+            visitStatus: item.visit_status,
+            outcome: item.outcome
+          }));
+          
+          setSiteVisitCustomer(visitData.customer);
+          setSiteVisitProperties(visitProperties);
+          setShowSiteVisitModal(true);
+        }
+      } catch (error) {
+        console.error('Error fetching visit details:', error);
+        Alert.alert('Error', 'Failed to load site visit details');
+      }
+    } else {
+      // Open Site Visit Map Modal with properties
+      const { customer, properties: visitProps } = visitData;
+      setSiteVisitCustomer(customer);
+      setSiteVisitProperties(visitProps);
+      setShowSiteVisitModal(true);
+    }
   };
 
   const handleDeleteTask = (taskId) => {
@@ -133,10 +272,48 @@ export default function FollowUps() {
     dispatch(setModalOpen(true));
   };
 
-  const handleAdd = (data) => {
-    const newTask = { ...data, id: generateId() };
-    dispatch(addFollowUp(newTask));
-    dispatch(setModalOpen(false));
+  const handleAdd = async (data) => {
+    try {
+      dispatch(setLoading(true));
+      
+      // Check if it's a site visit with multiple properties
+      if ((data.type === 'Site Visit' || data.type === 'Visit') && data.propertyIds?.length > 0) {
+        // Create site visit (this will also create task in backend)
+        const visitResponse = await visitsAPI.create({
+          client_id: data.customerId,
+          property_ids: data.propertyIds,
+          scheduled_date: data.date.split('T')[0],
+          scheduled_time: data.date.split('T')[1]?.substring(0, 5) || '10:00'
+        });
+        
+        if (visitResponse.data.success) {
+          Alert.alert('Success', 'Site visit scheduled!');
+          await fetchTasks(); // Refresh tasks
+        }
+      } else {
+        // Create regular task
+        const taskResponse = await tasksAPI.create({
+          client_id: data.customerId,
+          property_id: data.propertyIds?.[0] || null,
+          task_type: data.type || 'Meeting',
+          schedule_date: data.date.split('T')[0],
+          schedule_time: data.date.split('T')[1]?.substring(0, 5) || '10:00',
+          notes: data.note || ''
+        });
+        
+        if (taskResponse.data.success) {
+          Alert.alert('Success', 'Task created!');
+          await fetchTasks(); // Refresh tasks
+        }
+      }
+      
+      dispatch(setModalOpen(false));
+    } catch (error) {
+      console.error('Error creating task:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to create task');
+    } finally {
+      dispatch(setLoading(false));
+    }
   };
 
   const handleUpdate = (updatedItem) => {
@@ -232,6 +409,9 @@ export default function FollowUps() {
           style={styles.scrollView} 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         >
          <View style={styles.timelineHeader}>
             <Text style={styles.colHeaderTime}>Time</Text>
@@ -340,29 +520,41 @@ export default function FollowUps() {
                         {isPendingFirst ? (
                            // Purple card actions based on task type
                            (task.type === 'Site Visit' || task.type === 'Visit') ? (
-                              <TouchableOpacity 
-                                 onPress={() => {
-                                    if (taskProperties.length === 1) {
-                                       // Single property - directly navigate to Google Maps
-                                       const prop = taskProperties[0];
-                                       Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
-                                    } else {
-                                       // Multiple properties - start site visit flow
-                                       handleStartVisit({ 
-                                          id: generateId(), 
-                                          customer, 
-                                          properties: taskProperties, 
-                                          taskId: task.id 
-                                       });
-                                    }
-                                 }}
-                                 style={styles.startVisitButton}
-                              >
-                                 <Map size={12} color="#fbbf24" />
-                                 <Text style={styles.startVisitText}>
-                                    {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
-                                 </Text>
-                              </TouchableOpacity>
+                              <>
+                                 <TouchableOpacity 
+                                    onPress={() => {
+                                       if (taskProperties.length === 1) {
+                                          // Single property - directly navigate to Google Maps
+                                          const prop = taskProperties[0];
+                                          Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                                       } else {
+                                          // Multiple properties - start site visit flow
+                                          handleStartVisit({ 
+                                             id: generateId(), 
+                                             customer, 
+                                             properties: taskProperties, 
+                                             taskId: task.id 
+                                          });
+                                       }
+                                    }}
+                                    style={styles.startVisitButton}
+                                 >
+                                    <Map size={12} color="#fbbf24" />
+                                    <Text style={styles.startVisitText}>
+                                       {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
+                                    </Text>
+                                 </TouchableOpacity>
+                                 <View style={[styles.contactButtonsRow, { marginTop: 8 }]}>
+                                    <TouchableOpacity onPress={() => handleCall(customer?.phone)} style={styles.miniBtn}>
+                                       <Phone size={12} color="#4b5563" />
+                                       <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone, task, customer)} style={styles.miniBtn}>
+                                       <WhatsAppIcon size={12} color="#4b5563" />
+                                       <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
+                                    </TouchableOpacity>
+                                 </View>
+                              </>
                            ) : (
                               // For Meeting, Call, Follow-up etc. - show Call & Msg buttons
                               <View style={styles.contactButtonsRow}>
@@ -370,7 +562,7 @@ export default function FollowUps() {
                                     <Phone size={12} color="#4b5563" />
                                     <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
                                  </TouchableOpacity>
-                                 <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone)} style={styles.miniBtn}>
+                                 <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone, task, customer)} style={styles.miniBtn}>
                                     <WhatsAppIcon size={12} color="#4b5563" />
                                     <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
                                  </TouchableOpacity>
@@ -379,36 +571,48 @@ export default function FollowUps() {
                         ) : (
                            // Non-purple cards (white cards)
                            (task.type === 'Site Visit' || task.type === 'Visit') && filter === 'Pending' && taskProperties.length > 0 ? (
-                              <TouchableOpacity 
-                                 onPress={() => {
-                                    if (taskProperties.length === 1) {
-                                       // Single property - directly navigate to Google Maps
-                                       const prop = taskProperties[0];
-                                       Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
-                                    } else {
-                                       // Multiple properties - start site visit flow
-                                       handleStartVisit({ 
-                                          id: generateId(), 
-                                          customer, 
-                                          properties: taskProperties, 
-                                          taskId: task.id 
-                                       });
-                                    }
-                                 }}
-                                 style={styles.startVisitButton}
-                              >
-                                 <Map size={12} color="#fbbf24" />
-                                 <Text style={styles.startVisitText}>
-                                    {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
-                                 </Text>
-                              </TouchableOpacity>
+                              <View>
+                                 <TouchableOpacity 
+                                    onPress={() => {
+                                       if (taskProperties.length === 1) {
+                                          // Single property - directly navigate to Google Maps
+                                          const prop = taskProperties[0];
+                                          Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                                       } else {
+                                          // Multiple properties - start site visit flow
+                                          handleStartVisit({ 
+                                             id: generateId(), 
+                                             customer, 
+                                             properties: taskProperties, 
+                                             taskId: task.id 
+                                          });
+                                       }
+                                    }}
+                                    style={styles.startVisitButton}
+                                 >
+                                    <Map size={12} color="#fbbf24" />
+                                    <Text style={styles.startVisitText}>
+                                       {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
+                                    </Text>
+                                 </TouchableOpacity>
+                                 <View style={[styles.contactButtonsRow, { marginTop: 8 }]}>
+                                    <TouchableOpacity onPress={() => handleCall(customer?.phone)} style={styles.miniBtn}>
+                                       <Phone size={12} color="#4b5563" />
+                                       <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone, task, customer)} style={styles.miniBtn}>
+                                       <WhatsAppIcon size={12} color="#4b5563" />
+                                       <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
+                                    </TouchableOpacity>
+                                 </View>
+                              </View>
                            ) : filter === 'Pending' ? (
                               <View style={styles.contactButtonsRow}>
                                  <TouchableOpacity onPress={() => handleCall(customer?.phone)} style={styles.miniBtn}>
                                     <Phone size={12} color="#4b5563" />
                                     <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
                                  </TouchableOpacity>
-                                 <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone)} style={styles.miniBtn}>
+                                 <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone, task, customer)} style={styles.miniBtn}>
                                     <WhatsAppIcon size={12} color="#4b5563" />
                                     <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
                                  </TouchableOpacity>

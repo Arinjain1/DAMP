@@ -1,6 +1,7 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense, useCallback } from 'react';
 import { Alert, StatusBar, View, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { useFocusEffect } from '@react-navigation/native';
 
 // Components
 import AddModal from '../src/Modal and Sheets/AddModal.jsx';
@@ -40,6 +41,13 @@ export default function Properties() {
   useEffect(() => {
     fetchProperties();
   }, []);
+
+  // Refresh properties when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchProperties();
+    }, [])
+  );
 
   const fetchProperties = async () => {
     try {
