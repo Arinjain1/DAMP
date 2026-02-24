@@ -21,7 +21,15 @@ export default function FollowUpListView() {
       const response = await tasksAPI.getAll({ status: 'All' });
       
       if (response.data.success) {
-        dispatch(setFollowUps(response.data.data));
+        
+        
+        // Just use what backend provides - don't add "Unknown Client"
+        const tasksWithNames = response.data.data.map(task => {
+          
+          return task;
+        });
+        
+        dispatch(setFollowUps(tasksWithNames));
       }
     } catch (error) {
       console.error('Error fetching followups:', error);
@@ -101,6 +109,21 @@ export default function FollowUpListView() {
   const pendingTasks = filteredTasks.filter(t => t.status === 'pending');
   const completedTasks = filteredTasks.filter(t => t.status === 'completed');
 
+  // Skeleton Loader Component
+  const SkeletonCard = () => (
+    <View className="bg-white rounded-2xl p-4 border border-[#e5e7eb]">
+      <View className="flex-row items-start gap-3">
+        <View className="w-5 h-5 rounded-full bg-[#e5e7eb] mt-1" />
+        <View className="flex-1">
+          <View className="w-24 h-3 bg-[#e5e7eb] rounded mb-2" />
+          <View className="w-full h-4 bg-[#e5e7eb] rounded mb-2" />
+          <View className="w-32 h-3 bg-[#e5e7eb] rounded" />
+        </View>
+        <View className="w-6 h-6 rounded-full bg-[#e5e7eb] mt-1" />
+      </View>
+    </View>
+  );
+
   return (
     <View className="flex-1 bg-[#f9fafb]">
       {/* Filter Tabs */}
@@ -111,13 +134,18 @@ export default function FollowUpListView() {
               <TouchableOpacity
                 key={type}
                 onPress={() => setFilter(type)}
-                className={`px-4 py-2 rounded-full ${
-                  filter === type ? 'bg-[#9A8CFC]' : 'bg-[#f3f4f6]'
-                }`}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: filter === type ? '#9A8CFC' : '#f3f4f6'
+                }}
               >
-                <Text className={`text-sm font-medium ${
-                  filter === type ? 'text-white' : 'text-[#6b7280]'
-                }`}>
+                <Text style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: filter === type ? '#ffffff' : '#6b7280'
+                }}>
                   {type}
                 </Text>
               </TouchableOpacity>
@@ -132,8 +160,19 @@ export default function FollowUpListView() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Pending Tasks */}
-        {pendingTasks.length > 0 && (
+        {loading ? (
+          <View className="px-4 py-4">
+            <View className="w-32 h-5 bg-[#e5e7eb] rounded mb-3" />
+            <View className="gap-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </View>
+          </View>
+        ) : (
+          <>
+            {/* Pending Tasks */}
+            {pendingTasks.length > 0 && (
           <View className="px-4 py-4">
             <Text className="text-lg font-bold text-[#1f2937] mb-3">
               Upcoming ({pendingTasks.length})
@@ -150,15 +189,23 @@ export default function FollowUpListView() {
                       <View className="mt-1">{getTaskIcon(task.task_type)}</View>
                       
                       <View className="flex-1">
+                        {task.client_name ? (
+                          <Text className="text-sm text-[#6b7280] mb-1">
+                            {task.client_name}
+                          </Text>
+                        ) : task.title?.includes('with') ? (
+                          <Text className="text-sm text-[#6b7280] mb-1">
+                            {task.title.split('with')[1]?.trim()}
+                          </Text>
+                        ) : task.title?.includes(':') ? (
+                          <Text className="text-sm text-[#6b7280] mb-1">
+                            {task.title.split(':')[1]?.trim()}
+                          </Text>
+                        ) : null}
+                        
                         <Text className="text-base font-semibold text-[#1f2937] mb-1">
                           {task.title}
                         </Text>
-                        
-                        {task.client_name && (
-                          <Text className="text-sm text-[#6b7280] mb-1">
-                            Client: {task.client_name}
-                          </Text>
-                        )}
                         
                         {task.property_title && (
                           <Text className="text-sm text-[#6366f1] mb-1">
@@ -217,15 +264,23 @@ export default function FollowUpListView() {
                       <View className="mt-1 opacity-50">{getTaskIcon(task.task_type)}</View>
                       
                       <View className="flex-1">
+                        {task.client_name ? (
+                          <Text className="text-sm text-[#9ca3af] mb-1">
+                            {task.client_name}
+                          </Text>
+                        ) : task.title?.includes('with') ? (
+                          <Text className="text-sm text-[#9ca3af] mb-1">
+                            {task.title.split('with')[1]?.trim()}
+                          </Text>
+                        ) : task.title?.includes(':') ? (
+                          <Text className="text-sm text-[#9ca3af] mb-1">
+                            {task.title.split(':')[1]?.trim()}
+                          </Text>
+                        ) : null}
+                        
                         <Text className="text-base font-semibold text-[#6b7280] mb-1 line-through">
                           {task.title}
                         </Text>
-                        
-                        {task.client_name && (
-                          <Text className="text-sm text-[#9ca3af] mb-1">
-                            Client: {task.client_name}
-                          </Text>
-                        )}
                         
                         <View className="flex-row items-center gap-2">
                           <Calendar size={14} color="#9ca3af" />
@@ -253,6 +308,8 @@ export default function FollowUpListView() {
             <Calendar size={48} color="#d1d5db" />
             <Text className="mt-4 text-base text-[#9ca3af]">No tasks found</Text>
           </View>
+        )}
+        </>
         )}
       </ScrollView>
     </View>

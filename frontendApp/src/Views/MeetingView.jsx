@@ -33,19 +33,56 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
         const tasks = response.data.data;
         dispatch(setFollowUps(tasks));
         
-        // Filter tasks for this deal's client
+        // Filter tasks for this deal's client AND only Meeting/FollowUp tasks (exclude Site Visit)
         if (selectedDeal?.customerId) {
-          const dealTasks = tasks.filter(t => t.client_id === selectedDeal.customerId);
-          const formattedMeetings = dealTasks.map(task => ({
-            id: task.id,
-            title: task.title,
-            date: task.due_date,
-            status: task.status === 'completed' ? 'completed' : 'upcoming',
-            type: task.task_type,
-            note: task.description,
-            client_name: task.client_name,
-            property_title: task.property_title
-          }));
+          const dealTasks = tasks.filter(t => 
+            t.client_id === selectedDeal.customerId && 
+            t.task_type !== 'Site Visit' && 
+            t.task_type !== 'Visit'
+          );
+          const formattedMeetings = dealTasks.map(task => {
+            // Get property name(s)
+            let propertyTitle = task.property_title;
+            
+            // For Site Visit tasks with multiple properties
+            if (task.site_visit_properties && Array.isArray(task.site_visit_properties)) {
+              const propertyNames = task.site_visit_properties.map(p => p.title).filter(Boolean);
+              if (propertyNames.length > 0) {
+                propertyTitle = propertyNames.join(', ');
+              }
+            }
+            
+            // Fallback: Get from properties array if not in task
+            if (!propertyTitle && task.property_id) {
+              const property = properties.find(p => p.id === task.property_id);
+              propertyTitle = property?.title;
+            }
+            
+            // Get customer name
+            let clientName = task.client_name;
+            if (!clientName) {
+              const customer = customers.find(c => c.id === task.client_id);
+              clientName = customer?.name || 'Unknown Client';
+            }
+            
+            // Generate title if not present or if it's generic
+            let taskTitle = task.title;
+            if (!taskTitle || taskTitle === 'Meeting' || taskTitle === 'Site Visit') {
+              const taskType = task.task_type || 'Meeting';
+              taskTitle = `${taskType}: ${clientName}`;
+            }
+            
+            return {
+              id: task.id,
+              title: taskTitle,
+              date: task.due_date,
+              status: task.status === 'completed' ? 'completed' : 'upcoming',
+              type: task.task_type,
+              note: task.description,
+              client_name: clientName,
+              property_title: propertyTitle
+            };
+          });
           setLocalMeetings(formattedMeetings);
         }
       }

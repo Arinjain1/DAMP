@@ -42,10 +42,19 @@ export const getClients = async (req, res, next) => {
     }
     sql += ' ORDER BY created_at DESC';
     const result = await query(sql, params);
+    
+    // Transform snake_case to camelCase for property arrays
+    const transformedData = result.rows.map(client => ({
+      ...client,
+      selectedProperties: client.selected_properties || [],
+      interestedProperties: client.interested_properties || [],
+      holdProperties: client.hold_properties || []
+    }));
+    
     res.json({
       success: true,
       count: result.rowCount,
-      data: result.rows
+      data: transformedData
     });
   } catch (err) {
     next(err);
@@ -66,7 +75,10 @@ export const updateClient = async (req, res, next) => {
     budget_min,         
     budget_max,         
     preferred_location, 
-    notes               
+    notes,
+    selected_properties,
+    interested_properties,
+    hold_properties
   } = req.body;
 
   try {
@@ -74,21 +86,51 @@ export const updateClient = async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Name and Phone are required" });
     }
 
+    // Build dynamic query based on what fields are provided
+    let updateFields = [
+      'name = $1', 'phone = $2', 
+      'requirement_type = $3', 'property_category = $4', 'property_type = $5', 
+      'configuration = $6', 'furnishing_status = $7', 
+      'budget_min = $8', 'budget_max = $9', 'preferred_location = $10', 'notes = $11'
+    ];
+    
+    let values = [
+      name, phone, 
+      requirement_type, property_category, property_type, 
+      configuration, furnishing_status, 
+      budget_min || 0, budget_max || 0, preferred_location || '', notes || ''
+    ];
+
+    let paramIndex = 12;
+
+    // Add property arrays if provided
+    if (selected_properties !== undefined) {
+      updateFields.push(`selected_properties = $${paramIndex}`);
+      values.push(selected_properties);
+      paramIndex++;
+    }
+
+    if (interested_properties !== undefined) {
+      updateFields.push(`interested_properties = $${paramIndex}`);
+      values.push(interested_properties);
+      paramIndex++;
+    }
+
+    if (hold_properties !== undefined) {
+      updateFields.push(`hold_properties = $${paramIndex}`);
+      values.push(hold_properties);
+      paramIndex++;
+    }
+
+    // Add clientId and brokerId at the end
+    values.push(clientId, brokerId);
+
     const result = await query(
       `UPDATE contacts 
-       SET name = $1, phone = $2, 
-           requirement_type = $3, property_category = $4, property_type = $5, 
-           configuration = $6, furnishing_status = $7, 
-           budget_min = $8, budget_max = $9, preferred_location = $10, notes = $11
-       WHERE id = $12 AND broker_id = $13
+       SET ${updateFields.join(', ')}
+       WHERE id = $${paramIndex} AND broker_id = $${paramIndex + 1}
        RETURNING *`,
-      [
-        name, phone, 
-        requirement_type, property_category, property_type, 
-        configuration, furnishing_status, 
-        budget_min || 0, budget_max || 0, preferred_location || '', notes || '',
-        clientId, brokerId
-      ]
+      values
     );
 
     if (result.rows.length === 0) {
@@ -135,10 +177,18 @@ export const getClientDetails = async (req, res, next) => {
       [brokerId, client.property_category, client.budget_min, client.budget_max, clientId]
     );
 
+    // Transform snake_case to camelCase for property arrays
+    const transformedClient = {
+      ...client,
+      selectedProperties: client.selected_properties || [],
+      interestedProperties: client.interested_properties || [],
+      holdProperties: client.hold_properties || []
+    };
+
     res.json({
       success: true,
       data: {
-        profile: client,
+        profile: transformedClient,
         active_deals: activeDealsResult.rows,
         tasks: tasksResult.rows,
         matches: matchesResult.rows 
@@ -162,6 +212,72 @@ export const updateClientStage = async (req, res, next) => {
     );
     res.json({ success: true, message: `Moved to ${status}`, data: result.rows[0] });
   } catch (err) { next(err); }
+};
+
+export const updateClientProperties = async (req, res, next) => {
+  const brokerId = req.user.id;
+  const clientId = req.params.id;
+  const { selected_properties, interested_properties, hold_properties } = req.body;
+
+  try {
+    let updateFields = [];
+    let values = [];
+    let paramIndex = 1;
+
+    if (selected_properties !== undefined) {
+      updateFields.push(`selected_properties = $${paramIndex}`);
+      values.push(selected_properties);
+      paramIndex++;
+    }
+
+    if (interested_properties !== undefined) {
+      updateFields.push(`interested_properties = $${paramIndex}`);
+      values.push(interested_properties);
+      paramIndex++;
+    }
+
+    if (hold_properties !== undefined) {
+      updateFields.push(`hold_properties = $${paramIndex}`);
+      values.push(hold_properties);
+      paramIndex++;
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ success: false, message: "No properties to update" });
+    }
+
+    values.push(clientId, brokerId);
+
+    const result = await query(
+      `UPDATE contacts 
+       SET ${updateFields.join(', ')}
+       WHERE id = $${paramIndex} AND broker_id = $${paramIndex + 1}
+       RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Client not found" });
+    }
+
+    // Transform snake_case to camelCase for response
+    const transformedClient = {
+      ...result.rows[0],
+      selectedProperties: result.rows[0].selected_properties || [],
+      interestedProperties: result.rows[0].interested_properties || [],
+      holdProperties: result.rows[0].hold_properties || []
+    };
+
+    res.json({
+      success: true,
+      message: "Properties updated successfully!",
+      data: transformedClient
+    });
+
+  } catch (err) {
+    console.error("Update Client Properties Error:", err);
+    next(err);
+  }
 };
 export const toggleTaskStatus = async (req, res, next) => {
   const brokerId = req.user.id;

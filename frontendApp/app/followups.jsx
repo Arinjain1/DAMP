@@ -90,6 +90,8 @@ export default function FollowUps() {
           return {
             id: task.id,
             customerId: task.client_id,
+            // Fallback for client name if redux lookup fails
+            clientNameFallback: task.client?.name || task.client?.full_name || task.client_name,
             propertyIds: propertyIds,
             type: task.task_type || 'Meeting',
             date: task.due_date,
@@ -182,16 +184,17 @@ export default function FollowUps() {
     });
     
     let message = '';
+    const nameToUse = customer?.name || customer?.full_name || task.clientNameFallback || 'there';
     
     if (task.type === 'Site Visit' || task.type === 'Visit') {
-      message = `Hi ${customer?.name || 'there'},\n\nThis is a reminder for your property site visit scheduled on ${formattedDate} at ${formattedTime}.\n\nLooking forward to showing you the properties!\n\nBest regards,\n${brokerName}`;
+      message = `Hi ${nameToUse},\n\nThis is a reminder for your property site visit scheduled on ${formattedDate} at ${formattedTime}.\n\nLooking forward to showing you the properties!\n\nBest regards,\n${brokerName}`;
     } else if (task.type === 'Meeting') {
-      message = `Hi ${customer?.name || 'there'},\n\nReminder: We have a meeting scheduled on ${formattedDate} at ${formattedTime}.\n\n${task.note ? `Agenda: ${task.note}\n\n` : ''}See you soon!\n\nBest regards,\n${brokerName}`;
+      message = `Hi ${nameToUse},\n\nReminder: We have a meeting scheduled on ${formattedDate} at ${formattedTime}.\n\n${task.note ? `Agenda: ${task.note}\n\n` : ''}See you soon!\n\nBest regards,\n${brokerName}`;
     } else if (task.type === 'Follow-up' || task.type === 'Call') {
-      message = `Hi ${customer?.name || 'there'},\n\nJust following up on our previous discussion about the property.\n\n${task.note ? `Note: ${task.note}\n\n` : ''}Feel free to reach out if you have any questions!\n\nBest regards,\n${brokerName}`;
+      message = `Hi ${nameToUse},\n\nJust following up on our previous discussion about the property.\n\n${task.note ? `Note: ${task.note}\n\n` : ''}Feel free to reach out if you have any questions!\n\nBest regards,\n${brokerName}`;
     } else {
       // Generic message for other task types
-      message = `Hi ${customer?.name || 'there'},\n\nReminder for: ${task.type}\nScheduled: ${formattedDate} at ${formattedTime}\n\n${task.note ? `${task.note}\n\n` : ''}Best regards,\n${brokerName}`;
+      message = `Hi ${nameToUse},\n\nReminder for: ${task.type}\nScheduled: ${formattedDate} at ${formattedTime}\n\n${task.note ? `${task.note}\n\n` : ''}Best regards,\n${brokerName}`;
     }
     
     // Encode message for URL
@@ -316,10 +319,35 @@ export default function FollowUps() {
     }
   };
 
-  const handleUpdate = (updatedItem) => {
-    dispatch(updateFollowUp(updatedItem));
-    dispatch(clearEditItem());
-    dispatch(setModalOpen(false));
+  const handleUpdate = async (updatedItem) => {
+    try {
+      dispatch(setLoading(true));
+      
+      // Prepare data for API
+      const updateData = {
+        client_id: updatedItem.clientId,
+        property_id: updatedItem.propertyIds?.[0] || null,
+        task_type: updatedItem.type || updatedItem.task_type,
+        schedule_date: updatedItem.date?.split('T')[0] || updatedItem.due_date?.split('T')[0],
+        schedule_time: updatedItem.date?.split('T')[1]?.substring(0, 5) || updatedItem.due_date?.split('T')[1]?.substring(0, 5) || '10:00',
+        notes: updatedItem.note || updatedItem.description || '',
+        title: updatedItem.title
+      };
+      
+      const response = await tasksAPI.update(updatedItem.id, updateData);
+      
+      if (response.data.success) {
+        Alert.alert('Success', 'Task updated successfully!');
+        await fetchTasks(); // Refresh tasks
+        dispatch(clearEditItem());
+        dispatch(setModalOpen(false));
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update task');
+    } finally {
+      dispatch(setLoading(false));
+    }
   };
 
   return (
@@ -422,8 +450,41 @@ export default function FollowUps() {
          <View style={styles.timelineContainer}>
             <View style={styles.continuousVerticalLine} />
             
-            {filteredTasks.length > 0 ? filteredTasks.map((task, index) => {
-               const customer = customers.find(c => c.id === task.customerId);
+            {loading ? (
+              // Skeleton Loader
+              <>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <View key={i} style={styles.timelineRow}>
+                    {/* Time Column Skeleton */}
+                    <View style={styles.timeCol}>
+                      <View style={styles.skeletonTime} />
+                    </View>
+
+                    {/* Task Card Skeleton */}
+                    <View style={[styles.card, styles.cardWhite]}>
+                      <View style={styles.cardHeader}>
+                        <View style={styles.skeletonTitle} />
+                        <View style={styles.skeletonActions} />
+                      </View>
+                      <View style={styles.skeletonCustomerName} />
+                      <View style={styles.skeletonInfoRow} />
+                      <View style={styles.skeletonInfoRow} />
+                      <View style={styles.skeletonNote} />
+                      <View style={styles.skeletonActionButtons}>
+                        <View style={styles.skeletonButton} />
+                        <View style={styles.skeletonButton} />
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </>
+            ) : filteredTasks.length > 0 ? filteredTasks.map((task, index) => {
+               // FIXED: Convert IDs to strings for robust matching
+               const customer = customers.find(c => String(c.id) === String(task.customerId));
+               
+               // FIXED: Added robust fallback logic for displaying customer name
+               const displayCustomerName = customer?.name || customer?.full_name || task.clientNameFallback || 'Unknown Customer';
+
                // Support both single propertyId (old) and propertyIds array (new)
                const taskPropertyIds = task.propertyIds || (task.propertyId ? [task.propertyId] : []);
                const taskProperties = properties.filter(p => taskPropertyIds.includes(p.id));
@@ -475,7 +536,7 @@ export default function FollowUps() {
 
                      {/* Customer Name */}
                      <Text style={[styles.customerName, { color: textPrimary }]} numberOfLines={1}>
-                        {customer?.name || 'Unknown Customer'}
+                        {displayCustomerName}
                      </Text>
 
                      {/* Properties List */}
@@ -1021,6 +1082,58 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 10,
     color: '#9ca3af',
+  },
+
+  // --- SKELETON LOADER STYLES ---
+  skeletonTime: {
+    width: 40,
+    height: 12,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonTitle: {
+    width: 80,
+    height: 14,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonActions: {
+    width: 60,
+    height: 14,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonCustomerName: {
+    width: 120,
+    height: 16,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+    marginTop: 8,
+  },
+  skeletonInfoRow: {
+    width: '90%',
+    height: 12,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+    marginTop: 6,
+  },
+  skeletonNote: {
+    width: '100%',
+    height: 12,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+    marginTop: 8,
+  },
+  skeletonActionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  skeletonButton: {
+    flex: 1,
+    height: 32,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 8,
   },
 
   // --- FAB ---

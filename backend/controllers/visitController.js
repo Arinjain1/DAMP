@@ -29,7 +29,7 @@ export const createSiteVisit = async (req, res, next) => {
     await query(
       `INSERT INTO tasks (broker_id, client_id, title, description, due_date, status, task_type, site_visit_id)
        VALUES ($1, $2, $3, $4, $5, 'pending', 'Site Visit', $6)`,
-      [brokerId, client_id, `Site Visit: ${clientName}`, `Visiting ${property_ids.length} properties`, scheduleTimestamp, visitId]
+      [brokerId, client_id, `Schedule site visit with ${clientName}`, `Visiting ${property_ids.length} properties`, scheduleTimestamp, visitId]
     );
     res.status(201).json({
       success: true,
@@ -68,16 +68,31 @@ export const getVisitDetails = async (req, res, next) => {
 
 export const submitVisitFeedback = async (req, res, next) => {
   const itemId = req.params.itemId; 
-  const { outcome, notes } = req.body; 
+  const { outcome, notes, property_id } = req.body; 
 
   try {
-    const updateResult = await query(
-      `UPDATE site_visit_items 
-       SET outcome = $1, status = 'visited', notes = $2 
-       WHERE id = $3 
-       RETURNING *`,
-      [outcome, notes || '', itemId]
-    );
+    let updateResult;
+    
+    // If property_id is provided, find the item by visit_id and property_id
+    if (property_id) {
+      updateResult = await query(
+        `UPDATE site_visit_items 
+         SET outcome = $1, status = 'visited', notes = $2 
+         WHERE site_visit_id = $3 AND property_id = $4
+         RETURNING *`,
+        [outcome, notes || '', itemId, property_id]
+      );
+    } else {
+      // Original behavior - update by item_id
+      updateResult = await query(
+        `UPDATE site_visit_items 
+         SET outcome = $1, status = 'visited', notes = $2 
+         WHERE id = $3 
+         RETURNING *`,
+        [outcome, notes || '', itemId]
+      );
+    }
+    
     if (updateResult.rows.length === 0) return res.status(404).json({ message: "Item not found" });
     const item = updateResult.rows[0];
     if (outcome === 'interested') {

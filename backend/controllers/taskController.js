@@ -52,6 +52,9 @@ export const getTasks = async (req, res, next) => {
     }
     sql += ` ORDER BY t.due_date ASC`;
     const result = await query(sql, params);
+    
+    
+    
     res.json({
       success: true,
       count: result.rowCount,
@@ -134,6 +137,93 @@ export const toggleTaskStatus = async (req, res, next) => {
     res.json({
       success: true,
       message: newStatus === 'completed' ? "Task marked as Done! ✅" : "Task reopened.",
+      data: result.rows[0]
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateTask = async (req, res, next) => {
+  const brokerId = req.user.id;
+  const taskId = req.params.id;
+  const { 
+    client_id,      
+    property_id,   
+    task_type,     
+    schedule_date,  
+    schedule_time,  
+    notes,
+    title
+  } = req.body;
+  
+  try {
+    // Build update query dynamically based on provided fields
+    const updates = [];
+    const params = [];
+    let paramIndex = 1;
+    
+    if (schedule_date && schedule_time) {
+      const finalDueDate = `${schedule_date} ${schedule_time}`;
+      updates.push(`due_date = $${paramIndex}`);
+      params.push(finalDueDate);
+      paramIndex++;
+    }
+    
+    if (task_type) {
+      updates.push(`task_type = $${paramIndex}`);
+      params.push(task_type);
+      paramIndex++;
+    }
+    
+    if (client_id !== undefined) {
+      updates.push(`client_id = $${paramIndex}`);
+      params.push(client_id);
+      paramIndex++;
+    }
+    
+    if (property_id !== undefined) {
+      updates.push(`property_id = $${paramIndex}`);
+      params.push(property_id || null);
+      paramIndex++;
+    }
+    
+    if (notes !== undefined) {
+      updates.push(`description = $${paramIndex}`);
+      params.push(notes);
+      paramIndex++;
+    }
+    
+    if (title) {
+      updates.push(`title = $${paramIndex}`);
+      params.push(title);
+      paramIndex++;
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, message: "No fields to update" });
+    }
+    
+    updates.push(`updated_at = NOW()`);
+    params.push(taskId);
+    params.push(brokerId);
+    
+    const sql = `
+      UPDATE tasks 
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex} AND broker_id = $${paramIndex + 1}
+      RETURNING *
+    `;
+    
+    const result = await query(sql, params);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Task not found" });
+    }
+    
+    res.json({
+      success: true,
+      message: "Task updated successfully!",
       data: result.rows[0]
     });
   } catch (err) {
