@@ -11,6 +11,7 @@ import {
   updateDealStage,
   submitTokenPayment,
   updateClientStage,
+  updateClientProperties,
   toggleTaskStatus
 } from '../controllers/clientController.js';
 
@@ -29,6 +30,7 @@ router.put('/deal/:id/stage', updateDealStage);
 router.post('/deal/:id/token', submitTokenPayment);
 router.get('/:id', getClientDetails);
 router.put('/:id/stage', updateClientStage);
+router.put('/:id/properties', updateClientProperties);
 router.put('/task/:taskId/toggle', toggleTaskStatus);
 
 export default router;

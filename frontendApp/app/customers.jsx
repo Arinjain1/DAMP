@@ -173,9 +173,30 @@ export default function Customers() {
     
     
     if (modalType === 'FollowUp') {
-      dispatch(updateFollowUp(updatedItem));
-      dispatch(clearEditItem());
-      dispatch(setModalOpen(false));
+      try {
+        // Prepare data for API
+        const updateData = {
+          client_id: updatedItem.clientId,
+          property_id: updatedItem.propertyIds?.[0] || null,
+          task_type: updatedItem.type || updatedItem.task_type,
+          schedule_date: updatedItem.date?.split('T')[0] || updatedItem.due_date?.split('T')[0],
+          schedule_time: updatedItem.date?.split('T')[1]?.substring(0, 5) || updatedItem.due_date?.split('T')[1]?.substring(0, 5) || '10:00',
+          notes: updatedItem.note || updatedItem.description || '',
+          title: updatedItem.title
+        };
+        
+        const response = await tasksAPI.update(updatedItem.id, updateData);
+        
+        if (response.data.success) {
+          dispatch(updateFollowUp(response.data.data));
+          dispatch(clearEditItem());
+          dispatch(setModalOpen(false));
+          Alert.alert('Success', 'Task updated successfully!');
+        }
+      } catch (error) {
+        console.error('Error updating task:', error);
+        Alert.alert('Error', error.response?.data?.message || 'Failed to update task');
+      }
     } else if (modalType === 'Customer') {
       try {
         // Map form data to API structure

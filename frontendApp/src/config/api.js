@@ -91,6 +91,7 @@ export const customersAPI = {
   create: (data) => api.post('/clients', data),
   update: (id, data) => api.put(`/clients/${id}`, data),
   updateStage: (id, status) => api.put(`/clients/${id}/stage`, { status }),
+  updateProperties: (id, data) => api.put(`/clients/${id}/properties`, data),
   delete: (id) => api.delete(`/clients/${id}`),
 };
 
@@ -107,6 +108,7 @@ export const dealsAPI = {
 export const tasksAPI = {
   getAll: (params) => api.get('/tasks', { params }),
   create: (data) => api.post('/tasks', data),
+  update: (id, data) => api.put(`/tasks/${id}`, data),
   toggleStatus: (id) => api.put(`/tasks/${id}/status`),
 };
 
