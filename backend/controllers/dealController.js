@@ -1,46 +1,73 @@
 import { query } from '../config/db.js';
 
-export const getDeals = async (req, res, next) => {
-  const brokerId = req.user.id;
-  const { status } = req.query; 
+export const updateNegotiation = async (req, res, next) => {
+  const dealId = req.params.dealId;
+  const { expected_price, customer_offer, owner_counter_offer, final_price } = req.body;
   try {
-    let sql = `
-      SELECT 
-        d.id, d.status, d.final_price, d.created_at, d.updated_at,
-        p.title as property_title, p.address as property_address, p.city, p.cover_image_url,
-        c.name as client_name, c.phone as client_phone
-      FROM deals d
-      JOIN properties p ON d.property_id = p.id
-      JOIN contacts c ON d.client_id = c.id
-      WHERE d.broker_id = $1
-    `;
-    const params = [brokerId];
-    let paramIndex = 2;
-    if (status && status !== 'All') {
-      if (status === 'New') {
-        sql += ` AND d.status = 'Interested'`; 
-      } else if (status === 'Contacted') {
-        sql += ` AND d.status IN ('Contacted', 'Meeting')`; 
-      } else if (status === 'Site Visit') {
-        sql += ` AND d.status = 'Site Visit'`;
-      } else if (status === 'Negotiation') {
-        sql += ` AND d.status = 'Negotiation'`;
-      } else if (status === 'Closed') {
-        sql += ` AND d.status IN ('Token', 'Closed')`;
-      } else {
-        sql += ` AND d.status = $${paramIndex}`;
-        params.push(status);
-        paramIndex++;
-      }
+    const result = await query(
+      `UPDATE deals 
+       SET expected_price = $1, customer_offer = $2, owner_counter_offer = $3, final_price = $4, status = 'Negotiation'
+       WHERE id = $5 RETURNING *`,
+      [expected_price, customer_offer, owner_counter_offer, final_price, dealId]
+    );
+    res.json({ success: true, message: "Negotiation saved!", data: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const addTransaction = async (req, res, next) => {
+  const dealId = req.params.dealId;
+  const { transaction_type, amount, payment_mode, transaction_ref, status, due_date, remark } = req.body;
+  try {
+    const isCompleted = status === 'Completed';
+    const completedOn = isCompleted ? new Date() : null;
+    const result = await query(
+      `INSERT INTO deal_transactions 
+       (deal_id, transaction_type, amount, payment_mode, transaction_ref, status, due_date, completed_on, remark) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [dealId, transaction_type, amount, payment_mode, transaction_ref, status, due_date, completedOn, remark]
+    );
+    if (transaction_type === 'Token' && isCompleted) {
+      await query(`UPDATE deals SET token_amount = $1, status = 'Token' WHERE id = $2`, [amount, dealId]);
     }
-    sql += ` ORDER BY d.updated_at DESC`;
-    const result = await query(sql, params);
+    res.status(201).json({ success: true, message: "Transaction added!", data: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const completeTransaction = async (req, res, next) => {
+  const transactionId = req.params.transactionId;
+  const { transaction_ref } = req.body; 
+  try {
+    const result = await query(
+      `UPDATE deal_transactions 
+       SET status = 'Completed', completed_on = NOW(), transaction_ref = COALESCE($1, transaction_ref)
+       WHERE id = $2 RETURNING *`,
+      [transaction_ref, transactionId]
+    );
+    res.json({ success: true, message: "Transaction marked as complete!", data: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getDealHistory = async (req, res, next) => {
+  const dealId = req.params.dealId;
+  try {
+    const dealRes = await query(`SELECT final_price FROM deals WHERE id = $1`, [dealId]);
+    const historyRes = await query(
+      `SELECT * FROM deal_transactions WHERE deal_id = $1 ORDER BY created_at ASC`, 
+      [dealId]
+    );
     res.json({
       success: true,
-      count: result.rowCount,
-      data: result.rows
+      data: {
+        final_price: dealRes.rows[0]?.final_price || 0,
+        transactions: historyRes.rows
+      }
     });
-
   } catch (err) {
     next(err);
   }
