@@ -48,7 +48,9 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal, on
   // Check if customer is beyond Interested stage
   const isBeyondInterested = (stage) => {
     const stagesAfterInterested = ['In-Process', 'Completed'];
-    return stagesAfterInterested.includes(stage);
+    const result = stagesAfterInterested.includes(stage);
+    
+    return result;
   };
 
   const handleCall = (phone, customerName) => {
@@ -341,10 +343,16 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal, on
                         <TouchableOpacity
                           style={styles.viewDetailsButton}
                           onPress={() => {
-                            if (isBeyondInterested(customer.stage) && onOpenDeal) {
-                              // Open deal manager if customer is beyond Interested stage
+                            
+                            const shouldOpenDeal = isBeyondInterested(customer.stage);
+                            
+                            
+                            if (shouldOpenDeal && onOpenDeal) {
+                              
+                              
                               onOpenDeal(customer);
                             } else {
+                              
                               // Open customer details sheet
                               onSelect(customer);
                             }

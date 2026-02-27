@@ -18,7 +18,7 @@ import SubscriptionSheet from "../src/Modal and Sheets/SubscriptionSheet";
 import VisitFeedbackSheet from "../src/Modal and Sheets/VisitFeedbackSheet";
 
 // API
-import { propertiesAPI, customersAPI } from "../src/config/api";
+import { propertiesAPI, customersAPI, dealsAPI } from "../src/config/api";
 
 // Redux
 import {
@@ -315,21 +315,39 @@ export default function DashboardPage() {
   };
 
   // Deals
-  const handleStartDeal = (customer, property) => {
-    const deal = {
-      id: generateId(),
-      customerId: customer.id,
-      propertyId: property.id,
-      stage: "In-Process",
-      startedAt: new Date().toISOString(),
-      visits: [],
-    };
+  const handleStartDeal = async (customer, property) => {
+    try {
+      // Call backend API to create deal
+      const response = await dealsAPI.create({
+        client_id: customer.id,
+        property_id: property.id
+      });
 
-    dispatch(addDeal(deal));
-    dispatch(clearSelectedCustomer());
-    dispatch(setSelectedDeal(deal));
-    // Navigate to deal page
-    router.push('/deal-page');
+      if (response.data.success) {
+        Alert.alert('Success', response.data.message || 'Deal started successfully!');
+        
+        // Add deal to Redux
+        const deal = {
+          id: response.data.data.id,
+          customerId: customer.id,
+          propertyId: property.id,
+          stage: response.data.data.status || 'Interested',
+          startedAt: response.data.data.created_at,
+          visits: [],
+        };
+
+        dispatch(addDeal(deal));
+        dispatch(clearSelectedCustomer());
+        dispatch(setSelectedDeal(deal));
+        
+        // Navigate to deal page
+        router.push('/deal-page');
+      }
+    } catch (error) {
+      console.error('Error starting deal:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to start deal. Please try again.';
+      Alert.alert('Error', errorMessage);
+    }
   };
 
   const handleCloseDeal = (deal) => {

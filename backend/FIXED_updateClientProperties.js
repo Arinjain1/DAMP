@@ -36,8 +36,6 @@ export const updateClientProperties = async (req, res, next) => {
 
     const sqlQuery = 'UPDATE contacts SET ' + updateFields.join(', ') + ' WHERE id = $' + paramIndex + ' AND broker_id = $' + (paramIndex + 1) + ' RETURNING *';
     
-    console.log('SQL Query:', sqlQuery);
-    console.log('Values:', values);
     
     const result = await query(sqlQuery, values);
 

@@ -106,11 +106,17 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
   // Memoize expensive calculations
   const getStageBadgeStyle = useMemo(() => (stage) => {
     const colors = {
+      // Frontend stages
       Meeting: { bg: '#F3F1FF', text: '#5B4DFF' },
       'Site Visit': { bg: '#F0ECFF', text: '#5B21B6' },
       Negotiation: { bg: '#FDF2F8', text: '#9D174D' },
       Agreement: { bg: '#E0F2FE', text: '#075985' },
       Token: { bg: '#DCFCE7', text: '#047857' },
+      // Backend statuses
+      Interested: { bg: '#FEF3C7', text: '#D97706' },
+      'In-Process': { bg: '#F3F1FF', text: '#5B4DFF' },
+      Closed: { bg: '#DCFCE7', text: '#047857' },
+      Lost: { bg: '#FEE2E2', text: '#DC2626' },
     };
     return colors[stage] || { bg: '#F3F4F6', text: '#374151' };
   }, []);
@@ -312,9 +318,13 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
               <Text style={styles.sectionTitle}>Active Deals</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {activeDeals.map((deal) => {
-                  const property = properties.find(p => p.id === deal.propertyId);
-                  const customer = customers.find(c => c.id === deal.customerId);
-                  const stage = getStageBadgeStyle(deal.stage);
+                  // Handle both API format and mock format
+                  const propertyTitle = deal.property_title || properties.find(p => p.id === deal.propertyId)?.title;
+                  const propertyImage = deal.cover_image_url || properties.find(p => p.id === deal.propertyId)?.image;
+                  const propertyPrice = deal.listing_price || deal.final_price || properties.find(p => p.id === deal.propertyId)?.price;
+                  const clientName = deal.client_name || customers.find(c => c.id === deal.customerId)?.name;
+                  const dealStatus = deal.status || deal.stage;
+                  const stage = getStageBadgeStyle(dealStatus);
 
                   return (
                     <TouchableOpacity
@@ -323,20 +333,20 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
                       onPress={() => onOpenDeal(deal)}
                     >
                       <View style={styles.dealTop}>
-                        <Image source={{ uri: property?.image }} style={styles.dealImage} />
+                        <Image source={{ uri: propertyImage }} style={styles.dealImage} />
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.dealTitle}>{property?.title}</Text>
-                          <Text style={styles.dealSubtitle}>{customer?.name}</Text>
+                          <Text style={styles.dealTitle}>{propertyTitle}</Text>
+                          <Text style={styles.dealSubtitle}>{clientName}</Text>
                         </View>
                       </View>
 
                       <View style={styles.dealBottom}>
                         <View style={[styles.stageBadge, { backgroundColor: stage.bg }]}>
                           <Text style={{ fontSize: 10, fontWeight: '700', color: stage.text }}>
-                            {deal.stage}
+                            {dealStatus}
                           </Text>
                         </View>
-                        <Text style={styles.price}>{formatCurrency(property?.price)}</Text>
+                        <Text style={styles.price}>{formatCurrency(propertyPrice)}</Text>
                       </View>
                     </TouchableOpacity>
                   );

@@ -1,10 +1,11 @@
 import { Calendar, CheckCircle, CirclePlus } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ScrollView, Switch, Text, TouchableOpacity, View, Alert } from 'react-native';
+import { ScrollView, Switch, Text, TouchableOpacity, View, Alert, Linking } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateDeal } from '../store/slices/dealsSlice';
 import { setFollowUps, setLoading, setError } from '../store/slices/followUpsSlice';
 import AddModal from '../Modal and Sheets/AddModal';
+import WhatsAppIcon from '../Components/WhatsAppIcon';
 import { tasksAPI } from '../config/api';
 
 export default function MeetingView({ selectedDeal, reminderEnabled, setReminderEnabled, setShowReminderSetAlert }) {
@@ -102,6 +103,14 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
     try {
       dispatch(setLoading(true));
       
+      // Validate that customerId is a valid UUID (not a mock ID like "c1", "c2", etc.)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!taskData.customerId || !uuidRegex.test(taskData.customerId)) {
+        Alert.alert('Error', 'Invalid customer selected. Please refresh the app and try again.');
+        dispatch(setLoading(false));
+        return;
+      }
+      
       // Prepare data for backend
       const backendData = {
         client_id: taskData.customerId,
@@ -176,6 +185,51 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
     });
   };
 
+  const handleWhatsApp = (meeting) => {
+    const customer = customers.find(c => c.id === selectedDeal?.customerId);
+    const phone = customer?.phone;
+    
+    if (!phone) {
+      Alert.alert('Error', 'Customer phone number not found');
+      return;
+    }
+
+    // Format date and time
+    const meetingDate = new Date(meeting.date);
+    const formattedDate = meetingDate.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+    const formattedTime = meetingDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    // Create default message
+    const message = `Hi ${customer.name},\n\nThis is a reminder for our ${meeting.type || 'meeting'} scheduled on ${formattedDate} at ${formattedTime}.\n\n${meeting.property_title ? `Property: ${meeting.property_title}\n` : ''}${meeting.note ? `Note: ${meeting.note}\n` : ''}\nLooking forward to meeting you!\n\nRegards`;
+
+    // Clean phone number (remove spaces, dashes, etc.)
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    
+    // Open WhatsApp with pre-filled message
+    const whatsappUrl = `whatsapp://send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
+    
+    Linking.canOpenURL(whatsappUrl)
+      .then((supported) => {
+        if (supported) {
+          return Linking.openURL(whatsappUrl);
+        } else {
+          Alert.alert('Error', 'WhatsApp is not installed on this device');
+        }
+      })
+      .catch((err) => {
+        console.error('Error opening WhatsApp:', err);
+        Alert.alert('Error', 'Failed to open WhatsApp');
+      });
+  };
+
   return (
     <View className="flex-1 relative">
       <ScrollView
@@ -243,8 +297,17 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
                       <CheckCircle size={24} color="#10b981" />
                     ) : (
                       <View className="items-end gap-2">
-                        <View className="bg-[#fef3c7] px-3 py-1 rounded-lg">
-                          <Text className="text-[11px] font-semibold text-[#d97706]">Upcoming</Text>
+                        <View className="flex-row items-center gap-2">
+                          {/* WhatsApp Icon - Left of Upcoming badge */}
+                          <TouchableOpacity
+                            onPress={() => handleWhatsApp(item)}
+                          >
+                            <WhatsAppIcon size={20} color="#25D366" />
+                          </TouchableOpacity>
+                          
+                          <View className="bg-[#fef3c7] px-3 py-1 rounded-lg">
+                            <Text className="text-[11px] font-semibold text-[#d97706]">Upcoming</Text>
+                          </View>
                         </View>
                         <TouchableOpacity
                           className="py-[2px]"

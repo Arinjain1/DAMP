@@ -97,9 +97,9 @@ export const customersAPI = {
 
 // Deals API endpoints
 export const dealsAPI = {
-  getAll: () => api.get('/deals'),
-  getById: (id) => api.get(`/deals/${id}`),
-  create: (data) => api.post('/deals', data),
+  getAll: () => api.get('/clients/deals'),
+  getById: (id) => api.get(`/clients/deal/${id}`),
+  create: (data) => api.post('/clients/deal', data),
   update: (id, data) => api.put(`/deals/${id}`, data),
   delete: (id) => api.delete(`/deals/${id}`),
 };

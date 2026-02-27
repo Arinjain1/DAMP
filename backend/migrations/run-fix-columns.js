@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 
 async function runFix() {
   try {
-    console.log('🔧 Fixing column types from INTEGER[] to UUID[]...');
+    
     
     const sqlFile = path.join(__dirname, 'fix_column_types.sql');
     const sql = fs.readFileSync(sqlFile, 'utf8');
@@ -18,13 +18,11 @@ async function runFix() {
     
     for (const statement of statements) {
       if (statement.trim()) {
-        console.log('Executing:', statement.substring(0, 50) + '...');
+        
         await query(statement);
       }
     }
     
-    console.log('✅ Column types fixed successfully!');
-    console.log('Columns are now: UUID[] type');
     
     // Verify
     const result = await query(`
@@ -34,7 +32,7 @@ async function runFix() {
       AND column_name IN ('selected_properties', 'interested_properties', 'hold_properties')
     `);
     
-    console.log('\n📋 Current column types:');
+    
     result.rows.forEach(row => {
       console.log(`  ${row.column_name}: ${row.data_type} (${row.udt_name})`);
     });

@@ -10,6 +10,7 @@ import "../global.css";
 import { store } from '../src/store/store';
 import { loginSuccess } from '../src/store/slices/authSlice';
 import { setAuthToken } from '../src/config/api';
+import { useInitializeData } from '../src/hooks/useInitializeData';
 
 // 🔤 FONT LOADING
 import {
@@ -49,6 +50,9 @@ LogBox.ignoreLogs([
 function AppNavigator() {
   const dispatch = useDispatch();
   const { isAuthenticated, user } = useSelector(state => state.auth);
+
+  // Initialize data from backend
+  useInitializeData();
 
   // Set token if user exists
   useEffect(() => {
