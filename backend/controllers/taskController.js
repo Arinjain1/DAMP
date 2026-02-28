@@ -2,21 +2,35 @@ import { query } from '../config/db.js';
 
 export const getTasks = async (req, res, next) => {
   const brokerId = req.user.id;
-  const { status = 'pending', date } = req.query; 
+  const { status = 'pending', date, task_type } = req.query; 
   try {
     let sql = `
       SELECT 
         t.*, 
         c.name as client_name, c.phone as client_phone,
-        -- Fetch Property Details directly from the Task link
         p.id as property_id,
         p.title as property_title, 
         p.address as property_address,
         p.price as property_price,
-        p.cover_image_url as property_image
+        p.cover_image_url as property_image,
+        sv.id as site_visit_id,
+        sv.scheduled_at as site_visit_scheduled_at,
+        (SELECT COUNT(*) FROM site_visit_items WHERE site_visit_id = sv.id) as site_visit_property_count,
+        (SELECT json_agg(json_build_object(
+          'property_id', svi.property_id,
+          'title', prop.title,
+          'address', prop.address,
+          'location', prop.locality,
+          'price', prop.price,
+          'cover_image_url', prop.cover_image_url
+        ))
+        FROM site_visit_items svi
+        JOIN properties prop ON svi.property_id = prop.id
+        WHERE svi.site_visit_id = sv.id) as site_visit_properties
       FROM tasks t
       LEFT JOIN contacts c ON t.client_id = c.id
       LEFT JOIN properties p ON t.property_id = p.id 
+      LEFT JOIN site_visits sv ON t.site_visit_id = sv.id
       WHERE t.broker_id = $1
     `;
     const params = [brokerId];
@@ -29,9 +43,18 @@ export const getTasks = async (req, res, next) => {
     if (date) {
       sql += ` AND DATE(t.due_date) = $${paramIndex}`;
       params.push(date);
+      paramIndex++;
+    }
+    if (task_type) {
+      sql += ` AND t.task_type = $${paramIndex}`;
+      params.push(task_type);
+      paramIndex++;
     }
     sql += ` ORDER BY t.due_date ASC`;
     const result = await query(sql, params);
+    
+    
+    
     res.json({
       success: true,
       count: result.rowCount,
@@ -114,6 +137,93 @@ export const toggleTaskStatus = async (req, res, next) => {
     res.json({
       success: true,
       message: newStatus === 'completed' ? "Task marked as Done! ✅" : "Task reopened.",
+      data: result.rows[0]
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateTask = async (req, res, next) => {
+  const brokerId = req.user.id;
+  const taskId = req.params.id;
+  const { 
+    client_id,      
+    property_id,   
+    task_type,     
+    schedule_date,  
+    schedule_time,  
+    notes,
+    title
+  } = req.body;
+  
+  try {
+    // Build update query dynamically based on provided fields
+    const updates = [];
+    const params = [];
+    let paramIndex = 1;
+    
+    if (schedule_date && schedule_time) {
+      const finalDueDate = `${schedule_date} ${schedule_time}`;
+      updates.push(`due_date = $${paramIndex}`);
+      params.push(finalDueDate);
+      paramIndex++;
+    }
+    
+    if (task_type) {
+      updates.push(`task_type = $${paramIndex}`);
+      params.push(task_type);
+      paramIndex++;
+    }
+    
+    if (client_id !== undefined) {
+      updates.push(`client_id = $${paramIndex}`);
+      params.push(client_id);
+      paramIndex++;
+    }
+    
+    if (property_id !== undefined) {
+      updates.push(`property_id = $${paramIndex}`);
+      params.push(property_id || null);
+      paramIndex++;
+    }
+    
+    if (notes !== undefined) {
+      updates.push(`description = $${paramIndex}`);
+      params.push(notes);
+      paramIndex++;
+    }
+    
+    if (title) {
+      updates.push(`title = $${paramIndex}`);
+      params.push(title);
+      paramIndex++;
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, message: "No fields to update" });
+    }
+    
+    updates.push(`updated_at = NOW()`);
+    params.push(taskId);
+    params.push(brokerId);
+    
+    const sql = `
+      UPDATE tasks 
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex} AND broker_id = $${paramIndex + 1}
+      RETURNING *
+    `;
+    
+    const result = await query(sql, params);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Task not found" });
+    }
+    
+    res.json({
+      success: true,
+      message: "Task updated successfully!",
       data: result.rows[0]
     });
   } catch (err) {

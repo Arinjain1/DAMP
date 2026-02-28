@@ -17,7 +17,7 @@ export const getDashboardOverview = async (req, res, next) => {
       query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status NOT IN ('Closed', 'Lost')", [brokerId]),
       query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status = 'Lost'", [brokerId]),
       query(
-        `SELECT d.id, d.status, d.final_price, 
+        `SELECT d.id, d.status, d.final_price, d.client_id, d.property_id,
                 p.title as property_title, p.cover_image_url, p.price as listing_price,
                 c.name as client_name
          FROM deals d

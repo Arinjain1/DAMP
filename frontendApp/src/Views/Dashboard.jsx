@@ -6,7 +6,7 @@ import {
     Plus,
     UserPlus
 } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -18,8 +18,10 @@ import {
     Text,
     TouchableOpacity,
     View,
+    RefreshControl,
 } from 'react-native';
 import { useSelector } from 'react-redux';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { dashboardAPI } from '../config/api';
 import {
@@ -42,6 +44,7 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Get logged-in user from Redux
   const { user } = useSelector(state => state.auth);
@@ -54,27 +57,41 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
   const unreadCount = 2;
 
   // Fetch dashboard data
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        const response = await dashboardAPI.getOverview();
-        
-        if (response.data.success) {
-          setDashboardData(response.data.data);
-          setError(null);
-        }
-      } catch (err) {
-        console.error('Dashboard fetch error:', err);
-        setError(err.response?.data?.message || 'Failed to load dashboard data');
-        // Continue with mock data on error
-      } finally {
-        setLoading(false);
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await dashboardAPI.getOverview();
+      
+      if (response.data.success) {
+       
+        setDashboardData(response.data.data);
+        setError(null);
       }
-    };
-
-    fetchDashboardData();
+    } catch (err) {
+      console.error('Dashboard fetch error:', err);
+      setError(err.response?.data?.message || 'Failed to load dashboard data');
+      // Continue with mock data on error
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Refresh on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData();
+    }, [fetchDashboardData])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchDashboardData();
+    setRefreshing(false);
+  };
 
   // Use API data if available, otherwise use mock data
   const stats = dashboardData?.stats || {
@@ -89,11 +106,17 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
   // Memoize expensive calculations
   const getStageBadgeStyle = useMemo(() => (stage) => {
     const colors = {
+      // Frontend stages
       Meeting: { bg: '#F3F1FF', text: '#5B4DFF' },
       'Site Visit': { bg: '#F0ECFF', text: '#5B21B6' },
       Negotiation: { bg: '#FDF2F8', text: '#9D174D' },
       Agreement: { bg: '#E0F2FE', text: '#075985' },
       Token: { bg: '#DCFCE7', text: '#047857' },
+      // Backend statuses
+      Interested: { bg: '#FEF3C7', text: '#D97706' },
+      'In-Process': { bg: '#F3F1FF', text: '#5B4DFF' },
+      Closed: { bg: '#DCFCE7', text: '#047857' },
+      Lost: { bg: '#FEE2E2', text: '#DC2626' },
     };
     return colors[stage] || { bg: '#F3F4F6', text: '#374151' };
   }, []);
@@ -221,7 +244,12 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
           </View>
         </ScrollView>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
         {/* ================= HEADER ================= */}
         <View style={styles.header}>
           <Image
@@ -290,9 +318,13 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
               <Text style={styles.sectionTitle}>Active Deals</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {activeDeals.map((deal) => {
-                  const property = properties.find(p => p.id === deal.propertyId);
-                  const customer = customers.find(c => c.id === deal.customerId);
-                  const stage = getStageBadgeStyle(deal.stage);
+                  // Handle both API format and mock format
+                  const propertyTitle = deal.property_title || properties.find(p => p.id === deal.propertyId)?.title;
+                  const propertyImage = deal.cover_image_url || properties.find(p => p.id === deal.propertyId)?.image;
+                  const propertyPrice = deal.listing_price || deal.final_price || properties.find(p => p.id === deal.propertyId)?.price;
+                  const clientName = deal.client_name || customers.find(c => c.id === deal.customerId)?.name;
+                  const dealStatus = deal.status || deal.stage;
+                  const stage = getStageBadgeStyle(dealStatus);
 
                   return (
                     <TouchableOpacity
@@ -301,20 +333,20 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
                       onPress={() => onOpenDeal(deal)}
                     >
                       <View style={styles.dealTop}>
-                        <Image source={{ uri: property?.image }} style={styles.dealImage} />
+                        <Image source={{ uri: propertyImage }} style={styles.dealImage} />
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.dealTitle}>{property?.title}</Text>
-                          <Text style={styles.dealSubtitle}>{customer?.name}</Text>
+                          <Text style={styles.dealTitle}>{propertyTitle}</Text>
+                          <Text style={styles.dealSubtitle}>{clientName}</Text>
                         </View>
                       </View>
 
                       <View style={styles.dealBottom}>
                         <View style={[styles.stageBadge, { backgroundColor: stage.bg }]}>
                           <Text style={{ fontSize: 10, fontWeight: '700', color: stage.text }}>
-                            {deal.stage}
+                            {dealStatus}
                           </Text>
                         </View>
-                        <Text style={styles.price}>{formatCurrency(property?.price)}</Text>
+                        <Text style={styles.price}>{formatCurrency(propertyPrice)}</Text>
                       </View>
                     </TouchableOpacity>
                   );
@@ -347,8 +379,11 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
               </View>
             ) : (
               pendingFollowUps.map(task => {
-                const customer = customers.find(c => c.id === task.customerId);
-                const date = new Date(task.date);
+                // Handle both API format (due_date, client_name) and mock format (date, customerId)
+                const taskDate = task.due_date || task.date;
+                const clientName = task.client_name || customers.find(c => c.id === task.customerId)?.name;
+                const taskNote = task.title || task.note;
+                const date = new Date(taskDate);
 
                 return (
                   <View key={task.id} style={styles.taskCard}>
@@ -360,9 +395,9 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
                     </View>
 
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.taskTitle}>{customer?.name}</Text>
+                      <Text style={styles.taskTitle}>{clientName || 'Client'}</Text>
                       <Text style={styles.taskNote} numberOfLines={1}>
-                        {task.note}
+                        {taskNote}
                       </Text>
                       <View style={styles.timeRow}>
                         <Clock size={10} color="#9ca3af" />

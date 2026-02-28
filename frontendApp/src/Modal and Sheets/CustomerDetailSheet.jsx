@@ -19,7 +19,7 @@ import {
   Users,
   X
 } from 'lucide-react-native';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState, useEffect } from 'react';
 import {
   Alert,
   Image,
@@ -35,6 +35,7 @@ import {
   View
 } from 'react-native';
 import AddModal from './AddModal';
+import { visitsAPI, customersAPI } from '../config/api';
 
 // --- SALES STAGES LIST ---
 const SALES_STAGES = [
@@ -131,6 +132,35 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
   const [isPropertyExpanded, setIsPropertyExpanded] = useState(openMapView);
   const [showAddFollowUpModal, setShowAddFollowUpModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch customer details on mount to get latest property selections
+  useEffect(() => {
+    const fetchCustomerDetails = async () => {
+      if (!customer?.id) return;
+      
+      try {
+        setLoading(true);
+        const response = await customersAPI.getById(customer.id);
+        
+        if (response.data.success) {
+          const customerData = response.data.data.profile;
+          
+          // Update state with fetched data
+          setSelectedPropertyIds(customerData.selectedProperties || []);
+          setInterestedPropertyIds(customerData.interestedProperties || []);
+          setHoldPropertyIds(customerData.holdProperties || []);
+        }
+      } catch (error) {
+        console.error('Error fetching customer details:', error);
+        // Keep using props data if fetch fails
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomerDetails();
+  }, [customer?.id]);
 
   // Reset search query when property picker opens
   const handleOpenPropertyPicker = () => {
@@ -151,85 +181,175 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
     }
   };
 
-  const handleToggleProperty = (propertyId) => {
+  const handleToggleProperty = async (propertyId) => {
     const newSelection = selectedPropertyIds.includes(propertyId)
       ? selectedPropertyIds.filter(id => id !== propertyId)
       : [...selectedPropertyIds, propertyId];
     
     setSelectedPropertyIds(newSelection);
     
-    // Update customer with selected properties after state update
-    if (onSelectProperties) {
-      onSelectProperties(customer.id, newSelection);
-    }
-  };
-
-  const handlePropertyInterested = (propertyId) => {
-    // Add to interested properties array (don't replace, add to existing)
-    const newInterestedProperties = interestedPropertyIds.includes(propertyId)
-      ? interestedPropertyIds
-      : [...interestedPropertyIds, propertyId];
-    
-    setInterestedPropertyIds(newInterestedProperties);
-    
-    // Remove from selectedProperties so it doesn't show in Site Visit anymore
-    const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
-    setSelectedPropertyIds(newSelectedProperties);
-    
-    // Update customer with both arrays
-    if (onSelectProperties) {
-      onSelectProperties(customer.id, newSelectedProperties, newInterestedProperties);
-    }
-    
-    // DON'T move customer to Interested stage yet - stay in Site Visit
-    // Only move when they click "View Interested" button
-    
-    // If no more properties to visit, close map view
-    if (newSelectedProperties.length === 0) {
-      setShowMapView(false);
-      setIsPropertyExpanded(false);
-    } else {
-      // Move to next property if available
-      if (currentPropertyIndex >= newSelectedProperties.length) {
-        setCurrentPropertyIndex(newSelectedProperties.length - 1);
+    try {
+      // Save to database
+      await customersAPI.updateProperties(customer.id, {
+        selected_properties: newSelection
+      });
+      
+      // Update customer with selected properties after state update
+      if (onSelectProperties) {
+        onSelectProperties(customer.id, newSelection);
       }
+    } catch (error) {
+      console.error('Error saving selected properties:', error);
+      Alert.alert('Error', 'Failed to save property selection');
+      // Revert on error
+      setSelectedPropertyIds(selectedPropertyIds);
     }
   };
 
-  const handlePropertyNotInterested = (propertyId) => {
-    // Remove property from selectedProperties
-    const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
-    setSelectedPropertyIds(newSelectedProperties);
-    
-    // Update customer with updated selected properties
-    if (onSelectProperties) {
-      onSelectProperties(customer.id, newSelectedProperties, interestedPropertyIds);
-    }
-    
-    // If no properties left, close map view
-    if (newSelectedProperties.length === 0) {
-      setShowMapView(false);
-      setIsPropertyExpanded(false);
-    } else {
-      // Move to next property if available
-      if (currentPropertyIndex >= newSelectedProperties.length) {
-        setCurrentPropertyIndex(newSelectedProperties.length - 1);
+  const handlePropertyInterested = async (propertyId) => {
+    try {
+      // Get the current site visit task for this customer
+      const siteVisitTask = customerTasks.find(t => 
+        (t.type === 'Site Visit' || t.type === 'Visit') && 
+        t.status !== 'Done'
+      );
+
+      if (siteVisitTask && siteVisitTask.siteVisitId) {
+        // Submit feedback to backend with property_id
+        await visitsAPI.submitFeedback(siteVisitTask.siteVisitId, {
+          outcome: 'interested',
+          notes: 'Customer showed interest in this property',
+          property_id: propertyId
+        });
       }
+
+      // Add to interested properties array (don't replace, add to existing)
+      const newInterestedProperties = interestedPropertyIds.includes(propertyId)
+        ? interestedPropertyIds
+        : [...interestedPropertyIds, propertyId];
+      
+      setInterestedPropertyIds(newInterestedProperties);
+      
+      // Remove from selectedProperties so it doesn't show in Site Visit anymore
+      const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
+      setSelectedPropertyIds(newSelectedProperties);
+      
+      // Save to database
+      await customersAPI.updateProperties(customer.id, {
+        selected_properties: newSelectedProperties,
+        interested_properties: newInterestedProperties
+      });
+      
+      // Update customer with both arrays
+      if (onSelectProperties) {
+        onSelectProperties(customer.id, newSelectedProperties, newInterestedProperties);
+      }
+      
+      // DON'T move customer to Interested stage yet - stay in Site Visit
+      // Only move when they click "View Interested" button
+      
+      // If no more properties to visit, close map view
+      if (newSelectedProperties.length === 0) {
+        setShowMapView(false);
+        setIsPropertyExpanded(false);
+      } else {
+        // Move to next property if available
+        if (currentPropertyIndex >= newSelectedProperties.length) {
+          setCurrentPropertyIndex(newSelectedProperties.length - 1);
+        }
+      }
+    } catch (error) {
+      console.error('Error submitting interested feedback:', error);
+      Alert.alert('Error', 'Failed to submit feedback. Please try again.');
     }
   };
 
-  const handlePropertyHold = (propertyId) => {
-    // Add to hold properties array
-    const newHoldProperties = holdPropertyIds.includes(propertyId)
-      ? holdPropertyIds
-      : [...holdPropertyIds, propertyId];
-    
-    setHoldPropertyIds(newHoldProperties);
-    
-    // Keep property in selectedProperties (don't remove it)
-    // Update customer with hold properties
-    if (onSelectProperties) {
-      onSelectProperties(customer.id, selectedPropertyIds, interestedPropertyIds, newHoldProperties);
+  const handlePropertyNotInterested = async (propertyId) => {
+    try {
+      // Get the current site visit task for this customer
+      const siteVisitTask = customerTasks.find(t => 
+        (t.type === 'Site Visit' || t.type === 'Visit') && 
+        t.status !== 'Done'
+      );
+
+      if (siteVisitTask && siteVisitTask.siteVisitId) {
+        // Submit feedback to backend with property_id
+        await visitsAPI.submitFeedback(siteVisitTask.siteVisitId, {
+          outcome: 'not_interested',
+          notes: 'Customer not interested in this property',
+          property_id: propertyId
+        });
+      }
+
+      // Remove property from selectedProperties
+      const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
+      setSelectedPropertyIds(newSelectedProperties);
+      
+      // Save to database
+      await customersAPI.updateProperties(customer.id, {
+        selected_properties: newSelectedProperties
+      });
+      
+      // Update customer with updated selected properties
+      if (onSelectProperties) {
+        onSelectProperties(customer.id, newSelectedProperties, interestedPropertyIds);
+      }
+      
+      // If no properties left, close map view
+      if (newSelectedProperties.length === 0) {
+        setShowMapView(false);
+        setIsPropertyExpanded(false);
+      } else {
+        // Move to next property if available
+        if (currentPropertyIndex >= newSelectedProperties.length) {
+          setCurrentPropertyIndex(newSelectedProperties.length - 1);
+        }
+      }
+    } catch (error) {
+      console.error('Error submitting not interested feedback:', error);
+      Alert.alert('Error', 'Failed to submit feedback. Please try again.');
+    }
+  };
+
+  const handlePropertyHold = async (propertyId) => {
+    try {
+      // Get the current site visit task for this customer
+      const siteVisitTask = customerTasks.find(t => 
+        (t.type === 'Site Visit' || t.type === 'Visit') && 
+        t.status !== 'Done'
+      );
+
+      if (siteVisitTask && siteVisitTask.siteVisitId) {
+        // Submit feedback to backend with property_id
+        await visitsAPI.submitFeedback(siteVisitTask.siteVisitId, {
+          outcome: 'hold',
+          notes: 'Customer wants to hold decision on this property',
+          property_id: propertyId
+        });
+      }
+
+      // Add to hold properties array
+      const newHoldProperties = holdPropertyIds.includes(propertyId)
+        ? holdPropertyIds
+        : [...holdPropertyIds, propertyId];
+      
+      setHoldPropertyIds(newHoldProperties);
+      
+      // Save to database
+      await customersAPI.updateProperties(customer.id, {
+        hold_properties: newHoldProperties
+      });
+      
+      // Keep property in selectedProperties (don't remove it)
+      // Update customer with hold properties
+      if (onSelectProperties) {
+        onSelectProperties(customer.id, selectedPropertyIds, interestedPropertyIds, newHoldProperties);
+      }
+
+      Alert.alert('Success', 'Property marked as on hold');
+    } catch (error) {
+      console.error('Error submitting hold feedback:', error);
+      Alert.alert('Error', 'Failed to submit feedback. Please try again.');
     }
   };
 
@@ -348,13 +468,20 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 <TouchableOpacity 
                   style={styles.selectPropertiesButton}
                   onPress={handleOpenPropertyPicker}
+                  disabled={loading}
                 >
                   <Plus size={20} color="#6a7380" />
-                  <Text style={styles.selectPropertiesButtonText}>Select Properties</Text>
+                  <Text style={styles.selectPropertiesButtonText}>
+                    {loading ? 'Loading...' : 'Select Properties'}
+                  </Text>
                 </TouchableOpacity>
 
                 {/* Show selected properties */}
-                {selectedPropertyIds.length > 0 && (
+                {loading ? (
+                  <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>Loading properties...</Text>
+                  </View>
+                ) : selectedPropertyIds.length > 0 ? (
                   <View style={styles.listContainer}>
                     {selectedPropertyIds.map(propId => {
                       const prop = properties.find(p => p.id === propId);
@@ -376,7 +503,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                       );
                     })}
                   </View>
-                )}
+                ) : null}
               </View>
             )}
 
@@ -403,13 +530,20 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                   <TouchableOpacity 
                     style={styles.selectPropertiesButton}
                     onPress={handleOpenPropertyPicker}
+                    disabled={loading}
                   >
                     <Plus size={20} color="#6a7380" />
-                    <Text style={styles.selectPropertiesButtonText}>Add More Properties</Text>
+                    <Text style={styles.selectPropertiesButtonText}>
+                      {loading ? 'Loading...' : 'Add More Properties'}
+                    </Text>
                   </TouchableOpacity>
                 )}
 
-                {propertiesToShow.length > 0 && (
+                {loading ? (
+                  <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>Loading properties...</Text>
+                  </View>
+                ) : propertiesToShow.length > 0 ? (
                   <View style={styles.listContainer}>
                     {propertiesToShow.map(propId => {
                       const prop = properties.find(p => p.id === propId);
@@ -482,7 +616,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     );
                   })}
                 </View>
-                )}
+                ) : null}
               </View>
             )}
 
@@ -578,21 +712,47 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                         <View style={styles.pendingActionButtonsVertical}>
                           <TouchableOpacity 
                             style={styles.interestedActionBtn}
-                            onPress={() => {
-                              // Add to interested properties without changing stage
-                              const newInterestedProperties = interestedPropertyIds.includes(propId)
-                                ? interestedPropertyIds
-                                : [...interestedPropertyIds, propId];
-                              
-                              setInterestedPropertyIds(newInterestedProperties);
-                              
-                              // Remove from hold properties
-                              const newHoldProperties = holdPropertyIds.filter(id => id !== propId);
-                              setHoldPropertyIds(newHoldProperties);
-                              
-                              // Update customer
-                              if (onSelectProperties) {
-                                onSelectProperties(customer.id, selectedPropertyIds, newInterestedProperties, newHoldProperties);
+                            onPress={async () => {
+                              try {
+                                // Get the current site visit task for this customer
+                                const siteVisitTask = customerTasks.find(t => 
+                                  (t.type === 'Site Visit' || t.type === 'Visit') && 
+                                  t.status !== 'Done'
+                                );
+
+                                if (siteVisitTask && siteVisitTask.siteVisitId) {
+                                  // Submit feedback to backend with property_id
+                                  await visitsAPI.submitFeedback(siteVisitTask.siteVisitId, {
+                                    outcome: 'interested',
+                                    notes: 'Customer showed interest after holding decision',
+                                    property_id: propId
+                                  });
+                                }
+
+                                // Add to interested properties without changing stage
+                                const newInterestedProperties = interestedPropertyIds.includes(propId)
+                                  ? interestedPropertyIds
+                                  : [...interestedPropertyIds, propId];
+                                
+                                setInterestedPropertyIds(newInterestedProperties);
+                                
+                                // Remove from hold properties
+                                const newHoldProperties = holdPropertyIds.filter(id => id !== propId);
+                                setHoldPropertyIds(newHoldProperties);
+                                
+                                // Save to database
+                                await customersAPI.updateProperties(customer.id, {
+                                  interested_properties: newInterestedProperties,
+                                  hold_properties: newHoldProperties
+                                });
+                                
+                                // Update customer
+                                if (onSelectProperties) {
+                                  onSelectProperties(customer.id, selectedPropertyIds, newInterestedProperties, newHoldProperties);
+                                }
+                              } catch (error) {
+                                console.error('Error submitting interested feedback:', error);
+                                Alert.alert('Error', 'Failed to submit feedback. Please try again.');
                               }
                             }}
                           >
@@ -1294,6 +1454,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: 14,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#9ca3af',
+    fontWeight: '500',
   },
   addTaskHeaderButton: {
     flexDirection: 'row',

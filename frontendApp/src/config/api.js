@@ -90,16 +90,33 @@ export const customersAPI = {
   getById: (id) => api.get(`/clients/${id}`),
   create: (data) => api.post('/clients', data),
   update: (id, data) => api.put(`/clients/${id}`, data),
+  updateStage: (id, status) => api.put(`/clients/${id}/stage`, { status }),
+  updateProperties: (id, data) => api.put(`/clients/${id}/properties`, data),
   delete: (id) => api.delete(`/clients/${id}`),
 };
 
 // Deals API endpoints
 export const dealsAPI = {
-  getAll: () => api.get('/deals'),
-  getById: (id) => api.get(`/deals/${id}`),
-  create: (data) => api.post('/deals', data),
+  getAll: () => api.get('/clients/deals'),
+  getById: (id) => api.get(`/clients/deal/${id}`),
+  create: (data) => api.post('/clients/deal', data),
   update: (id, data) => api.put(`/deals/${id}`, data),
   delete: (id) => api.delete(`/deals/${id}`),
+};
+
+// Tasks/FollowUps API endpoints
+export const tasksAPI = {
+  getAll: (params) => api.get('/tasks', { params }),
+  create: (data) => api.post('/tasks', data),
+  update: (id, data) => api.put(`/tasks/${id}`, data),
+  toggleStatus: (id) => api.put(`/tasks/${id}/status`),
+};
+
+// Site Visits API endpoints
+export const visitsAPI = {
+  create: (data) => api.post('/visits', data),
+  getById: (id) => api.get(`/visits/${id}`),
+  submitFeedback: (itemId, data) => api.put(`/visits/item/${itemId}`, data),
 };
 
 export default api;
