@@ -25,7 +25,7 @@ import { Image } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
-export default function ProfilePage({ onRenew }) {
+export default function ProfilePage({ onRenew, onLogout }) {
   const router = useRouter();
 
   // Get logged-in user from Redux
@@ -155,7 +155,7 @@ export default function ProfilePage({ onRenew }) {
             onPress={() =>
               Alert.alert('Sign Out', 'Are you sure?', [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Sign Out', style: 'destructive', onPress: () => { } },
+                { text: 'Sign Out', style: 'destructive', onPress: onLogout },
               ])
             }
           >

@@ -1,13 +1,17 @@
+import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from "react";
-import { LogBox, View, Text } from 'react-native';
+import { LogBox, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Provider, useSelector } from 'react-redux';
+import { Provider, useDispatch, useSelector } from 'react-redux';
 
-import { Stack, Tabs } from 'expo-router';
+import { Stack, Tabs, router } from 'expo-router';
 import { Briefcase, Calendar, Home, User, Users } from 'lucide-react-native';
 import "../global.css";
 import { store } from '../src/store/store';
+import { loginSuccess } from '../src/store/slices/authSlice';
+import { loadPersistedData, clearPersistedData } from '../src/store/middleware/persistenceMiddleware';
+import { setAuthToken } from '../src/config/api';
 
 // 🔤 FONT LOADING
 import {
@@ -45,7 +49,13 @@ LogBox.ignoreLogs([
 ]);
 
 function AppNavigator() {
-  const { isAuthenticated } = useSelector(state => state.auth);
+  const { isAuthenticated } = useSelector((state: any) => state.auth);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return (
@@ -201,6 +211,21 @@ export default function RootLayout() {
     Manrope_700Bold,
   });
 
+  // 🔄 REHYDRATE AUTH from AsyncStorage on startup
+  useEffect(() => {
+    rehydrate();
+  }, []);
+  const rehydrate = async () => {
+    try {
+      const saved = await loadPersistedData();
+      if (saved.auth?.isAuthenticated && saved.auth?.user?.token) {
+        setAuthToken(saved.auth.user.token);
+        store.dispatch(loginSuccess(saved.auth.user));
+      }
+    } catch (e) {
+      console.warn('Auth rehydration failed:', e);
+    }
+  };
   useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
@@ -214,10 +239,60 @@ export default function RootLayout() {
     );
   }
 
+  const toastConfig = {
+    success: (props: any) => (
+      <BaseToast
+        {...props}
+        style={{ borderLeftColor: '#10B981', backgroundColor: '#F0FDF4' }}
+        contentContainerStyle={{ paddingHorizontal: 15 }}
+        text1Style={{
+          fontSize: 16,
+          fontWeight: '600',
+          color: '#065F46'
+        }}
+        text2Style={{
+          fontSize: 14,
+          color: '#047857'
+        }}
+      />
+    ),
+    error: (props: any) => (
+      <ErrorToast
+        {...props}
+        style={{ borderLeftColor: '#EF4444', backgroundColor: '#FEF2F2' }}
+        text1Style={{
+          fontSize: 16,
+          fontWeight: '600',
+          color: '#991B1B'
+        }}
+        text2Style={{
+          fontSize: 14,
+          color: '#B91C1C'
+        }}
+      />
+    ),
+    info: (props: any) => (
+      <BaseToast
+        {...props}
+        style={{ borderLeftColor: '#3B82F6', backgroundColor: '#EFF6FF' }}
+        text1Style={{
+          fontSize: 16,
+          fontWeight: '600',
+          color: '#1E40AF'
+        }}
+        text2Style={{
+          fontSize: 14,
+          color: '#1D4ED8'
+        }}
+      />
+    ),
+  };
+
   return (
     <Provider store={store}>
       <SafeAreaProvider>
         <AppNavigator />
+        <Toast config={toastConfig} />
       </SafeAreaProvider>
     </Provider>
   );

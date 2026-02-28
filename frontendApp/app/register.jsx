@@ -20,6 +20,7 @@ import {
   View,
 } from 'react-native';
 import { authAPI } from '../src/config/api';
+import { showToast } from '../src/utils/toast';
 
 const { height } = Dimensions.get('window');
 
@@ -58,7 +59,7 @@ export default function Register() {
       // 1. Request Permission
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Allow location access to detect your city.');
+        showToast.warn('Allow location access to detect your city.');
         setLocationLoading(false);
         return;
       }
@@ -81,11 +82,11 @@ export default function Register() {
         const locationString = [city, region].filter(Boolean).join(', ');
         handleChange('location', locationString);
       } else {
-        Alert.alert('Try Again', 'Could not detect city name automatically.');
+        showToast.warn('Could not detect city name automatically.');
       }
 
     } catch (error) {
-      Alert.alert('Error', 'Make sure Location/GPS is enabled on your device.');
+      showToast.error('Make sure Location/GPS is enabled on your device.');
     } finally {
       setLocationLoading(false);
     }
@@ -94,12 +95,12 @@ export default function Register() {
   const handleRegister = async () => {
     // Validation
     if (!formData.name || !formData.email || !formData.phone || !formData.password) {
-      Alert.alert('Error', 'Please fill all required fields');
+      showToast.warn('Please fill all required fields');
       return;
     }
 
     if (formData.password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      showToast.warn('Password must be at least 6 characters');
       return;
     }
 
@@ -116,23 +117,15 @@ export default function Register() {
       };
 
       const response = await authAPI.register(registerData);
-      
+
       if (response.data) {
-        Alert.alert(
-          'Success', 
-          'Account created successfully! Please login.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/login')
-            }
-          ]
-        );
+        showToast.success('Account created! Please login.');
+        setTimeout(() => router.replace('/login'), 1500);
       }
     } catch (error) {
       console.error('Registration error:', error);
       const errorMessage = error.response?.data?.message || 'Unable to connect to server. Please check your connection.';
-      Alert.alert('Registration Failed', errorMessage);
+      showToast.error(errorMessage);
     } finally {
       setLoading(false);
     }
