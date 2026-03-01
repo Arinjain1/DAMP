@@ -97,6 +97,7 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
     total_sale: INITIAL_DEALS.filter(d => d.stage === 'Completed').length,
     pending: INITIAL_DEALS.filter(d => d.stage !== 'Completed').length,
     rejected: 0,
+    network_count: 99, // Fallback for local UI
   };
 
   const todaysTasks = dashboardData?.todays_focus || followUps.filter(f => f.status === 'Pending').slice(0, 3);
@@ -302,9 +303,9 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
               </View>
 
               {/* Right Side: Broker Card (Touches Edge) */}
-              <TouchableOpacity style={styles.brokerBlock}>
+              <TouchableOpacity style={styles.brokerBlock} onPress={onOpenCollab}>
                 <Text style={styles.brokerLabel}>Broker</Text>
-                <Text style={styles.brokerNumber}>99</Text>
+                <Text style={styles.brokerNumber}>{stats.network_count}</Text>
               </TouchableOpacity>
 
             </View>
