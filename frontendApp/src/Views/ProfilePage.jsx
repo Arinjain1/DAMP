@@ -27,7 +27,7 @@ import { clearAuthToken } from '../config/api';
 
 const { width } = Dimensions.get('window');
 
-export default function ProfilePage({ onRenew }) {
+export default function ProfilePage({ onRenew, onLogout }) {
   const router = useRouter();
   const dispatch = useDispatch();
 
@@ -48,10 +48,10 @@ export default function ProfilePage({ onRenew }) {
   const handleLogout = () => {
     // Clear token from API config
     clearAuthToken();
-    
+
     // Dispatch logout action
     dispatch(logout());
-    
+
     // Navigation will be handled automatically by auth state change
   };
 

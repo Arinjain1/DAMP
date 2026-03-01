@@ -1,29 +1,30 @@
 import { Lato_400Regular, Lato_700Bold, useFonts } from '@expo-google-fonts/lato';
 import {
-    Montserrat_400Regular,
-    Montserrat_500Medium,
-    Montserrat_600SemiBold,
-    Montserrat_700Bold,
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_600SemiBold,
+  Montserrat_700Bold,
 } from '@expo-google-fonts/montserrat';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { authAPI, setAuthToken } from '../src/config/api';
 import { loginSuccess } from '../src/store/slices/authSlice';
+import { showToast } from '../src/utils/toast';
 
 export default function Login() {
   const dispatch = useDispatch();
@@ -46,39 +47,38 @@ export default function Login() {
   const handleLogin = async () => {
     // Validation
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
+      showToast.warn('Please enter email and password');
       return;
     }
 
     setLoading(true);
     try {
       const response = await authAPI.login({ email, password });
-      
+
       if (response.data) {
         // Backend returns user data directly (no success flag)
         const { id, full_name, email: userEmail, role, token } = response.data;
-        
-        const userData = { 
-          id, 
-          name: full_name, 
+
+        const userData = {
+          id,
+          name: full_name,
           full_name,
-          email: userEmail, 
-          role, 
-          token 
+          email: userEmail,
+          role,
+          token
         };
-        
+
         // Set auth token for future API calls
         setAuthToken(token);
-        
+
         dispatch(loginSuccess(userData));
-        
         // Don't navigate - let the auth state change handle the navigation automatically
         // The AppNavigator will switch from Stack to Tabs when isAuthenticated becomes true
       }
     } catch (error) {
       console.error('Login error:', error);
       const errorMessage = error.response?.data?.message || 'Unable to connect to server. Please check your connection.';
-      Alert.alert('Login Failed', errorMessage);
+      showToast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -150,7 +150,7 @@ export default function Login() {
             </View>
 
             {/* FORGOT PASSWORD */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.forgotWrap}
               onPress={() => router.push('/forgot-password')}
             >
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.2,
     borderColor: '#D1D5DB',
     color: '#111827',
-    
+
   },
 
   passwordContainer: {
