@@ -13,7 +13,7 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
   const dispatch = useDispatch();
   const { customers } = useSelector(state => state.customers);
   const { properties } = useSelector(state => state.properties);
-  const { followUps, loading } = useSelector(state => state.followUps);
+  const { loading } = useSelector(state => state.followUps);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [localMeetings, setLocalMeetings] = useState([]);

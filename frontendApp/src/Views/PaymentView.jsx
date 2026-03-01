@@ -1,11 +1,12 @@
 import { ArrowDown, ArrowUp, RefreshCw, History, ChevronDown } from 'lucide-react-native';
-import { ScrollView, Text, TextInput, TouchableOpacity, View, Modal, Platform } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View, Modal, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import BalanceCard from '../Components/BalanceCard';
 import { updateDeal } from '../store/slices/dealsSlice';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { showToast } from '../utils/toast';
+import { dealsAPI } from '../config/api';
 
 export default function PaymentView() {
   const dispatch = useDispatch();
@@ -58,6 +59,10 @@ export default function PaymentView() {
   const [completingTransactionId, setCompletingTransactionId] = useState(null);
   const [completingTransactionIdInput, setCompletingTransactionIdInput] = useState('');
 
+  // History state
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
   // Get property details
   const property = properties.find(p => p.id === selectedDeal?.propertyId);
   const propertyPrice = property?.price || 0;
@@ -106,7 +111,32 @@ export default function PaymentView() {
         setExpectedUnit('Thousands');
       }
     }
-  }, [selectedDeal?.id, propertyPrice]);
+  }, [selectedDeal?.id, propertyPrice, selectedDeal?.negotiation]);
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      setLoadingHistory(true);
+      const response = await dealsAPI.getHistory(selectedDeal.id);
+      if (response.data.success) {
+        setHistory(response.data.data.transactions || []);
+      }
+    } catch (err) {
+      console.error('Fetch history error:', err);
+      // Fallback to local data if API fails
+      if (selectedDeal?.settlements) {
+        setHistory(selectedDeal.settlements);
+      }
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [selectedDeal?.id, selectedDeal?.settlements]);
+
+  // Fetch deal history when History tab becomes active
+  useEffect(() => {
+    if (activeTab === 'History' && selectedDeal?.id) {
+      fetchHistory();
+    }
+  }, [activeTab, selectedDeal?.id, fetchHistory]);
 
   // Modal states
   const [showExpectedModal, setShowExpectedModal] = useState(false);
@@ -128,71 +158,95 @@ export default function PaymentView() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Calculate final value
     const finalValue = parseFloat(finalPrice) * getMultiplier(finalUnit);
 
     if (!isNaN(finalValue) && finalValue > 0) {
-      // Update the deal with new amount in Redux
-      const updatedDeal = {
-        ...selectedDeal,
-        dealAmount: finalValue,
-        negotiation: {
-          // Store calculated values
-          expectedPrice: parseFloat(expectedPrice) * getMultiplier(expectedUnit),
-          customerOffer: parseFloat(customerOffer) * getMultiplier(customerUnit),
-          ownerCounter: parseFloat(ownerCounter) * getMultiplier(ownerUnit),
-          finalPrice: finalValue,
-          // Store raw values and units for editing
-          expectedPriceValue: parseFloat(expectedPrice) || 0,
-          expectedPriceUnit: expectedUnit,
-          customerOfferValue: parseFloat(customerOffer) || 0,
-          customerOfferUnit: customerUnit,
-          ownerCounterValue: parseFloat(ownerCounter) || 0,
-          ownerCounterUnit: ownerUnit,
-          finalPriceValue: parseFloat(finalPrice) || 0,
-          finalPriceUnit: finalUnit
+      try {
+        const negotiationData = {
+          expected_price: parseFloat(expectedPrice) * getMultiplier(expectedUnit),
+          customer_offer: parseFloat(customerOffer) * getMultiplier(customerUnit),
+          owner_counter_offer: parseFloat(ownerCounter) * getMultiplier(ownerUnit),
+          final_price: finalValue
+        };
+
+        const response = await dealsAPI.updateNegotiation(selectedDeal.id, negotiationData);
+
+        if (response.data.success) {
+          // Update the deal with new amount in Redux
+          const updatedDeal = {
+            ...selectedDeal,
+            dealAmount: finalValue,
+            negotiation: {
+              ...negotiationData,
+              // Store raw values and units for editing
+              expectedPriceValue: parseFloat(expectedPrice) || 0,
+              expectedPriceUnit: expectedUnit,
+              customerOfferValue: parseFloat(customerOffer) || 0,
+              customerOfferUnit: customerUnit,
+              ownerCounterValue: parseFloat(ownerCounter) || 0,
+              ownerCounterUnit: ownerUnit,
+              finalPriceValue: parseFloat(finalPrice) || 0,
+              finalPriceUnit: finalUnit
+            }
+          };
+
+          dispatch(updateDeal(updatedDeal));
+          showToast.success('Negotiation saved!');
         }
-      };
-
-      dispatch(updateDeal(updatedDeal));
-
-
+      } catch (err) {
+        console.error('Save negotiation error:', err);
+        showToast.error('Failed to save negotiation');
+      }
     }
   };
 
-  const handleCompleteNegotiation = () => {
+  const handleCompleteNegotiation = async () => {
     // Calculate final value
     const finalValue = parseFloat(finalPrice) * getMultiplier(finalUnit);
 
     if (!isNaN(finalValue) && finalValue > 0) {
-      // Update the deal with negotiation completed flag
-      const updatedDeal = {
-        ...selectedDeal,
-        dealAmount: finalValue,
-        negotiationCompleted: true, // Mark negotiation as completed
-        negotiation: {
-          // Store calculated values
-          expectedPrice: parseFloat(expectedPrice) * getMultiplier(expectedUnit),
-          customerOffer: parseFloat(customerOffer) * getMultiplier(customerUnit),
-          ownerCounter: parseFloat(ownerCounter) * getMultiplier(ownerUnit),
-          finalPrice: finalValue,
-          // Store raw values and units for editing
-          expectedPriceValue: parseFloat(expectedPrice) || 0,
-          expectedPriceUnit: expectedUnit,
-          customerOfferValue: parseFloat(customerOffer) || 0,
-          customerOfferUnit: customerUnit,
-          ownerCounterValue: parseFloat(ownerCounter) || 0,
-          ownerCounterUnit: ownerUnit,
-          finalPriceValue: parseFloat(finalPrice) || 0,
-          finalPriceUnit: finalUnit
+      try {
+        const negotiationData = {
+          expected_price: parseFloat(expectedPrice) * getMultiplier(expectedUnit),
+          customer_offer: parseFloat(customerOffer) * getMultiplier(customerUnit),
+          owner_counter_offer: parseFloat(ownerCounter) * getMultiplier(ownerUnit),
+          final_price: finalValue
+        };
+
+        const response = await dealsAPI.updateNegotiation(selectedDeal.id, negotiationData);
+
+        if (response.data.success) {
+          // Update the deal with negotiation completed flag
+          const updatedDeal = {
+            ...selectedDeal,
+            dealAmount: finalValue,
+            negotiationCompleted: true, // Mark negotiation as completed
+            negotiation: {
+              ...negotiationData,
+              // Store raw values and units for editing
+              expectedPriceValue: parseFloat(expectedPrice) || 0,
+              expectedPriceUnit: expectedUnit,
+              customerOfferValue: parseFloat(customerOffer) || 0,
+              customerOfferUnit: customerUnit,
+              ownerCounterValue: parseFloat(ownerCounter) || 0,
+              ownerCounterUnit: ownerUnit,
+              finalPriceValue: parseFloat(finalPrice) || 0,
+              finalPriceUnit: finalUnit
+            }
+          };
+
+          dispatch(updateDeal(updatedDeal));
+
+          // Then switch to Token tab
+          setActiveTab('Token');
+          showToast.success('Negotiation completed!');
         }
-      };
-
-      dispatch(updateDeal(updatedDeal));
-
-      // Then switch to Token tab
-      setActiveTab('Token');
+      } catch (err) {
+        console.error('Complete negotiation error:', err);
+        showToast.error('Failed to complete negotiation');
+      }
     }
   };
 
@@ -246,34 +300,52 @@ export default function PaymentView() {
           },
           {
             text: 'Yes',
-            onPress: () => {
-              // Update paid amount
-              const newPaidAmount = paidAmount + tokenValue;
-
-              const updatedDeal = {
-                ...selectedDeal,
-                paidAmount: newPaidAmount,
-                tokenPayment: {
+            onPress: async () => {
+              try {
+                const transactionData = {
+                  transaction_type: 'Token',
                   amount: tokenValue,
-                  unit: tokenUnit,
-                  paymentMode: paymentMode,
-                  transactionId: paymentMode !== 'Cash' ? tokenTransactionId : null,
+                  payment_mode: paymentMode,
+                  transaction_ref: paymentMode !== 'Cash' ? tokenTransactionId : null,
                   remark: remark,
-                  date: new Date().toISOString()
+                  status: 'Completed'
+                };
+
+                const response = await dealsAPI.addTransaction(selectedDeal.id, transactionData);
+
+                if (response.data.success) {
+                  // Update paid amount
+                  const newPaidAmount = paidAmount + tokenValue;
+
+                  const updatedDeal = {
+                    ...selectedDeal,
+                    paidAmount: newPaidAmount,
+                    tokenPayment: {
+                      amount: tokenValue,
+                      unit: tokenUnit,
+                      paymentMode: paymentMode,
+                      transactionId: paymentMode !== 'Cash' ? tokenTransactionId : null,
+                      remark: remark,
+                      date: new Date().toISOString()
+                    }
+                  };
+
+                  dispatch(updateDeal(updatedDeal));
+
+                  // Clear form
+                  setTokenAmount('');
+                  setRemark('');
+                  setTokenTransactionId('');
+
+                  // Switch to Full Settlement tab
+                  setActiveTab('Full Settlement');
+
+                  showToast.success('Token payment submitted successfully!');
                 }
-              };
-
-              dispatch(updateDeal(updatedDeal));
-
-              // Clear form
-              setTokenAmount('');
-              setRemark('');
-              setTokenTransactionId('');
-
-              // Switch to Full Settlement tab
-              setActiveTab('Full Settlement');
-
-              showToast.success('Token payment submitted successfully!');
+              } catch (err) {
+                console.error('Token payment error:', err);
+                showToast.error('Failed to submit token payment');
+              }
             }
           }
         ]
@@ -318,43 +390,63 @@ export default function PaymentView() {
     }
   };
 
-  const addTransactionToStore = () => {
+  const addTransactionToStore = async () => {
     const settlementValue = parseFloat(settlementAmount) * getMultiplier(settlementUnit);
 
-    const newTransaction = {
-      id: Date.now(),
-      amount: settlementValue,
-      unit: settlementUnit,
-      paymentMode: settlementMode,
-      transactionId: (transactionStatus === 'Paid' && settlementMode !== 'Cash') ? transactionId : null,
-      remark: settlementRemark,
-      dueDate: dueDate.toISOString(),
-      date: new Date().toISOString(),
-      status: transactionStatus === 'Paid' ? 'Completed' : 'Pending'
-    };
+    try {
+      const transactionData = {
+        transaction_type: 'Settlement',
+        amount: settlementValue,
+        payment_mode: settlementMode,
+        transaction_ref: (transactionStatus === 'Paid' && settlementMode !== 'Cash') ? transactionId : null,
+        status: transactionStatus === 'Paid' ? 'Completed' : 'Pending',
+        due_date: dueDate.toISOString(),
+        remark: settlementRemark
+      };
 
-    const existingTransactions = selectedDeal?.settlements || [];
+      const response = await dealsAPI.addTransaction(selectedDeal.id, transactionData);
 
-    // Only add to paid amount if status is Paid
-    const newPaidAmount = transactionStatus === 'Paid' ? paidAmount + settlementValue : paidAmount;
+      if (response.data.success) {
+        const backendTransaction = response.data.data;
+        const newTransaction = {
+          id: backendTransaction.id || Date.now(),
+          amount: settlementValue,
+          unit: settlementUnit,
+          paymentMode: settlementMode,
+          transactionId: transactionData.transaction_ref,
+          remark: settlementRemark,
+          dueDate: dueDate.toISOString(),
+          date: new Date().toISOString(),
+          status: transactionData.status
+        };
 
-    const updatedDeal = {
-      ...selectedDeal,
-      paidAmount: newPaidAmount,
-      settlements: [...existingTransactions, newTransaction]
-    };
+        const existingTransactions = selectedDeal?.settlements || [];
 
-    dispatch(updateDeal(updatedDeal));
+        // Only add to paid amount if status is Completed (Paid)
+        const newPaidAmount = transactionData.status === 'Completed' ? paidAmount + settlementValue : paidAmount;
 
-    // Clear form and close modal
-    setSettlementAmount('');
-    setSettlementRemark('');
-    setTransactionId('');
-    setTransactionStatus('Pending');
-    setDueDate(new Date());
-    setShowAddTransactionModal(false);
+        const updatedDeal = {
+          ...selectedDeal,
+          paidAmount: newPaidAmount,
+          settlements: [...existingTransactions, newTransaction]
+        };
 
-    showToast.success('Transaction added successfully!');
+        dispatch(updateDeal(updatedDeal));
+
+        // Clear form and close modal
+        setSettlementAmount('');
+        setSettlementRemark('');
+        setTransactionId('');
+        setTransactionStatus('Pending');
+        setDueDate(new Date());
+        setShowAddTransactionModal(false);
+
+        showToast.success('Transaction added successfully!');
+      }
+    } catch (err) {
+      console.error('Add settlement error:', err);
+      showToast.error('Failed to add transaction');
+    }
   };
 
   const formatDate = (dateString) => {
@@ -430,31 +522,42 @@ export default function PaymentView() {
     }, 300);
   };
 
-  const completeTransactionWithId = (transactionId, transId) => {
-    const updatedSettlements = selectedDeal.settlements.map(t => {
-      if (t.id === transactionId) {
-        return {
-          ...t,
-          status: 'Completed',
-          transactionId: transId,
-          completedDate: new Date().toISOString()
+  const completeTransactionWithId = async (transactionId, transId) => {
+    try {
+      const response = await dealsAPI.completeTransaction(transactionId, {
+        transaction_ref: transId
+      });
+
+      if (response.data.success) {
+        const updatedSettlements = selectedDeal.settlements.map(t => {
+          if (t.id === transactionId) {
+            return {
+              ...t,
+              status: 'Completed',
+              transactionId: transId,
+              completedDate: new Date().toISOString()
+            };
+          }
+          return t;
+        });
+
+        // Calculate new paid amount (add only this transaction amount)
+        const transaction = selectedDeal.settlements.find(t => t.id === transactionId);
+        const newPaidAmount = paidAmount + transaction.amount;
+
+        const updatedDeal = {
+          ...selectedDeal,
+          paidAmount: newPaidAmount,
+          settlements: updatedSettlements
         };
+
+        dispatch(updateDeal(updatedDeal));
+        showToast.success('Transaction marked as completed!');
       }
-      return t;
-    });
-
-    // Calculate new paid amount (add only this transaction amount)
-    const transaction = selectedDeal.settlements.find(t => t.id === transactionId);
-    const newPaidAmount = paidAmount + transaction.amount;
-
-    const updatedDeal = {
-      ...selectedDeal,
-      paidAmount: newPaidAmount,
-      settlements: updatedSettlements
-    };
-
-    dispatch(updateDeal(updatedDeal));
-    showToast.success('Transaction marked as completed!');
+    } catch (err) {
+      console.error('Complete transaction error:', err);
+      showToast.error('Failed to complete transaction');
+    }
   };
 
   const handleFullSettlement = () => {
@@ -475,38 +578,57 @@ export default function PaymentView() {
         },
         {
           text: 'Yes',
-          onPress: () => {
-            const newTransaction = {
-              id: Date.now(),
-              amount: remainingAmount,
-              unit: 'Rupees',
-              paymentMode: fullSettlementMode,
-              transactionId: fullSettlementMode !== 'Cash' ? fullSettlementTransactionId : null,
-              remark: fullSettlementRemark,
-              dueDate: new Date().toISOString(),
-              date: new Date().toISOString(),
-              status: 'Completed',
-              completedDate: new Date().toISOString()
-            };
+          onPress: async () => {
+            try {
+              const transactionData = {
+                transaction_type: 'Settlement', // Or 'Full Settlement'
+                amount: remainingAmount,
+                payment_mode: fullSettlementMode,
+                transaction_ref: fullSettlementMode !== 'Cash' ? fullSettlementTransactionId : null,
+                remark: fullSettlementRemark,
+                status: 'Completed'
+              };
 
-            const existingTransactions = selectedDeal?.settlements || [];
-            const newPaidAmount = dealAmount; // Full settlement means paid amount = deal amount
+              const response = await dealsAPI.addTransaction(selectedDeal.id, transactionData);
 
-            const updatedDeal = {
-              ...selectedDeal,
-              paidAmount: newPaidAmount,
-              settlements: [...existingTransactions, newTransaction]
-            };
+              if (response.data.success) {
+                const backendTransaction = response.data.data;
+                const newTransaction = {
+                  id: backendTransaction.id || Date.now(),
+                  amount: remainingAmount,
+                  unit: 'Rupees',
+                  paymentMode: fullSettlementMode,
+                  transactionId: transactionData.transaction_ref,
+                  remark: fullSettlementRemark,
+                  dueDate: new Date().toISOString(),
+                  date: new Date().toISOString(),
+                  status: 'Completed',
+                  completedDate: new Date().toISOString()
+                };
 
-            dispatch(updateDeal(updatedDeal));
+                const existingTransactions = selectedDeal?.settlements || [];
+                const newPaidAmount = dealAmount; // Full settlement means paid amount = deal amount
 
-            // Clear form and close modal
-            setFullSettlementMode('UPI');
-            setFullSettlementTransactionId('');
-            setFullSettlementRemark('');
-            setShowFullSettlementModal(false);
+                const updatedDeal = {
+                  ...selectedDeal,
+                  paidAmount: newPaidAmount,
+                  settlements: [...existingTransactions, newTransaction]
+                };
 
-            showToast.success('Full settlement completed successfully!');
+                dispatch(updateDeal(updatedDeal));
+
+                // Clear form and close modal
+                setFullSettlementMode('UPI');
+                setFullSettlementTransactionId('');
+                setFullSettlementRemark('');
+                setShowFullSettlementModal(false);
+
+                showToast.success('Full settlement completed successfully!');
+              }
+            } catch (err) {
+              console.error('Full settlement error:', err);
+              showToast.error('Failed to complete full settlement');
+            }
           }
         }
       ]
@@ -838,89 +960,51 @@ export default function PaymentView() {
 
       {activeTab === 'History' && (
         <View className="px-1">
-          <Text className="text-lg font-bold text-[#3E3E3E] mb-4">Payment History</Text>
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-lg font-bold text-[#3E3E3E]">Payment History</Text>
+            {loadingHistory && <ActivityIndicator size="small" color="#9A8CFC" />}
+          </View>
 
-          {/* Token Payment History */}
-          {selectedDeal?.tokenPayment && (
-            <View className="mb-4">
-              <Text className="text-base font-semibold text-[#3E3E3E] mb-3">Token Payment</Text>
-              <View className="bg-white rounded-2xl border border-gray-200 p-4">
+          {history.length > 0 ? (
+            history.map((transaction, index) => (
+              <View key={transaction.id || index} className="bg-white rounded-2xl border border-gray-200 p-4 mb-3">
                 <View className="flex-row justify-between items-center mb-3">
-                  <Text className="text-lg font-semibold text-gray-800">{selectedDeal.tokenPayment.paymentMode}</Text>
-                  <Text className="text-base font-semibold text-green-500">Completed</Text>
+                  <Text className="text-lg font-semibold text-gray-800">{transaction.payment_mode || transaction.paymentMode}</Text>
+                  <Text className={`text-base font-semibold ${transaction.status === 'Completed' || transaction.status === 'success' ? 'text-green-500' : 'text-orange-500'}`}>
+                    {transaction.status}
+                  </Text>
                 </View>
+
                 <View className="flex-row justify-between items-end">
                   <View>
                     <Text className="text-sm text-gray-500 mb-1">Amount</Text>
-                    <Text className="text-xl font-bold text-gray-800">₹{selectedDeal.tokenPayment.amount.toLocaleString('en-IN')}</Text>
+                    <Text className="text-xl font-bold text-gray-800">₹{parseFloat(transaction.amount).toLocaleString('en-IN')}</Text>
                   </View>
                   <View className="items-end">
                     <Text className="text-sm text-gray-500 mb-1">Date</Text>
-                    <Text className="text-base font-semibold text-gray-800">{formatDate(selectedDeal.tokenPayment.date)}</Text>
+                    <Text className="text-base font-semibold text-gray-800">{formatDate(transaction.completed_on || transaction.completedDate || transaction.date || transaction.created_at)}</Text>
                   </View>
                 </View>
-                {selectedDeal.tokenPayment.transactionId && (
+
+                {(transaction.transaction_ref || transaction.transactionId) && (
                   <View className="mt-3">
-                    <Text className="text-sm text-gray-500 mb-1">Transaction ID</Text>
-                    <Text className="text-base text-gray-700">{selectedDeal.tokenPayment.transactionId}</Text>
+                    <Text className="text-sm text-gray-500 mb-1">Transaction Ref</Text>
+                    <Text className="text-base text-gray-700">{transaction.transaction_ref || transaction.transactionId}</Text>
                   </View>
                 )}
-                {selectedDeal.tokenPayment.remark && (
+
+                {transaction.remark && (
                   <View className="mt-3 pt-3 border-t border-gray-200">
                     <Text className="text-sm text-gray-500 mb-1">Remark</Text>
-                    <Text className="text-base text-gray-700">{selectedDeal.tokenPayment.remark}</Text>
+                    <Text className="text-base text-gray-700">{transaction.remark}</Text>
                   </View>
                 )}
               </View>
-            </View>
-          )}
-
-          {/* Completed Settlements */}
-          {selectedDeal?.settlements && selectedDeal.settlements.filter(t => t.status === 'Completed').length > 0 ? (
-            <>
-              <Text className="text-base font-semibold text-[#3E3E3E] mb-3">Completed Settlements</Text>
-              {selectedDeal.settlements
-                .filter(transaction => transaction.status === 'Completed')
-                .map((transaction) => (
-                  <View key={transaction.id} className="bg-white rounded-2xl border border-gray-200 p-4 mb-3">
-                    <View className="flex-row justify-between items-center mb-3">
-                      <Text className="text-lg font-semibold text-gray-800">{transaction.paymentMode}</Text>
-                      <Text className="text-base font-semibold text-green-500">Completed</Text>
-                    </View>
-
-                    <View className="flex-row justify-between items-end mb-3">
-                      <View>
-                        <Text className="text-sm text-gray-500 mb-1">Amount</Text>
-                        <Text className="text-xl font-bold text-gray-800">₹{transaction.amount.toLocaleString('en-IN')}</Text>
-                      </View>
-                      <View className="items-end">
-                        <Text className="text-sm text-gray-500 mb-1">Completed On</Text>
-                        <Text className="text-base font-semibold text-gray-800">{formatDate(transaction.completedDate)}</Text>
-                      </View>
-                    </View>
-
-                    {transaction.transactionId && (
-                      <View className="mb-2">
-                        <Text className="text-sm text-gray-500 mb-1">Transaction ID</Text>
-                        <Text className="text-base text-gray-700">{transaction.transactionId}</Text>
-                      </View>
-                    )}
-
-                    {transaction.remark && (
-                      <View className="pt-3 border-t border-gray-200">
-                        <Text className="text-sm text-gray-500 mb-1">Remark</Text>
-                        <Text className="text-base text-gray-700">{transaction.remark}</Text>
-                      </View>
-                    )}
-                  </View>
-                ))}
-            </>
+            ))
           ) : (
-            !selectedDeal?.tokenPayment && (
-              <View className="items-center py-10">
-                <Text className="text-gray-500">No completed transactions yet.</Text>
-              </View>
-            )
+            <View className="items-center py-10">
+              <Text className="text-gray-500">{loadingHistory ? 'Loading history...' : 'No transactions found.'}</Text>
+            </View>
           )}
         </View>
       )}

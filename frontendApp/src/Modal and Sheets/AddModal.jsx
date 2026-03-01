@@ -251,7 +251,7 @@ const AddModal = ({
     useEffect(() => {
         if (editItem) {
             const updatedEditItem = { ...editItem };
-            
+
             // Handle customer editing - set budget range
             if (type === 'Customer') {
                 if (editItem.budgetMin !== undefined && editItem.budgetMax !== undefined) {
@@ -261,18 +261,18 @@ const AddModal = ({
                     });
                 }
             }
-            
+
             // Handle property editing - map backend format to form format
             if (type === 'Property') {
                 // Check if bhk field contains actual BHK values or commercial config
                 const bhkValues = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
                 const hasBHK = editItem.bhk && bhkValues.includes(editItem.bhk);
-                
+
                 // If category is Residential and has BHK value, use it
                 if (editItem.category === 'Residential' && hasBHK) {
                     updatedEditItem.bhk = editItem.bhk;
                     updatedEditItem.commercialConfig = '';
-                } 
+                }
                 // If category is Commercial, use commercialConfig
                 else if (editItem.category === 'Commercial') {
                     updatedEditItem.bhk = '';
@@ -283,7 +283,7 @@ const AddModal = ({
                     updatedEditItem.bhk = '';
                     updatedEditItem.commercialConfig = '';
                 }
-                
+
                 // Parse price to get value and unit
                 if (editItem.price) {
                     const price = parseFloat(editItem.price);
@@ -301,7 +301,7 @@ const AddModal = ({
                         updatedEditItem.priceUnit = 'Thousands';
                     }
                 }
-                
+
                 // Parse size
                 if (editItem.size && typeof editItem.size === 'string') {
                     const sizeMatch = editItem.size.match(/^(\d+\.?\d*)\s*(.*)$/);
@@ -314,7 +314,7 @@ const AddModal = ({
                     updatedEditItem.sizeUnit = 'Sq. Ft.';
                 }
             }
-            
+
             // Handle follow-up editing
             if (editItem.propertyId && !editItem.propertyIds) {
                 updatedEditItem.propertyIds = [editItem.propertyId];
@@ -322,7 +322,7 @@ const AddModal = ({
             } else if (!editItem.propertyIds) {
                 updatedEditItem.propertyIds = [];
             }
-            
+
             setFormData(updatedEditItem);
         } else {
             if (type === 'Property') {
@@ -1656,9 +1656,6 @@ const styles = StyleSheet.create({
     propertyItemContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     propertyText: { fontSize: 14, fontWeight: '600', flex: 1 },
 
-    dropdownButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, backgroundColor: 'white', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8 },
-    dropdownPlaceholder: { fontSize: 14, color: '#9ca3af' },
-    dropdownSelected: { fontSize: 14, color: '#374151', fontWeight: '600' },
     stateDropdown: { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'white', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, maxHeight: 200, zIndex: 5000 },
     stateItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
     locationDropdown: { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'white', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, maxHeight: 200, zIndex: 5000 },
