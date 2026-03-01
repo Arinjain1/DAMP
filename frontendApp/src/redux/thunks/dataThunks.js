@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { Alert } from 'react-native';
+import { showToast } from '../../utils/toast';
 
 // Import actions
 import { resetCustomers, updateCustomerStatus } from '../slices/customersSlice';
@@ -17,14 +17,14 @@ export const resetToMockData = createAsyncThunk(
   async (_, { dispatch }) => {
     try {
       await AsyncStorage.multiRemove(['b1_properties', 'b1_customers', 'b1_followups', 'b1_deals']);
-      
+
       dispatch(resetProperties());
       dispatch(resetCustomers());
       dispatch(resetFollowUps());
       dispatch(resetDeals());
       dispatch(resetNotifications());
-      
-      Alert.alert("Success", "Data reset to mock data!");
+
+      showToast.success("Data reset to mock data!");
     } catch (error) {
       console.error("Failed to reset data", error);
       throw error;
@@ -38,7 +38,7 @@ export const handleSubscribe = createAsyncThunk(
   async (plan, { dispatch }) => {
     try {
       dispatch(subscribe({ plan }));
-      Alert.alert("Success", "Payment Successful! Welcome to BrokerOne Pro.");
+      showToast.success("Payment Successful! Welcome to BrokerOne Pro.");
     } catch (error) {
       console.error("Failed to subscribe", error);
       throw error;
@@ -53,7 +53,7 @@ export const handleStartDeal = createAsyncThunk(
     try {
       dispatch(startDeal({ customer, property }));
       dispatch(selectCustomer(null));
-      
+
       // Get the newly created deal (this is a simplified approach)
       // In a real app, you'd return the deal ID from the action
       const newDealId = Math.random().toString(36).substr(2, 9);
@@ -72,8 +72,8 @@ export const handleCloseDeal = createAsyncThunk(
       dispatch(closeDeal(deal.id));
       dispatch(setPropertyStatus({ id: deal.propertyId, status: 'Sold' }));
       dispatch(updateCustomerStatus({ id: deal.customerId, status: 'Closed' }));
-      
-      Alert.alert("Success", "Deal Closed Successfully!");
+
+      showToast.success("Deal Closed Successfully!");
     } catch (error) {
       console.error("Failed to close deal", error);
       throw error;
@@ -89,11 +89,11 @@ export const handleSubmitFeedback = createAsyncThunk(
       const existingDeal = deals.items.find(
         d => d.customerId === feedbackData.customer.id && d.propertyId === feedbackData.property.id
       );
-      
+
       if (existingDeal) {
-        const stage = feedbackData.feedback.sentiment === 'interested' ? 'Negotiation' : 
-                     feedbackData.feedback.sentiment === 'hold' ? 'Meeting' : 'Dropped';
-        
+        const stage = feedbackData.feedback.sentiment === 'interested' ? 'Negotiation' :
+          feedbackData.feedback.sentiment === 'hold' ? 'Meeting' : 'Dropped';
+
         dispatch(updateDeal({
           ...existingDeal,
           stage,
@@ -101,9 +101,9 @@ export const handleSubmitFeedback = createAsyncThunk(
         }));
       } else {
         if (feedbackData.feedback.sentiment !== 'not_interested') {
-          dispatch(handleStartDeal({ 
-            customer: feedbackData.customer, 
-            property: feedbackData.property 
+          dispatch(handleStartDeal({
+            customer: feedbackData.customer,
+            property: feedbackData.property
           }));
         }
       }
@@ -113,7 +113,7 @@ export const handleSubmitFeedback = createAsyncThunk(
       }
 
       dispatch(closeFeedback());
-      Alert.alert("Success", "Feedback Recorded Successfully!");
+      showToast.success("Feedback Recorded Successfully!");
     } catch (error) {
       console.error("Failed to submit feedback", error);
       throw error;

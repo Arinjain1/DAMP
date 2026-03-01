@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, lazy, Suspense } from "react";
-import { Alert, View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 
 // Views
@@ -19,6 +19,7 @@ import VisitFeedbackSheet from "../src/Modal and Sheets/VisitFeedbackSheet";
 
 // API
 import { propertiesAPI, customersAPI, dealsAPI } from "../src/config/api";
+import { showToast } from "../src/utils/toast";
 
 // Redux
 import {
@@ -93,7 +94,7 @@ export default function DashboardPage() {
     try {
       dispatch(setLoading(true));
       const response = await propertiesAPI.getAll();
-      
+
       if (response.data.success) {
         const mappedProperties = response.data.data.map(prop => ({
           id: prop.id,
@@ -114,7 +115,7 @@ export default function DashboardPage() {
           ownerPhone: prop.owner_phone,
           amenities: prop.amenities || [],
         }));
-        
+
         dispatch(setProperties(mappedProperties));
       }
     } catch (error) {
@@ -179,11 +180,11 @@ export default function DashboardPage() {
         };
 
         const response = await propertiesAPI.create(apiPayload);
-        
+
         if (response.data.success) {
           dispatch(addProperty(response.data.data));
           dispatch(setModalOpen(false));
-          Alert.alert('Success', 'Property created successfully!');
+          showToast.success('Property created successfully!');
           // Refresh properties list
           fetchProperties();
         }
@@ -204,7 +205,7 @@ export default function DashboardPage() {
         };
 
         const response = await customersAPI.create(apiPayload);
-        
+
         if (response.data.success) {
           // Map backend response to frontend format
           const mappedCustomer = {
@@ -222,10 +223,10 @@ export default function DashboardPage() {
             location: response.data.data.preferred_location,
             notes: response.data.data.notes,
           };
-          
+
           dispatch(addCustomer(mappedCustomer));
           dispatch(setModalOpen(false));
-          Alert.alert('Success', 'Customer added successfully!');
+          showToast.success('Customer added successfully!');
         }
       } else {
         // For FollowUp, keep the existing logic
@@ -236,7 +237,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error creating item:', error);
       const errorMessage = error.response?.data?.message || 'Failed to create item. Please try again.';
-      Alert.alert('Error', errorMessage);
+      showToast.error(errorMessage);
     }
   };
 
@@ -244,7 +245,7 @@ export default function DashboardPage() {
   const calculatePrice = (value, unit) => {
     if (!value) return 0;
     const numValue = parseFloat(value);
-    
+
     switch (unit) {
       case 'Thousands':
         return numValue * 1000;
@@ -292,12 +293,12 @@ export default function DashboardPage() {
         };
 
         const response = await propertiesAPI.update(data.id, apiPayload);
-        
+
         if (response.data.success) {
           dispatch(updateProperty(response.data.data));
           dispatch(clearEditItem());
           dispatch(setModalOpen(false));
-          Alert.alert('Success', 'Property updated successfully!');
+          showToast.success('Property updated successfully!');
           fetchProperties();
         }
       } else {
@@ -310,7 +311,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error updating item:', error);
       const errorMessage = error.response?.data?.message || 'Failed to update item. Please try again.';
-      Alert.alert('Error', errorMessage);
+      showToast.error(errorMessage);
     }
   };
 
@@ -324,8 +325,8 @@ export default function DashboardPage() {
       });
 
       if (response.data.success) {
-        Alert.alert('Success', response.data.message || 'Deal started successfully!');
-        
+        showToast.success(response.data.message || 'Deal started successfully!');
+
         // Add deal to Redux
         const deal = {
           id: response.data.data.id,
@@ -339,14 +340,14 @@ export default function DashboardPage() {
         dispatch(addDeal(deal));
         dispatch(clearSelectedCustomer());
         dispatch(setSelectedDeal(deal));
-        
+
         // Navigate to deal page
         router.push('/deal-page');
       }
     } catch (error) {
       console.error('Error starting deal:', error);
       const errorMessage = error.response?.data?.message || 'Failed to start deal. Please try again.';
-      Alert.alert('Error', errorMessage);
+      showToast.error(errorMessage);
     }
   };
 
@@ -387,8 +388,8 @@ export default function DashboardPage() {
               data.feedback.sentiment === "interested"
                 ? "Negotiation"
                 : data.feedback.sentiment === "hold"
-                ? "Meeting"
-                : "Dropped",
+                  ? "Meeting"
+                  : "Dropped",
             visits: [...(deal.visits || []), data.feedback],
           },
         })
@@ -427,7 +428,7 @@ export default function DashboardPage() {
       <SubscriptionSheet
         isOpen={showPaywall}
         onSubscribe={handleSubscribe}
-        onClose={() => {}}
+        onClose={() => { }}
       />
 
       <AddModal

@@ -1,10 +1,11 @@
 import { ArrowDown, ArrowUp, RefreshCw, History, ChevronDown } from 'lucide-react-native';
-import { ScrollView, Text, TextInput, TouchableOpacity, View, Modal, Alert, Platform } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View, Modal, Platform } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
 import BalanceCard from '../Components/BalanceCard';
 import { updateDeal } from '../store/slices/dealsSlice';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { showToast } from '../utils/toast';
 
 export default function PaymentView() {
   const dispatch = useDispatch();
@@ -230,7 +231,7 @@ export default function PaymentView() {
     if (!isNaN(tokenValue) && tokenValue > 0) {
       // Validate transaction ID for non-cash payments
       if (paymentMode !== 'Cash' && !tokenTransactionId.trim()) {
-        Alert.alert('Error', 'Transaction ID is required for non-cash payments');
+        showToast.error('Transaction ID is required for non-cash payments');
         return;
       }
 
@@ -272,13 +273,13 @@ export default function PaymentView() {
               // Switch to Full Settlement tab
               setActiveTab('Full Settlement');
 
-              Alert.alert('Success', 'Token payment submitted successfully!');
+              showToast.success('Token payment submitted successfully!');
             }
           }
         ]
       );
     } else {
-      Alert.alert('Error', 'Please enter a valid amount');
+      showToast.error('Please enter a valid amount');
     }
   };
 
@@ -288,7 +289,7 @@ export default function PaymentView() {
     if (!isNaN(settlementValue) && settlementValue > 0) {
       // Validate transaction ID for paid non-cash transactions
       if (transactionStatus === 'Paid' && settlementMode !== 'Cash' && !transactionId.trim()) {
-        Alert.alert('Error', 'Transaction ID is required for paid non-cash transactions');
+        showToast.error('Transaction ID is required for paid non-cash transactions');
         return;
       }
 
@@ -313,7 +314,7 @@ export default function PaymentView() {
         addTransactionToStore();
       }
     } else {
-      Alert.alert('Error', 'Please enter a valid amount');
+      showToast.error('Please enter a valid amount');
     }
   };
 
@@ -353,7 +354,7 @@ export default function PaymentView() {
     setDueDate(new Date());
     setShowAddTransactionModal(false);
 
-    Alert.alert('Success', 'Transaction added successfully!');
+    showToast.success('Transaction added successfully!');
   };
 
   const formatDate = (dateString) => {
@@ -396,7 +397,7 @@ export default function PaymentView() {
 
   const handleTransactionIdSubmit = () => {
     if (!completingTransactionIdInput.trim()) {
-      Alert.alert('Error', 'Transaction ID is required for non-cash payments');
+      showToast.error('Transaction ID is required for non-cash payments');
       return;
     }
 
@@ -453,13 +454,13 @@ export default function PaymentView() {
     };
 
     dispatch(updateDeal(updatedDeal));
-    Alert.alert('Success', 'Transaction marked as completed!');
+    showToast.success('Transaction marked as completed!');
   };
 
   const handleFullSettlement = () => {
     // Validate transaction ID for non-cash payments
     if (fullSettlementMode !== 'Cash' && !fullSettlementTransactionId.trim()) {
-      Alert.alert('Error', 'Transaction ID is required for non-cash payments');
+      showToast.error('Transaction ID is required for non-cash payments');
       return;
     }
 
@@ -505,7 +506,7 @@ export default function PaymentView() {
             setFullSettlementRemark('');
             setShowFullSettlementModal(false);
 
-            Alert.alert('Success', 'Full settlement completed successfully!');
+            showToast.success('Full settlement completed successfully!');
           }
         }
       ]
