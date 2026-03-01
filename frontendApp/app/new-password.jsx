@@ -3,19 +3,19 @@ import { router } from 'expo-router';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../src/store/slices/authSlice';
+import { showToast } from '../src/utils/toast';
 
 export default function NewPassword() {
   const dispatch = useDispatch();
@@ -33,38 +33,29 @@ export default function NewPassword() {
 
   const handleResetPassword = async () => {
     if (!formData.newPassword || !formData.confirmPassword) return;
-    
+
     if (formData.newPassword !== formData.confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match!');
+      showToast.error('Passwords do not match!');
       return;
     }
 
     if (formData.newPassword.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters long!');
+      showToast.error('Password must be at least 8 characters long!');
       return;
     }
 
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      Alert.alert(
-        'Success!', 
-        'Your password has been reset successfully. You will be logged in automatically.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              const userData = {
-                id: 1,
-                name: 'Rajesh Sharma',
-                email: 'rajesh@example.com',
-                phone: '+91 98765 43210'
-              };
-              dispatch(loginSuccess(userData));
-            }
-          }
-        ]
-      );
+      showToast.success('Password reset successfully!');
+
+      const userData = {
+        id: 1,
+        name: 'Rajesh Sharma',
+        email: 'rajesh@example.com',
+        phone: '+91 98765 43210'
+      };
+      dispatch(loginSuccess(userData));
     }, 1500);
   };
 
@@ -151,10 +142,10 @@ export default function NewPassword() {
             </View>
 
             {/* SUBMIT BUTTON */}
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handleResetPassword}
               style={[
-                styles.continueBtn, 
+                styles.continueBtn,
                 (!isFormValid || loading) && { opacity: 0.5 }
               ]}
               disabled={!isFormValid || loading}

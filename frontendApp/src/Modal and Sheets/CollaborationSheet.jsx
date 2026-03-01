@@ -1,7 +1,6 @@
 import { Check, ChevronDown, ChevronUp, Phone, Plus, X } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-  Alert,
   Image,
   Linking,
   Modal,
@@ -12,6 +11,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { showToast } from '../utils/toast';
 import WhatsAppIcon from '../Components/WhatsAppIcon';
 import { INITIAL_COLLABORATORS, PENDING_REQUESTS } from '../MockData/Mockdata';
 
@@ -28,16 +28,7 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
 
   const handleAddCollaborator = () => {
     if (!brokerId.trim() || !brokerNo.trim()) {
-      Alert.alert(
-        'Missing Information', 
-        'Please fill in both Broker ID and Broker Number to send connection request.',
-        [
-          {
-            text: 'OK',
-            style: 'default'
-          }
-        ]
-      );
+      showToast.info('Please fill in both Broker ID and Broker Number to send connection request.');
       return;
     }
 
@@ -54,37 +45,19 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
   };
 
   const handleAcceptRequest = (requestId) => {
-    Alert.alert(
-      'Welcome to Your Network!',
-      'Collaboration request accepted successfully!\n\nYou can now start collaborating and sharing deals together.',
-      [
-        { 
-          text: 'Great!',
-          style: 'default'
-        }
-      ]
-    );
+    showToast.success('Collaboration request accepted successfully!');
   };
 
   const handleRejectRequest = (requestId) => {
-    Alert.alert(
-      'Request Declined',
-      'The collaboration request has been declined.\n\nNo worries, you can always reconsider in the future!',
-      [
-        { 
-          text: 'Understood',
-          style: 'default'
-        }
-      ]
-    );
+    showToast.info('The collaboration request has been declined.');
   };
 
   const handleCall = (phone) => {
-    if(phone) Linking.openURL(`tel:${phone}`);
+    if (phone) Linking.openURL(`tel:${phone}`);
   };
 
   const handleWhatsApp = (phone) => {
-    if(phone) Linking.openURL(`https://wa.me/${phone}`);
+    if (phone) Linking.openURL(`https://wa.me/${phone}`);
   };
 
   const handleCollaboratorClick = (collaboratorId) => {
@@ -101,17 +74,17 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
         statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
-          
+
           {/* Backdrop Tap to Close */}
-          <TouchableOpacity 
-            activeOpacity={1} 
+          <TouchableOpacity
+            activeOpacity={1}
             onPress={onClose}
             style={styles.backdrop}
           />
 
           {/* Sheet Container */}
           <View style={styles.sheetContainer}>
-            
+
             {/* Header */}
             <View style={styles.header}>
               <TouchableOpacity onPress={onClose} style={styles.backButton}>
@@ -122,15 +95,15 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
             </View>
 
             {/* Content */}
-            <ScrollView 
+            <ScrollView
               style={styles.scrollView}
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
             >
-              
+
               {/* Tab Toggle */}
               <View style={styles.tabContainer}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.tab, activeTab === 'collab' && styles.activeTab]}
                   onPress={() => setActiveTab('collab')}
                 >
@@ -138,7 +111,7 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                     Collab
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.tab, activeTab === 'requests' && styles.activeTab]}
                   onPress={() => setActiveTab('requests')}
                 >
@@ -152,7 +125,7 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
               {activeTab === 'collab' && (
                 <>
                   {/* Add Collaborator Button */}
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.addButton}
                     onPress={() => setShowAddForm(!showAddForm)}
                   >
@@ -164,7 +137,7 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                   {showAddForm && (
                     <View style={styles.addForm}>
                       <Text style={styles.formTitle}>Send Connection Request</Text>
-                      
+
                       <View style={styles.inputGroup}>
                         <Text style={styles.inputLabel}>Broker ID</Text>
                         <TextInput
@@ -188,7 +161,7 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                         />
                       </View>
 
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.continueButton}
                         onPress={handleAddCollaborator}
                       >
@@ -199,18 +172,18 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
 
                   {/* My Collaboration Network Section */}
                   <Text style={styles.sectionTitle}>My Collaboration Network</Text>
-                  
+
                   <View style={styles.collaboratorList}>
                     {INITIAL_COLLABORATORS && INITIAL_COLLABORATORS.length > 0 ? (
                       INITIAL_COLLABORATORS.map(collaborator => (
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           key={collaborator.id}
                           style={styles.collaboratorCard}
                           onPress={() => handleCollaboratorClick(collaborator.id)}
                         >
                           <View style={styles.collaboratorHeader}>
-                            <Image 
-                              source={{ uri: collaborator.avatar }} 
+                            <Image
+                              source={{ uri: collaborator.avatar }}
                               style={styles.avatar}
                             />
                             <View style={styles.collaboratorInfo}>
@@ -225,7 +198,7 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                               )}
                             </View>
                           </View>
-                          
+
                           {/* Expanded Stats Section */}
                           {expandedCollaborator === collaborator.id && (
                             <View style={styles.statsContainer}>
@@ -245,17 +218,17 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                                   <Text style={styles.statText}>Collaborations <Text style={styles.statValue}>{collaborator.collaboratedDeals}</Text></Text>
                                 </View>
                               </View>
-                              
+
                               {/* Action Buttons */}
                               <View style={styles.actionButtons}>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                   style={styles.callButton}
                                   onPress={() => handleCall(collaborator.phone)}
                                 >
                                   <Phone size={14} color="#4f46e5" />
                                   <Text style={styles.callButtonText}>Call</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                   style={styles.messageButton}
                                   onPress={() => handleWhatsApp(collaborator.phone)}
                                 >
@@ -280,17 +253,17 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
               {activeTab === 'requests' && (
                 <>
                   <Text style={styles.sectionTitle}>Pending Requests</Text>
-                  
+
                   <View style={styles.collaboratorList}>
                     {PENDING_REQUESTS && PENDING_REQUESTS.length > 0 ? (
                       PENDING_REQUESTS.map(request => (
-                        <View 
-                          key={request.id} 
+                        <View
+                          key={request.id}
                           style={styles.requestCard}
                         >
                           <View style={styles.requestInfo}>
-                            <Image 
-                              source={{ uri: request.avatar }} 
+                            <Image
+                              source={{ uri: request.avatar }}
                               style={styles.avatar}
                             />
                             <View style={styles.collaboratorInfo}>
@@ -299,16 +272,16 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                               <Text style={styles.brokerId}>ID: {request.brokerId}</Text>
                             </View>
                           </View>
-                          
+
                           <View style={styles.requestActions}>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                               style={styles.rejectButton}
                               onPress={() => handleRejectRequest(request.id)}
                             >
                               <X size={16} color="#ef4444" />
                               <Text style={styles.rejectButtonText}>Reject</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                               style={styles.acceptButton}
                               onPress={() => handleAcceptRequest(request.id)}
                             >
@@ -350,7 +323,7 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
 
             {/* Success Title */}
             <Text style={styles.successTitle}>Request Sent!</Text>
-            
+
             {/* Success Message */}
             <Text style={styles.successMessage}>
               Your connection request has been sent to:
@@ -374,7 +347,7 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
             </Text>
 
             {/* Done Button */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.doneButton}
               onPress={closeSuccessModal}
             >
@@ -485,7 +458,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    borderStyle:'dashed',
+    borderStyle: 'dashed',
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 12,
@@ -838,7 +811,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: '100%',
     alignItems: 'center',
-    
+
   },
   doneButtonText: {
     fontSize: 16,

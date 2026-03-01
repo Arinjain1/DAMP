@@ -1,17 +1,18 @@
 import { MapPin, Calendar, Clock } from 'lucide-react-native';
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { createSiteVisit } from '../utils/siteVisitHelper';
+import { showToast } from '../utils/toast';
 
 /**
  * Component to schedule a site visit with multiple properties
  * Usage: Pass client and selected properties
  */
-export default function SiteVisitScheduler({ 
-  client, 
-  selectedProperties, 
-  onSuccess, 
-  onCancel 
+export default function SiteVisitScheduler({
+  client,
+  selectedProperties,
+  onSuccess,
+  onCancel
 }) {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
@@ -19,18 +20,18 @@ export default function SiteVisitScheduler({
 
   const handleSchedule = async () => {
     if (!selectedDate || !selectedTime) {
-      Alert.alert('Error', 'Please select date and time');
+      showToast.error('Please select date and time');
       return;
     }
 
     if (!selectedProperties || selectedProperties.length === 0) {
-      Alert.alert('Error', 'Please select at least one property');
+      showToast.error('Please select at least one property');
       return;
     }
 
     try {
       setLoading(true);
-      
+
       const result = await createSiteVisit({
         client_id: client.id,
         property_ids: selectedProperties.map(p => p.id),
@@ -39,11 +40,11 @@ export default function SiteVisitScheduler({
       });
 
       if (result.success) {
-        Alert.alert('Success', result.message);
+        showToast.success(result.message);
         onSuccess?.(result.visitId);
       }
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to schedule site visit');
+      showToast.error(error.response?.data?.message || 'Failed to schedule site visit');
     } finally {
       setLoading(false);
     }
@@ -94,7 +95,7 @@ export default function SiteVisitScheduler({
         {/* Date Selection */}
         <View className="mb-6">
           <Text className="text-lg font-bold text-[#1f2937] mb-2">Schedule</Text>
-          
+
           <View className="flex-row items-center gap-3 mb-3">
             <Calendar size={20} color="#6b7280" />
             <Text className="text-base text-[#6b7280]">Date</Text>
@@ -120,9 +121,8 @@ export default function SiteVisitScheduler({
         <TouchableOpacity
           onPress={handleSchedule}
           disabled={loading}
-          className={`bg-[#9A8CFC] rounded-xl py-4 items-center ${
-            loading ? 'opacity-50' : ''
-          }`}
+          className={`bg-[#9A8CFC] rounded-xl py-4 items-center ${loading ? 'opacity-50' : ''
+            }`}
         >
           <Text className="text-white text-base font-semibold">
             {loading ? 'Scheduling...' : 'Schedule Site Visit'}

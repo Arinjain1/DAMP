@@ -1,5 +1,5 @@
 import { useEffect, lazy, Suspense, useCallback } from 'react';
-import { Alert, StatusBar, View, ActivityIndicator } from 'react-native';
+import { StatusBar, View, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -11,27 +11,28 @@ const PropertyDetailSheet = lazy(() => import('../src/Modal and Sheets/PropertyD
 import { addDeal } from '@/src/store/slices/dealsSlice.js';
 import InventoryPageBasic from '@/src/Views/InventoryPageBasic.jsx';
 import {
-    addProperty,
-    clearSelectedProperty,
-    setSelectedProperty,
-    updateProperty,
-    setProperties,
-    setLoading,
-    setError
+  addProperty,
+  clearSelectedProperty,
+  setSelectedProperty,
+  updateProperty,
+  setProperties,
+  setLoading,
+  setError
 } from '../src/store/slices/propertiesSlice.js';
 import {
-    clearEditItem,
-    setEditItem,
-    setModalOpen,
-    setModalType
+  clearEditItem,
+  setEditItem,
+  setModalOpen,
+  setModalType
 } from '../src/store/slices/uiSlice.js';
 
 // API
 import { propertiesAPI } from '../src/config/api.js';
+import { showToast } from '../src/utils/toast.js';
 
 export default function Properties() {
   const dispatch = useDispatch();
-  
+
   // Redux state
   const { properties, selectedProperty, loading } = useSelector(state => state.properties);
   const { customers } = useSelector(state => state.customers);
@@ -52,9 +53,9 @@ export default function Properties() {
   const fetchProperties = async () => {
     try {
       dispatch(setLoading(true));
-      
+
       const response = await propertiesAPI.getAll();
-      
+
       if (response.data.success) {
         // Map backend data to frontend format
         const mappedProperties = response.data.data.map(prop => ({
@@ -76,7 +77,7 @@ export default function Properties() {
           ownerPhone: prop.owner_phone,
           amenities: prop.amenities || [],
         }));
-        
+
         dispatch(setProperties(mappedProperties));
       }
     } catch (error) {
@@ -86,7 +87,7 @@ export default function Properties() {
       dispatch(setLoading(false));
     }
   };
-  
+
   const generateId = () => Math.random().toString(36).substring(2, 11);
 
   // FAB (Floating Action Button) logic
@@ -124,19 +125,19 @@ export default function Properties() {
       };
 
       const response = await propertiesAPI.create(apiPayload);
-      
+
       if (response.data.success) {
         // Add the property returned from backend to Redux store
         dispatch(addProperty(response.data.data));
         dispatch(setModalOpen(false));
-        Alert.alert('Success', 'Property created successfully!');
+        showToast.success('Property created successfully!');
         // Refresh the properties list
         fetchProperties();
       }
     } catch (error) {
       console.error('Error creating property:', error);
       const errorMessage = error.response?.data?.message || 'Failed to create property. Please try again.';
-      Alert.alert('Error', errorMessage);
+      showToast.error(errorMessage);
     }
   };
 
@@ -144,7 +145,7 @@ export default function Properties() {
   const calculatePrice = (value, unit) => {
     if (!value) return 0;
     const numValue = parseFloat(value);
-    
+
     switch (unit) {
       case 'Thousands':
         return numValue * 1000;
@@ -191,59 +192,59 @@ export default function Properties() {
       };
 
       const response = await propertiesAPI.update(data.id, apiPayload);
-      
+
       if (response.data.success) {
         dispatch(updateProperty(response.data.data));
         dispatch(clearEditItem());
         dispatch(setModalOpen(false));
-        Alert.alert('Success', 'Property updated successfully!');
+        showToast.success('Property updated successfully!');
         fetchProperties();
       }
     } catch (error) {
       console.error('Error updating property:', error);
       const errorMessage = error.response?.data?.message || 'Failed to update property. Please try again.';
-      Alert.alert('Error', errorMessage);
+      showToast.error(errorMessage);
     }
   };
 
   // Handle deal creation from property detail sheet
   const handleCreateDeal = (dealData) => {
     dispatch(addDeal(dealData));
-    
+
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
       {/* Dynamic StatusBar for clean UI */}
       <StatusBar barStyle="dark-content" backgroundColor="white" />
-      
+
       {/* Main Content - Using basic version without className */}
-      <InventoryPageBasic 
-        properties={properties} 
-        onSelect={(property) => dispatch(setSelectedProperty(property))} 
+      <InventoryPageBasic
+        properties={properties}
+        onSelect={(property) => dispatch(setSelectedProperty(property))}
         onEdit={handleEdit}
         onAddProperty={handleFABClick}
       />
 
       {/* Action Components */}
 
-      <AddModal 
-        isOpen={modalOpen} 
-        type={modalType} 
-        onClose={() => dispatch(setModalOpen(false))} 
-        onSave={handleAdd} 
-        onUpdate={handleUpdate} 
-        editItem={editItem} 
-        properties={properties} 
-        customers={customers} 
+      <AddModal
+        isOpen={modalOpen}
+        type={modalType}
+        onClose={() => dispatch(setModalOpen(false))}
+        onSave={handleAdd}
+        onUpdate={handleUpdate}
+        editItem={editItem}
+        properties={properties}
+        customers={customers}
       />
-      
+
       {/* Detail Bottom Sheet */}
       {selectedProperty && (
         <Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color="#A78BFA" /></View>}>
-          <PropertyDetailSheet 
-            property={selectedProperty} 
-            onClose={() => dispatch(clearSelectedProperty())} 
+          <PropertyDetailSheet
+            property={selectedProperty}
+            onClose={() => dispatch(clearSelectedProperty())}
             onEdit={handleEdit}
             customers={customers}
             properties={properties}

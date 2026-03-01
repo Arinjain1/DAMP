@@ -21,7 +21,6 @@ import {
 } from 'lucide-react-native';
 import { memo, useCallback, useMemo, useState, useEffect } from 'react';
 import {
-  Alert,
   Image,
   ImageBackground,
   Linking,
@@ -36,6 +35,7 @@ import {
 } from 'react-native';
 import AddModal from './AddModal';
 import { visitsAPI, customersAPI } from '../config/api';
+import { showToast } from '../utils/toast';
 
 // --- SALES STAGES LIST ---
 const SALES_STAGES = [
@@ -69,18 +69,18 @@ const getStageIcon = (iconName, size, color) => {
 // --- STAGE INDICATOR COMPONENT ---
 const StageIndicator = ({ currentStage }) => {
   const currentIndex = SALES_STAGES.findIndex(s => s.id === currentStage);
-  
+
   return (
     <View style={styles.stageContainer}>
-      <ScrollView 
-        horizontal 
+      <ScrollView
+        horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.stageScrollContent}
       >
         {SALES_STAGES.map((stage, index) => {
           const isCurrent = currentIndex === index;
           const isCompleted = currentIndex > index;
-          
+
           let circleStyle, iconColor;
           if (isCompleted) {
             circleStyle = styles.stageCircleCompleted;
@@ -92,7 +92,7 @@ const StageIndicator = ({ currentStage }) => {
             circleStyle = styles.stageCircleFuture;
             iconColor = '#d1d5db';
           }
-          
+
           return (
             <View key={stage.id} style={styles.stageItem}>
               <View style={[styles.stageCircle, circleStyle]}>
@@ -138,14 +138,14 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
   useEffect(() => {
     const fetchCustomerDetails = async () => {
       if (!customer?.id) return;
-      
+
       try {
         setLoading(true);
         const response = await customersAPI.getById(customer.id);
-        
+
         if (response.data.success) {
           const customerData = response.data.data.profile;
-          
+
           // Update state with fetched data
           setSelectedPropertyIds(customerData.selectedProperties || []);
           setInterestedPropertyIds(customerData.interestedProperties || []);
@@ -172,7 +172,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
   const currentStageIndex = SALES_STAGES.findIndex(s => s.id === (customer.stage || 'New'));
   const nextStage = currentStageIndex < SALES_STAGES.length - 1 ? SALES_STAGES[currentStageIndex + 1] : null;
-  
+
   const showNextStepCard = nextStage && (customer.stage === 'New' || customer.stage === 'Contacted');
 
   const handleProceedToNextStage = () => {
@@ -185,22 +185,22 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
     const newSelection = selectedPropertyIds.includes(propertyId)
       ? selectedPropertyIds.filter(id => id !== propertyId)
       : [...selectedPropertyIds, propertyId];
-    
+
     setSelectedPropertyIds(newSelection);
-    
+
     try {
       // Save to database
       await customersAPI.updateProperties(customer.id, {
         selected_properties: newSelection
       });
-      
+
       // Update customer with selected properties after state update
       if (onSelectProperties) {
         onSelectProperties(customer.id, newSelection);
       }
     } catch (error) {
       console.error('Error saving selected properties:', error);
-      Alert.alert('Error', 'Failed to save property selection');
+      showToast.error('Failed to save property selection');
       // Revert on error
       setSelectedPropertyIds(selectedPropertyIds);
     }
@@ -209,8 +209,8 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
   const handlePropertyInterested = async (propertyId) => {
     try {
       // Get the current site visit task for this customer
-      const siteVisitTask = customerTasks.find(t => 
-        (t.type === 'Site Visit' || t.type === 'Visit') && 
+      const siteVisitTask = customerTasks.find(t =>
+        (t.type === 'Site Visit' || t.type === 'Visit') &&
         t.status !== 'Done'
       );
 
@@ -227,27 +227,27 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
       const newInterestedProperties = interestedPropertyIds.includes(propertyId)
         ? interestedPropertyIds
         : [...interestedPropertyIds, propertyId];
-      
+
       setInterestedPropertyIds(newInterestedProperties);
-      
+
       // Remove from selectedProperties so it doesn't show in Site Visit anymore
       const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
       setSelectedPropertyIds(newSelectedProperties);
-      
+
       // Save to database
       await customersAPI.updateProperties(customer.id, {
         selected_properties: newSelectedProperties,
         interested_properties: newInterestedProperties
       });
-      
+
       // Update customer with both arrays
       if (onSelectProperties) {
         onSelectProperties(customer.id, newSelectedProperties, newInterestedProperties);
       }
-      
+
       // DON'T move customer to Interested stage yet - stay in Site Visit
       // Only move when they click "View Interested" button
-      
+
       // If no more properties to visit, close map view
       if (newSelectedProperties.length === 0) {
         setShowMapView(false);
@@ -260,15 +260,15 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
       }
     } catch (error) {
       console.error('Error submitting interested feedback:', error);
-      Alert.alert('Error', 'Failed to submit feedback. Please try again.');
+      showToast.error('Failed to submit feedback. Please try again.');
     }
   };
 
   const handlePropertyNotInterested = async (propertyId) => {
     try {
       // Get the current site visit task for this customer
-      const siteVisitTask = customerTasks.find(t => 
-        (t.type === 'Site Visit' || t.type === 'Visit') && 
+      const siteVisitTask = customerTasks.find(t =>
+        (t.type === 'Site Visit' || t.type === 'Visit') &&
         t.status !== 'Done'
       );
 
@@ -284,17 +284,17 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
       // Remove property from selectedProperties
       const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
       setSelectedPropertyIds(newSelectedProperties);
-      
+
       // Save to database
       await customersAPI.updateProperties(customer.id, {
         selected_properties: newSelectedProperties
       });
-      
+
       // Update customer with updated selected properties
       if (onSelectProperties) {
         onSelectProperties(customer.id, newSelectedProperties, interestedPropertyIds);
       }
-      
+
       // If no properties left, close map view
       if (newSelectedProperties.length === 0) {
         setShowMapView(false);
@@ -307,15 +307,15 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
       }
     } catch (error) {
       console.error('Error submitting not interested feedback:', error);
-      Alert.alert('Error', 'Failed to submit feedback. Please try again.');
+      showToast.error('Failed to submit feedback. Please try again.');
     }
   };
 
   const handlePropertyHold = async (propertyId) => {
     try {
       // Get the current site visit task for this customer
-      const siteVisitTask = customerTasks.find(t => 
-        (t.type === 'Site Visit' || t.type === 'Visit') && 
+      const siteVisitTask = customerTasks.find(t =>
+        (t.type === 'Site Visit' || t.type === 'Visit') &&
         t.status !== 'Done'
       );
 
@@ -332,24 +332,24 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
       const newHoldProperties = holdPropertyIds.includes(propertyId)
         ? holdPropertyIds
         : [...holdPropertyIds, propertyId];
-      
+
       setHoldPropertyIds(newHoldProperties);
-      
+
       // Save to database
       await customersAPI.updateProperties(customer.id, {
         hold_properties: newHoldProperties
       });
-      
+
       // Keep property in selectedProperties (don't remove it)
       // Update customer with hold properties
       if (onSelectProperties) {
         onSelectProperties(customer.id, selectedPropertyIds, interestedPropertyIds, newHoldProperties);
       }
 
-      Alert.alert('Success', 'Property marked as on hold');
+      showToast.success('Property marked as on hold');
     } catch (error) {
       console.error('Error submitting hold feedback:', error);
-      Alert.alert('Error', 'Failed to submit feedback. Please try again.');
+      showToast.error('Failed to submit feedback. Please try again.');
     }
   };
 
@@ -359,7 +359,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
   // Determine which properties to show based on stage
   // Filter out hold properties from the active list
-  const propertiesToShow = customer.stage === 'Interested' 
+  const propertiesToShow = customer.stage === 'Interested'
     ? interestedPropertyIds.filter(id => !holdPropertyIds.includes(id))
     : selectedPropertyIds.filter(id => !holdPropertyIds.includes(id));
 
@@ -372,32 +372,32 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
       statusBarTranslucent
     >
       <View style={styles.overlay}>
-        
+
         <View style={styles.sheetContainer}>
-          
+
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerContent}>
-               <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{customer.name.charAt(0)}</Text>
-               </View>
-               <View>
-                  <Text style={styles.customerName}>{customer.name}</Text>
-                  <Text style={styles.customerPhone}>{customer.phone}</Text>
-               </View>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{customer.name.charAt(0)}</Text>
+              </View>
+              <View>
+                <Text style={styles.customerName}>{customer.name}</Text>
+                <Text style={styles.customerPhone}>{customer.phone}</Text>
+              </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-               <X size={24} color="#6b7280" />
+              <X size={24} color="#6b7280" />
             </TouchableOpacity>
           </View>
-          
+
           {/* Stage Indicator */}
           <StageIndicator currentStage={customer.stage || 'New'} />
 
           {/* Main Content */}
-          <ScrollView 
-            style={styles.content} 
-            contentContainerStyle={{ paddingBottom: 100 }} 
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={{ paddingBottom: 100 }}
             showsVerticalScrollIndicator={false}
           >
 
@@ -410,7 +410,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                   <Text style={styles.nextStepSub}>Advance stage to track progress.</Text>
                 </View>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[
                     styles.proceedButton,
                     customer.stage === 'Contacted' && selectedPropertyIds.length === 0 && styles.proceedButtonDisabled
@@ -439,14 +439,14 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     </View>
                   </View>
                   <View style={styles.contactButtonRow}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.contactActionBtn}
                       onPress={() => Linking.openURL(`tel:${customer.phone}`)}
                     >
                       <Phone size={18} color="#16a34a" />
                       <Text style={styles.contactActionText}>Call</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.contactActionBtn}
                       onPress={() => Linking.openURL(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}`)}
                     >
@@ -464,8 +464,8 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 <Text style={styles.formLabel}>
                   Properties to Show ({selectedPropertyIds.length})
                 </Text>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.selectPropertiesButton}
                   onPress={handleOpenPropertyPicker}
                   disabled={loading}
@@ -493,7 +493,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                             <Text style={styles.compactTitle} numberOfLines={1}>{prop.title}</Text>
                             <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
                           </View>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             onPress={() => handleToggleProperty(prop.id)}
                             style={styles.removeButton}
                           >
@@ -515,7 +515,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     Properties to Show ({propertiesToShow.length})
                   </Text>
                   {customer.stage === 'Site Visit' && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.addTaskHeaderButton}
                       onPress={() => setShowAddFollowUpModal(true)}
                     >
@@ -524,10 +524,10 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     </TouchableOpacity>
                   )}
                 </View>
-                
+
                 {/* Hide Add More Properties button for Interested stage */}
                 {customer.stage !== 'Interested' && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.selectPropertiesButton}
                     onPress={handleOpenPropertyPicker}
                     disabled={loading}
@@ -548,74 +548,74 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     {propertiesToShow.map(propId => {
                       const prop = properties.find(p => p.id === propId);
                       if (!prop) return null;
-                      
+
                       // Check if deal already exists for this property
                       const hasDeal = dealtPropertyIds.includes(prop.id);
-                      
+
                       return (
                         <View key={prop.id} style={styles.matchCard}>
                           <Image source={{ uri: prop.image }} style={styles.matchImg} />
                           <View style={styles.matchContent}>
                             <View>
                               <Text style={styles.matchTitle} numberOfLines={1}>{prop.title}</Text>
-                            <View style={styles.rowCenter}>
-                              <MapPin size={12} color="#9ca3af" />
-                              <Text style={styles.matchLoc} numberOfLines={1}>{prop.location}</Text>
+                              <View style={styles.rowCenter}>
+                                <MapPin size={12} color="#9ca3af" />
+                                <Text style={styles.matchLoc} numberOfLines={1}>{prop.location}</Text>
+                              </View>
                             </View>
-                          </View>
-                          
-                          <View style={styles.matchFooter}>
-                            <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
-                            {!hasDeal ? (
-                              <TouchableOpacity 
-                                onPress={() => {
-                                  if (customer.stage === 'Interested') {
-                                    // Show confirmation alert before starting deal
-                                    Alert.alert(
-                                      '🤝 Start Deal',
-                                      `Are you sure you want to start a deal for "${prop.title}" with ${customer.name}?\n\nThis will move the customer to In-Process stage.`,
-                                      [
-                                        {
-                                          text: 'Cancel',
-                                          style: 'cancel'
-                                        },
-                                        {
-                                          text: 'Yes, Start Deal',
-                                          onPress: () => {
-                                            onStartDeal(customer, prop);
-                                            if (onUpdateStage) {
-                                              onUpdateStage(customer.id, 'In-Process');
+
+                            <View style={styles.matchFooter}>
+                              <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
+                              {!hasDeal ? (
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    if (customer.stage === 'Interested') {
+                                      // Show confirmation alert before starting deal
+                                      Alert.alert(
+                                        '🤝 Start Deal',
+                                        `Are you sure you want to start a deal for "${prop.title}" with ${customer.name}?\n\nThis will move the customer to In-Process stage.`,
+                                        [
+                                          {
+                                            text: 'Cancel',
+                                            style: 'cancel'
+                                          },
+                                          {
+                                            text: 'Yes, Start Deal',
+                                            onPress: () => {
+                                              onStartDeal(customer, prop);
+                                              if (onUpdateStage) {
+                                                onUpdateStage(customer.id, 'In-Process');
+                                              }
                                             }
                                           }
-                                        }
-                                      ]
-                                    );
-                                  } else {
-                                    // Open Google Maps for other stages
-                                    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
-                                  }
-                                }}
-                                style={styles.visitBtn}
-                              >
-                                {customer.stage !== 'Interested' && (
-                                  <MapPin size={14} color="white" />
-                                )}
-                                <Text style={styles.visitBtnText}>
-                                  {customer.stage === 'Interested' ? 'Start Deal' : 'Visit'}
-                                </Text>
-                              </TouchableOpacity>
-                            ) : (
-                              <View style={styles.dealStartedBadge}>
-                                <CircleCheckBig size={12} color="#059669" />
-                                <Text style={styles.dealStartedText}>Deal Started</Text>
-                              </View>
-                            )}
+                                        ]
+                                      );
+                                    } else {
+                                      // Open Google Maps for other stages
+                                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                                    }
+                                  }}
+                                  style={styles.visitBtn}
+                                >
+                                  {customer.stage !== 'Interested' && (
+                                    <MapPin size={14} color="white" />
+                                  )}
+                                  <Text style={styles.visitBtnText}>
+                                    {customer.stage === 'Interested' ? 'Start Deal' : 'Visit'}
+                                  </Text>
+                                </TouchableOpacity>
+                              ) : (
+                                <View style={styles.dealStartedBadge}>
+                                  <CircleCheckBig size={12} color="#059669" />
+                                  <Text style={styles.dealStartedText}>Deal Started</Text>
+                                </View>
+                              )}
+                            </View>
                           </View>
                         </View>
-                      </View>
-                    );
-                  })}
-                </View>
+                      );
+                    })}
+                  </View>
                 ) : null}
               </View>
             )}
@@ -628,10 +628,10 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                   {holdPropertyIds.map(propId => {
                     const prop = properties.find(p => p.id === propId);
                     if (!prop) return null;
-                    
+
                     // Check if deal already exists for this property
                     const hasDeal = dealtPropertyIds.includes(prop.id);
-                    
+
                     return (
                       <View key={prop.id} style={styles.matchCard}>
                         <Image source={{ uri: prop.image }} style={styles.matchImg} />
@@ -643,11 +643,11 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                               <Text style={styles.matchLoc} numberOfLines={1}>{prop.location}</Text>
                             </View>
                           </View>
-                          
+
                           <View style={styles.matchFooter}>
                             <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
                             {!hasDeal ? (
-                              <TouchableOpacity 
+                              <TouchableOpacity
                                 onPress={() => {
                                   // Open Google Maps with property location
                                   Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
@@ -680,10 +680,10 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                   {holdPropertyIds.map(propId => {
                     const prop = properties.find(p => p.id === propId);
                     if (!prop) return null;
-                    
+
                     // Check if deal already exists for this property
                     const hasDeal = dealtPropertyIds.includes(prop.id);
-                    
+
                     return (
                       <View key={prop.id} style={styles.pendingCardWithButtons}>
                         {/* Top Section - Image and Details */}
@@ -697,7 +697,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                                 <Text style={styles.matchLoc} numberOfLines={1}>{prop.location}</Text>
                               </View>
                             </View>
-                            
+
                             <View style={styles.matchFooter}>
                               <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
                               <View style={styles.holdBadge}>
@@ -710,13 +710,13 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
                         {/* Bottom Section - Action Buttons Full Width */}
                         <View style={styles.pendingActionButtonsVertical}>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.interestedActionBtn}
                             onPress={async () => {
                               try {
                                 // Get the current site visit task for this customer
-                                const siteVisitTask = customerTasks.find(t => 
-                                  (t.type === 'Site Visit' || t.type === 'Visit') && 
+                                const siteVisitTask = customerTasks.find(t =>
+                                  (t.type === 'Site Visit' || t.type === 'Visit') &&
                                   t.status !== 'Done'
                                 );
 
@@ -733,32 +733,32 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                                 const newInterestedProperties = interestedPropertyIds.includes(propId)
                                   ? interestedPropertyIds
                                   : [...interestedPropertyIds, propId];
-                                
+
                                 setInterestedPropertyIds(newInterestedProperties);
-                                
+
                                 // Remove from hold properties
                                 const newHoldProperties = holdPropertyIds.filter(id => id !== propId);
                                 setHoldPropertyIds(newHoldProperties);
-                                
+
                                 // Save to database
                                 await customersAPI.updateProperties(customer.id, {
                                   interested_properties: newInterestedProperties,
                                   hold_properties: newHoldProperties
                                 });
-                                
+
                                 // Update customer
                                 if (onSelectProperties) {
                                   onSelectProperties(customer.id, selectedPropertyIds, newInterestedProperties, newHoldProperties);
                                 }
                               } catch (error) {
                                 console.error('Error submitting interested feedback:', error);
-                                Alert.alert('Error', 'Failed to submit feedback. Please try again.');
+                                showToast.error('Failed to submit feedback. Please try again.');
                               }
                             }}
                           >
                             <Text style={styles.interestedActionText}>Interested</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.visitActionBtn}
                             onPress={() => {
                               // Open Google Maps with property location
@@ -777,251 +777,251 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
             {/* Active Deals - Hide for New and Contacted stages */}
             {customer.stage !== 'New' && customer.stage !== 'Contacted' && customerDeals.length > 0 && (
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Active Deals</Text>
-                    <View style={styles.listContainer}>
-                        {customerDeals.map(deal => {
-                            const prop = properties.find(p => p.id === deal.propertyId);
-                            return (
-                                <TouchableOpacity 
-                                    key={deal.id} 
-                                    onPress={() => onOpenDeal(deal)}
-                                    style={styles.compactCard}
-                                >
-                                    <Image source={{ uri: prop?.image }} style={styles.compactImg} />
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.compactTitle} numberOfLines={1}>{prop?.title}</Text>
-                                        <Text style={styles.compactSub}>{deal.stage}</Text>
-                                    </View>
-                                    <ChevronRight size={18} color="#d1d5db" />
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Active Deals</Text>
+                <View style={styles.listContainer}>
+                  {customerDeals.map(deal => {
+                    const prop = properties.find(p => p.id === deal.propertyId);
+                    return (
+                      <TouchableOpacity
+                        key={deal.id}
+                        onPress={() => onOpenDeal(deal)}
+                        style={styles.compactCard}
+                      >
+                        <Image source={{ uri: prop?.image }} style={styles.compactImg} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.compactTitle} numberOfLines={1}>{prop?.title}</Text>
+                          <Text style={styles.compactSub}>{deal.stage}</Text>
+                        </View>
+                        <ChevronRight size={18} color="#d1d5db" />
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
+              </View>
             )}
 
             {/* Tasks - Show for Site Visit and other stages (except New) */}
             {customer.stage !== 'New' && (customer.stage === 'Site Visit' || customerTasks.length > 0) && (
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Tasks ({customerTasks.length})</Text>
-                    {customerTasks.length > 0 ? (
-                    <View style={styles.listContainer}>
-                        {customerTasks.map(task => {
-                            // Support both single propertyId (old) and propertyIds array (new)
-                            const taskPropertyIds = task.propertyIds || (task.propertyId ? [task.propertyId] : []);
-                            const taskProperties = properties.filter(p => taskPropertyIds.includes(p.id));
-                            const date = new Date(task.date);
-                            const isSiteVisit = task.type === 'Site Visit' || task.type === 'Visit';
-                            const statusColor = task.status === 'Done' ? '#059669' : '#d97706';
-                            
-                            return (
-                                <View key={task.id} style={styles.taskCard}>
-                                    <View style={styles.taskHeader}>
-                                        <View style={[styles.taskTypeBadge, { 
-                                            backgroundColor: isSiteVisit ? '#fffbeb' : '#eff6ff' 
-                                        }]}>
-                                            <Text style={[styles.taskTypeText, { 
-                                                color: isSiteVisit ? '#b45309' : '#1d4ed8' 
-                                            }]}>
-                                                {isSiteVisit ? 'Site Visit' : task.type}
-                                            </Text>
-                                        </View>
-                                        
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                            <TouchableOpacity 
-                                                onPress={() => onEditTask && onEditTask(task)}
-                                                style={{ padding: 4 }}
-                                            >
-                                                <Edit3 size={14} color="#6b7280" />
-                                            </TouchableOpacity>
-                                            <TouchableOpacity 
-                                                onPress={() => onDeleteTask && onDeleteTask(task.id)}
-                                                style={{ padding: 4 }}
-                                            >
-                                                <Trash2 size={14} color="#ef4444" />
-                                            </TouchableOpacity>
-                                            <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-                                                <Text style={styles.statusText}>{task.status}</Text>
-                                            </View>
-                                        </View>
-                                    </View>
-                                    
-                                    <Text style={styles.taskNote} numberOfLines={2}>{task.note}</Text>
-                                    
-                                    <View style={styles.taskFooter}>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.taskDate}>
-                                                {date.toLocaleDateString()} at {date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                                            </Text>
-                                            {taskProperties.length > 0 && (
-                                                <Text style={styles.taskProperty} numberOfLines={1}>
-                                                    {taskProperties.map(p => p.title).join(', ')}
-                                                </Text>
-                                            )}
-                                        </View>
-                                        
-                                        {/* Site Visit Button - Show only for Site Visit tasks */}
-                                        {isSiteVisit && taskProperties.length > 0 && (
-                                            <TouchableOpacity 
-                                                style={styles.taskSiteVisitButton}
-                                                onPress={() => {
-                                                    if (taskProperties.length === 1) {
-                                                        // Single property - directly navigate to Google Maps
-                                                        const prop = taskProperties[0];
-                                                        Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
-                                                    } else {
-                                                        // Multiple properties - open site visit map view
-                                                        setShowMapView(true);
-                                                    }
-                                                }}
-                                            >
-                                                <MapPin size={16} color="white" />
-                                                <Text style={styles.taskSiteVisitButtonText}>
-                                                    {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                </View>
-                            );
-                        })}
-                    </View>
-                    ) : (
-                        <View style={styles.emptyTasksContainer}>
-                            <Text style={styles.emptyTasksText}>No tasks yet. Add a task to get started.</Text>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Tasks ({customerTasks.length})</Text>
+                {customerTasks.length > 0 ? (
+                  <View style={styles.listContainer}>
+                    {customerTasks.map(task => {
+                      // Support both single propertyId (old) and propertyIds array (new)
+                      const taskPropertyIds = task.propertyIds || (task.propertyId ? [task.propertyId] : []);
+                      const taskProperties = properties.filter(p => taskPropertyIds.includes(p.id));
+                      const date = new Date(task.date);
+                      const isSiteVisit = task.type === 'Site Visit' || task.type === 'Visit';
+                      const statusColor = task.status === 'Done' ? '#059669' : '#d97706';
+
+                      return (
+                        <View key={task.id} style={styles.taskCard}>
+                          <View style={styles.taskHeader}>
+                            <View style={[styles.taskTypeBadge, {
+                              backgroundColor: isSiteVisit ? '#fffbeb' : '#eff6ff'
+                            }]}>
+                              <Text style={[styles.taskTypeText, {
+                                color: isSiteVisit ? '#b45309' : '#1d4ed8'
+                              }]}>
+                                {isSiteVisit ? 'Site Visit' : task.type}
+                              </Text>
+                            </View>
+
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <TouchableOpacity
+                                onPress={() => onEditTask && onEditTask(task)}
+                                style={{ padding: 4 }}
+                              >
+                                <Edit3 size={14} color="#6b7280" />
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                onPress={() => onDeleteTask && onDeleteTask(task.id)}
+                                style={{ padding: 4 }}
+                              >
+                                <Trash2 size={14} color="#ef4444" />
+                              </TouchableOpacity>
+                              <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+                                <Text style={styles.statusText}>{task.status}</Text>
+                              </View>
+                            </View>
+                          </View>
+
+                          <Text style={styles.taskNote} numberOfLines={2}>{task.note}</Text>
+
+                          <View style={styles.taskFooter}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.taskDate}>
+                                {date.toLocaleDateString()} at {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </Text>
+                              {taskProperties.length > 0 && (
+                                <Text style={styles.taskProperty} numberOfLines={1}>
+                                  {taskProperties.map(p => p.title).join(', ')}
+                                </Text>
+                              )}
+                            </View>
+
+                            {/* Site Visit Button - Show only for Site Visit tasks */}
+                            {isSiteVisit && taskProperties.length > 0 && (
+                              <TouchableOpacity
+                                style={styles.taskSiteVisitButton}
+                                onPress={() => {
+                                  if (taskProperties.length === 1) {
+                                    // Single property - directly navigate to Google Maps
+                                    const prop = taskProperties[0];
+                                    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                                  } else {
+                                    // Multiple properties - open site visit map view
+                                    setShowMapView(true);
+                                  }
+                                }}
+                              >
+                                <MapPin size={16} color="white" />
+                                <Text style={styles.taskSiteVisitButtonText}>
+                                  {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
                         </View>
-                    )}
-                </View>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <View style={styles.emptyTasksContainer}>
+                    <Text style={styles.emptyTasksText}>No tasks yet. Add a task to get started.</Text>
+                  </View>
+                )}
+              </View>
             )}
 
           </ScrollView>
 
           {/* Property Picker Modal */}
           {showPropertyPicker && (
-             <View style={styles.pickerOverlay}>
-                <View style={styles.pickerHeader}>
-                   <Text style={styles.pickerTitle}>
-                     {customer.stage === 'Contacted' ? 'Select Properties to Show' : 'Select Property'}
-                   </Text>
-                   <TouchableOpacity onPress={() => {
-                     setShowPropertyPicker(false);
-                     setSearchQuery('');
-                   }} style={styles.closeButton}>
-                      <X size={22} color="#000" />
-                   </TouchableOpacity>
-                </View>
+            <View style={styles.pickerOverlay}>
+              <View style={styles.pickerHeader}>
+                <Text style={styles.pickerTitle}>
+                  {customer.stage === 'Contacted' ? 'Select Properties to Show' : 'Select Property'}
+                </Text>
+                <TouchableOpacity onPress={() => {
+                  setShowPropertyPicker(false);
+                  setSearchQuery('');
+                }} style={styles.closeButton}>
+                  <X size={22} color="#000" />
+                </TouchableOpacity>
+              </View>
 
-                {/* Search Bar */}
-                <View style={styles.searchContainer}>
-                  <Search size={18} color="#9ca3af" />
-                  <TextInput
-                    placeholder="Search properties..."
-                    placeholderTextColor="#9ca3af"
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    style={styles.searchInput}
-                  />
-                  {searchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchQuery('')}>
-                      <X size={18} color="#9ca3af" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-                
-                <ScrollView style={styles.pickerContent}>
-                   {properties
-                     .filter(p => {
-                       // Filter by search query
-                       const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                           p.location.toLowerCase().includes(searchQuery.toLowerCase());
-                       // For Contacted and Site Visit stages: show all matching properties
-                       // For other stages: show only available properties not in deals
-                       if (customer.stage === 'Contacted' || customer.stage === 'Site Visit') {
-                         return matchesSearch && p.type === customer.type && p.status !== 'Sold';
-                       } else {
-                         return matchesSearch && p.status === 'Available' && !dealtPropertyIds.includes(p.id);
-                       }
-                     })
-                     .map(p => {
-                     const isSelected = selectedPropertyIds.includes(p.id);
-                     const canToggle = customer.stage === 'Contacted' || customer.stage === 'Site Visit';
-                     return (
-                      <TouchableOpacity 
-                         key={p.id} 
-                         onPress={() => {
-                           if (canToggle) {
-                             // For Contacted and Site Visit stages: toggle selection
-                             handleToggleProperty(p.id);
-                           } else {
-                             // For other stages: show confirmation before starting deal
-                             Alert.alert(
-                               '🤝 Start Deal',
-                               `Are you sure you want to start a deal for "${p.title}" with ${customer.name}?\n\nThis will move the customer to In-Process stage.`,
-                               [
-                                 {
-                                   text: 'Cancel',
-                                   style: 'cancel'
-                                 },
-                                 {
-                                   text: 'Yes, Start Deal',
-                                   onPress: () => {
-                                     onStartDeal(customer, p);
-                                     if (onUpdateStage) {
-                                       onUpdateStage(customer.id, 'In-Process');
-                                     }
-                                     setShowPropertyPicker(false);
-                                     setSearchQuery('');
-                                   }
-                                 }
-                               ]
-                             );
-                           }
-                         }}
-                         style={[
-                           styles.pickerItem,
-                           canToggle && isSelected && styles.pickerItemSelected
-                         ]}
-                      >
-                         <Image source={{ uri: p.image }} style={styles.pickerImg} />
-                         <View style={{ flex: 1 }}>
-                            <Text style={styles.pickerItemTitle}>{p.title}</Text>
-                            <View style={styles.rowCenter}>
-                              <MapPin size={10} color="#9ca3af" />
-                              <Text style={styles.pickerItemLocation}>{p.location}</Text>
-                            </View>
-                            <Text style={styles.pickerItemPrice}>{formatCurrency(p.price)}</Text>
-                         </View>
-                         {canToggle ? (
-                           <View style={[
-                             styles.checkboxCircle,
-                             isSelected && styles.checkboxCircleSelected
-                           ]}>
-                             {isSelected && <Check size={16} color="#ffffff" />}
-                           </View>
-                         ) : (
-                           <Plus size={20} color="#2563eb" />
-                         )}
-                      </TouchableOpacity>
-                     );
-                   })}
-                </ScrollView>
-
-                {/* Done button for Contacted and Site Visit stages */}
-                {(customer.stage === 'Contacted' || customer.stage === 'Site Visit') && (
-                  <View style={styles.pickerFooter}>
-                    <TouchableOpacity 
-                      style={styles.doneButton}
-                      onPress={() => {
-                        setShowPropertyPicker(false);
-                        setSearchQuery('');
-                      }}
-                    >
-                      <Text style={styles.doneButtonText}>Done ({selectedPropertyIds.length} selected)</Text>
-                    </TouchableOpacity>
-                  </View>
+              {/* Search Bar */}
+              <View style={styles.searchContainer}>
+                <Search size={18} color="#9ca3af" />
+                <TextInput
+                  placeholder="Search properties..."
+                  placeholderTextColor="#9ca3af"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  style={styles.searchInput}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')}>
+                    <X size={18} color="#9ca3af" />
+                  </TouchableOpacity>
                 )}
-             </View>
+              </View>
+
+              <ScrollView style={styles.pickerContent}>
+                {properties
+                  .filter(p => {
+                    // Filter by search query
+                    const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      p.location.toLowerCase().includes(searchQuery.toLowerCase());
+                    // For Contacted and Site Visit stages: show all matching properties
+                    // For other stages: show only available properties not in deals
+                    if (customer.stage === 'Contacted' || customer.stage === 'Site Visit') {
+                      return matchesSearch && p.type === customer.type && p.status !== 'Sold';
+                    } else {
+                      return matchesSearch && p.status === 'Available' && !dealtPropertyIds.includes(p.id);
+                    }
+                  })
+                  .map(p => {
+                    const isSelected = selectedPropertyIds.includes(p.id);
+                    const canToggle = customer.stage === 'Contacted' || customer.stage === 'Site Visit';
+                    return (
+                      <TouchableOpacity
+                        key={p.id}
+                        onPress={() => {
+                          if (canToggle) {
+                            // For Contacted and Site Visit stages: toggle selection
+                            handleToggleProperty(p.id);
+                          } else {
+                            // For other stages: show confirmation before starting deal
+                            Alert.alert(
+                              '🤝 Start Deal',
+                              `Are you sure you want to start a deal for "${p.title}" with ${customer.name}?\n\nThis will move the customer to In-Process stage.`,
+                              [
+                                {
+                                  text: 'Cancel',
+                                  style: 'cancel'
+                                },
+                                {
+                                  text: 'Yes, Start Deal',
+                                  onPress: () => {
+                                    onStartDeal(customer, p);
+                                    if (onUpdateStage) {
+                                      onUpdateStage(customer.id, 'In-Process');
+                                    }
+                                    setShowPropertyPicker(false);
+                                    setSearchQuery('');
+                                  }
+                                }
+                              ]
+                            );
+                          }
+                        }}
+                        style={[
+                          styles.pickerItem,
+                          canToggle && isSelected && styles.pickerItemSelected
+                        ]}
+                      >
+                        <Image source={{ uri: p.image }} style={styles.pickerImg} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.pickerItemTitle}>{p.title}</Text>
+                          <View style={styles.rowCenter}>
+                            <MapPin size={10} color="#9ca3af" />
+                            <Text style={styles.pickerItemLocation}>{p.location}</Text>
+                          </View>
+                          <Text style={styles.pickerItemPrice}>{formatCurrency(p.price)}</Text>
+                        </View>
+                        {canToggle ? (
+                          <View style={[
+                            styles.checkboxCircle,
+                            isSelected && styles.checkboxCircleSelected
+                          ]}>
+                            {isSelected && <Check size={16} color="#ffffff" />}
+                          </View>
+                        ) : (
+                          <Plus size={20} color="#2563eb" />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+              </ScrollView>
+
+              {/* Done button for Contacted and Site Visit stages */}
+              {(customer.stage === 'Contacted' || customer.stage === 'Site Visit') && (
+                <View style={styles.pickerFooter}>
+                  <TouchableOpacity
+                    style={styles.doneButton}
+                    onPress={() => {
+                      setShowPropertyPicker(false);
+                      setSearchQuery('');
+                    }}
+                  >
+                    <Text style={styles.doneButtonText}>Done ({selectedPropertyIds.length} selected)</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
           )}
 
         </View>
@@ -1032,7 +1032,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
             {/* Show two buttons if there are interested properties */}
             {interestedPropertyIds.length > 0 ? (
               <View style={styles.twoButtonRow}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.halfWidthButton, styles.interestedButton]}
                   onPress={() => {
                     if (onUpdateStage) {
@@ -1042,7 +1042,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 >
                   <Text style={styles.visitSitesButtonText}>View Interested ({interestedPropertyIds.length})</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[
                     styles.halfWidthButton,
                     styles.visitSitesButton
@@ -1064,7 +1064,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.visitSitesButton}
                 onPress={() => {
                   if (selectedPropertyIds.length === 0) {
@@ -1082,9 +1082,9 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 <Text style={styles.visitSitesButtonText}>Visit Sites ({selectedPropertyIds.length})</Text>
               </TouchableOpacity>
             )}
-            
+
             {/* Floating Add Follow Up Button */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.floatingAddButton}
               onPress={() => setShowAddFollowUpModal(true)}
             >
@@ -1096,7 +1096,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
         {/* Fixed Bottom Button - Show only for Interested stage */}
         {customer.stage === 'Interested' && (
           <View style={styles.fixedBottomContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.visitSitesButton}
               onPress={() => {
                 if (onUpdateStage) {
@@ -1125,17 +1125,17 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
         >
           <View style={styles.mapViewContainer}>
             {/* Background Map Image */}
-            <Image 
-              source={require('../../assets/images/Rectangle.png')} 
+            <Image
+              source={require('../../assets/images/Rectangle.png')}
               style={styles.mapImage}
               resizeMode="cover"
               progressiveRenderingEnabled={true}
               fadeDuration={300}
             />
-            
+
             {/* Header with Title and Close Button */}
             <View style={styles.mapHeader}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.mapCloseButton}
                 onPress={() => {
                   setShowMapView(false);
@@ -1150,7 +1150,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
             {!isPropertyExpanded && (
               <View style={styles.collapsedModalCard}>
                 {/* Horizontal Line */}
-                <TouchableOpacity 
+                <TouchableOpacity
                   activeOpacity={1}
                   onPress={() => {
                     if (selectedPropertyIds.length > 0) {
@@ -1166,8 +1166,8 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 </TouchableOpacity>
 
                 {/* Property Horizontal Scroll */}
-                <ScrollView 
-                  horizontal 
+                <ScrollView
+                  horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.propertiesScrollContent}
                   nestedScrollEnabled={true}
@@ -1178,10 +1178,10 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                   {selectedPropertyIds.map((propId, index) => {
                     const prop = properties.find(p => p.id === propId);
                     if (!prop) return null;
-                    
+
                     return (
-                      <TouchableOpacity 
-                        key={prop.id} 
+                      <TouchableOpacity
+                        key={prop.id}
                         style={styles.propertyScrollCard}
                         onPress={() => {
                           setCurrentPropertyIndex(index);
@@ -1208,7 +1208,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
             {isPropertyExpanded && selectedPropertyIds.length > 0 && (
               <View style={styles.expandedModalCard}>
                 {/* Horizontal Line */}
-                <TouchableOpacity 
+                <TouchableOpacity
                   activeOpacity={1}
                   onPress={() => setIsPropertyExpanded(false)}
                 >
@@ -1219,8 +1219,8 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 <Text style={styles.propertiesToShowLabel}>Visit Sites</Text>
 
                 {/* Property Horizontal Scroll */}
-                <ScrollView 
-                  horizontal 
+                <ScrollView
+                  horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.expandedPropertiesScroll}
                   nestedScrollEnabled={true}
@@ -1235,13 +1235,13 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                   {selectedPropertyIds.map((propId, index) => {
                     const prop = properties.find(p => p.id === propId);
                     if (!prop) return null;
-                    
+
                     // Check if property is on hold
                     const isOnHold = holdPropertyIds.includes(propId);
-                    
+
                     return (
-                      <View 
-                        key={prop.id} 
+                      <View
+                        key={prop.id}
                         style={styles.expandedPropertyCard}
                       >
                         <Image source={{ uri: prop.image }} style={styles.expandedPropertyCardImage} />
@@ -1271,7 +1271,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
                 {/* Feedback Buttons - Single Row with Partitions */}
                 <View style={styles.feedbackButtonsRow}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.feedbackBtn}
                     onPress={() => {
                       const propId = selectedPropertyIds[currentPropertyIndex];
@@ -1284,7 +1284,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     <Text style={styles.feedbackTextHorizontal}>Interested</Text>
                   </TouchableOpacity>
                   <View style={styles.verticalDivider} />
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.feedbackBtn}
                     onPress={() => {
                       const propId = selectedPropertyIds[currentPropertyIndex];
@@ -1297,7 +1297,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     <Text style={styles.feedbackTextHorizontal}>Not-Interested</Text>
                   </TouchableOpacity>
                   <View style={styles.verticalDivider} />
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.feedbackBtn}
                     onPress={() => {
                       const propId = selectedPropertyIds[currentPropertyIndex];
@@ -1312,7 +1312,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 </View>
 
                 {/* Contact Owner Button */}
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.contactOwnerButton}
                   onPress={() => {
                     const prop = properties.find(p => p.id === selectedPropertyIds[currentPropertyIndex]);
@@ -1326,7 +1326,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 </TouchableOpacity>
 
                 {/* Navigate Button */}
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.navigateButtonExpanded}
                   onPress={() => {
                     const prop = properties.find(p => p.id === selectedPropertyIds[currentPropertyIndex]);
@@ -1342,7 +1342,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
           </View>
         </Modal>
       )}
-      
+
       {/* Add Follow Up Modal */}
       <AddModal
         isOpen={showAddFollowUpModal}
@@ -1354,7 +1354,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
           }
           setShowAddFollowUpModal(false);
         }}
-        onUpdate={() => {}}
+        onUpdate={() => { }}
         initialCustomer={customer}
         initialPropertyIds={selectedPropertyIds}
         initialTaskType="Site Visit"
@@ -1379,7 +1379,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     overflow: 'hidden',
   },
-  
+
   // Header
   header: {
     paddingVertical: 12,
@@ -1424,7 +1424,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
     borderRadius: 99,
   },
-  
+
   // Content
   content: {
     flex: 1,
@@ -1432,7 +1432,7 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     backgroundColor: '#ffffff',
   },
-  
+
   // Sections
   section: {
     marginBottom: 24,
@@ -1478,13 +1478,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#ffffff',
-    
+
   },
   listContainer: {
     gap: 8,
     paddingBottom: 12,
   },
-  
+
   // Compact Deal Card
   compactCard: {
     flexDirection: 'row',
@@ -1495,7 +1495,7 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     borderRadius: 14,
     gap: 14,
-    
+
   },
   compactImg: {
     width: 44,
@@ -1539,7 +1539,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    
+
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -1612,7 +1612,7 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     borderRadius: 16,
     gap: 16,
-    
+
   },
   pendingCard: {
     flexDirection: 'row',
@@ -1849,16 +1849,16 @@ const styles = StyleSheet.create({
     marginTop: 0,
     backgroundColor: '#ffffff',
   },
-  pickerTitle: { 
-    fontSize: 17, 
+  pickerTitle: {
+    fontSize: 17,
     fontWeight: '800',
     color: '#6b7280',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginLeft:6,
+    marginLeft: 6,
   },
   searchContainer: {
-    marginTop:20,
+    marginTop: 20,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
@@ -1897,7 +1897,7 @@ const styles = StyleSheet.create({
   pickerItemTitle: { fontSize: 14, fontWeight: 'bold' },
   pickerItemLocation: { fontSize: 11, color: '#9ca3af', marginLeft: 4 },
   pickerItemPrice: { fontSize: 13, color: '#6b7280', marginTop: 4 },
-  
+
   // Stage Indicator
   stageContainer: {
     backgroundColor: 'white',
@@ -1961,7 +1961,7 @@ const styles = StyleSheet.create({
   nextStepLabel: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#7c3aed', 
+    color: '#7c3aed',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 4,
@@ -2009,7 +2009,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    
+
   },
   contactInfoSection: {
     flexDirection: 'row',
@@ -2108,7 +2108,7 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     borderRadius: 14,
     gap: 14,
-    
+
   },
   removeButton: {
     padding: 6,
@@ -2124,7 +2124,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 16,
     shadowColor: '#000',
-    
+
   },
   selectedPropertyCard: {
     borderColor: '#a78bfa',
@@ -2180,8 +2180,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
     shadowColor: '#000',
-    
-    
+
+
   },
   visitSitesButton: {
     flexDirection: 'row',
@@ -2337,7 +2337,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     flex: 1,
   },
-  
+
   // Expanded Modal Card
   expandedModalCard: {
     position: 'absolute',
@@ -2349,7 +2349,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     padding: 20,
     paddingBottom: 30,
-    
+
   },
   backButton: {
     position: 'absolute',
@@ -2422,7 +2422,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   expandedPropertyCardTitle: {
-    fontFamily:'Lato_700Bold',
+    fontFamily: 'Lato_700Bold',
     fontSize: 16,
     fontWeight: '700',
     color: '#111827',
@@ -2490,7 +2490,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#a9a0f5',
     paddingVertical: 16,
     borderRadius: 14,
-   
+
   },
   navigateButtonExpandedText: {
     fontSize: 16,
