@@ -71,7 +71,7 @@ export default function Notifications() {
             <View style={styles.emptyIcon}>
               <Bell size={42} color="#818cf8" strokeWidth={1.5} />
             </View>
-            <Text style={styles.emptyTitle}>You're all caught up ✨</Text>
+            <Text style={styles.emptyTitle}>You&apos;re all caught up ✨</Text>
             <Text style={styles.emptySubtitle}>
               No new notifications right now
             </Text>
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
         : 68,
     paddingHorizontal: 20,
     paddingBottom: 28,
-   
+
   },
 
   headerRow: {
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.85)',
-    
+
   },
 
   content: {

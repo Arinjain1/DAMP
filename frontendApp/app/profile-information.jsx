@@ -7,7 +7,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
@@ -79,7 +78,7 @@ export default function ProfileInformation() {
         {/* Info Card Skeleton */}
         <View style={styles.card}>
           <View style={[styles.skeletonText, { width: '60%', height: 16, marginBottom: 16 }]} />
-          
+
           {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => (
             <View key={item} style={styles.infoRow}>
               <View style={[styles.skeletonText, { width: '40%', height: 12, marginBottom: 4 }]} />
@@ -156,13 +155,13 @@ export default function ProfileInformation() {
             value={
               displayData?.created_at
                 ? new Date(displayData.created_at).toLocaleDateString(
-                    'en-IN',
-                    {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    }
-                  )
+                  'en-IN',
+                  {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  }
+                )
                 : 'N/A'
             }
           />

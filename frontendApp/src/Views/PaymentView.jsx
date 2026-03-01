@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, RefreshCw, History, ChevronDown } from 'lucide-react-native';
-import { ScrollView, Text, TextInput, TouchableOpacity, View, Modal, Platform } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View, Modal, Platform, Alert } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
 import BalanceCard from '../Components/BalanceCard';

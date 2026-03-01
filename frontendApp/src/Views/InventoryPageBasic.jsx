@@ -10,9 +10,7 @@ import {
 } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
-  Dimensions,
   Image,
-  ImageBackground,
   Modal,
   Platform,
   ScrollView,
@@ -25,7 +23,7 @@ import {
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+
 
 const PROPERTY_STRUCTURE = {
   Residential: { types: ['Apartment/Flats', 'Builder Floor', 'House/Villa', 'Plot', 'Farmhouse', 'Other'] },
@@ -54,20 +52,20 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
 
   const filteredProperties = useMemo(() => {
     if (!Array.isArray(properties)) return [];
-    
+
     const filtered = properties.filter(p => {
       if (!p || typeof p !== 'object') return false;
-      
+
       const matchListing = (p.listingType || 'Sell') === listingFilter;
       const matchCategory = (p.category || 'Residential') === activeCategory;
       const matchType = activeType === 'All' || p.type === activeType;
       const matchBHK = activeBHK === 'All' || p.bhk === activeBHK;
       const matchCommercialConfig = activeCommercialConfig === 'All' || p.commercialConfig === activeCommercialConfig;
       const matchFurnishing = activeFurnishing === 'All' || p.furnishing === activeFurnishing;
-      
+
       return matchListing && matchCategory && matchType && matchBHK && matchCommercialConfig && matchFurnishing;
     });
-    
+
     return filtered;
   }, [properties, listingFilter, activeCategory, activeType, activeBHK, activeCommercialConfig, activeFurnishing]);
 
@@ -188,7 +186,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
           <Text style={styles.resultCountText}>
             {filteredProperties.length} Properties found
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.filterButton}
             onPress={() => setShowFilterModal(true)}
           >
@@ -251,7 +249,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                   {property.location}
                 </Text>
               </View>
-              
+
               <View style={styles.propertyDetails}>
                 <View style={styles.propertyDetailItem}>
                   <Layout size={12} color="#6b7280" />
@@ -287,7 +285,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filters</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setShowFilterModal(false)}
                 style={styles.closeButton}
               >
@@ -340,7 +338,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                       All Types
                     </Text>
                   </TouchableOpacity>
-                  
+
                   {PROPERTY_STRUCTURE[activeCategory]?.types.map(type => (
                     <TouchableOpacity
                       key={type}
@@ -379,7 +377,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                         All BHK
                       </Text>
                     </TouchableOpacity>
-                    
+
                     {['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'].map(bhk => (
                       <TouchableOpacity
                         key={bhk}
@@ -419,7 +417,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                         All
                       </Text>
                     </TouchableOpacity>
-                    
+
                     {(() => {
                       let configs = [];
                       if (activeType === 'All' || activeType === 'Office') {
@@ -437,7 +435,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                       if (activeType === 'All' || activeType === 'Hospitality') {
                         configs = [...configs, 'Guesthouse', 'Banquet Halls', 'Hotels/Resorts'];
                       }
-                      
+
                       return configs.map(config => (
                         <TouchableOpacity
                           key={config}
@@ -460,46 +458,46 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
                 </View>
               )}
 
-              {((activeCategory === 'Residential' && (activeType === 'All' || (activeType !== 'Plot' && activeType !== 'Farmhouse'))) || 
+              {((activeCategory === 'Residential' && (activeType === 'All' || (activeType !== 'Plot' && activeType !== 'Farmhouse'))) ||
                 (activeCategory === 'Commercial' && (activeType === 'All' || activeType === 'Office' || activeType === 'Shop/Showroom') && activeCommercialConfig !== 'Bareshell Office')) && (
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterSectionTitle}>Furnishing</Text>
-                  <View style={styles.filterOptions}>
-                    <TouchableOpacity
-                      onPress={() => setActiveFurnishing('All')}
-                      style={[
-                        styles.filterOption,
-                        activeFurnishing === 'All' && styles.filterOptionActive
-                      ]}
-                    >
-                      <Text style={[
-                        styles.filterOptionText,
-                        activeFurnishing === 'All' && styles.filterOptionTextActive
-                      ]}>
-                        All
-                      </Text>
-                    </TouchableOpacity>
-                    
-                    {['Unfurnished', 'Semi', 'Furnished'].map(furn => (
+                  <View style={styles.filterSection}>
+                    <Text style={styles.filterSectionTitle}>Furnishing</Text>
+                    <View style={styles.filterOptions}>
                       <TouchableOpacity
-                        key={furn}
-                        onPress={() => setActiveFurnishing(furn)}
+                        onPress={() => setActiveFurnishing('All')}
                         style={[
                           styles.filterOption,
-                          activeFurnishing === furn && styles.filterOptionActive
+                          activeFurnishing === 'All' && styles.filterOptionActive
                         ]}
                       >
                         <Text style={[
                           styles.filterOptionText,
-                          activeFurnishing === furn && styles.filterOptionTextActive
+                          activeFurnishing === 'All' && styles.filterOptionTextActive
                         ]}>
-                          {furn}
+                          All
                         </Text>
                       </TouchableOpacity>
-                    ))}
+
+                      {['Unfurnished', 'Semi', 'Furnished'].map(furn => (
+                        <TouchableOpacity
+                          key={furn}
+                          onPress={() => setActiveFurnishing(furn)}
+                          style={[
+                            styles.filterOption,
+                            activeFurnishing === furn && styles.filterOptionActive
+                          ]}
+                        >
+                          <Text style={[
+                            styles.filterOptionText,
+                            activeFurnishing === furn && styles.filterOptionTextActive
+                          ]}>
+                            {furn}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
-                </View>
-              )}
+                )}
             </ScrollView>
 
             <View style={styles.modalFooter}>
@@ -515,7 +513,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
               >
                 <Text style={styles.clearButtonText}>Clear All</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 onPress={() => setShowFilterModal(false)}
                 style={styles.applyButton}
@@ -548,7 +546,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 60,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6', 
+    borderBottomColor: '#f3f4f6',
   },
   headerContent: {
     paddingHorizontal: 20,
@@ -575,7 +573,7 @@ const styles = StyleSheet.create({
   },
 
   toggleContainer: {
-    backgroundColor: '#F3F4F6', 
+    backgroundColor: '#F3F4F6',
     padding: 4,
     borderRadius: 12,
     flexDirection: 'row',
@@ -588,7 +586,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonActive: {
-    backgroundColor: '#ffffff', 
+    backgroundColor: '#ffffff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -636,34 +634,34 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 16,
     paddingVertical: 6,
-    borderRadius: 12, 
+    borderRadius: 12,
     marginRight: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   chipActive: {
-    backgroundColor: '#9A8CFC', 
+    backgroundColor: '#9A8CFC',
     borderWidth: 0,
     shadowColor: '#B0A6F8',
   },
   chipInactive: {
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#E5E7EB', 
+    borderColor: '#E5E7EB',
   },
-  chipText: { 
-    fontSize: 12, 
+  chipText: {
+    fontSize: 12,
     fontWeight: '500',
     letterSpacing: 0.2,
   },
-  chipTextActive: { 
+  chipTextActive: {
     color: '#ffffff',
     fontWeight: '600',
-    
+
   },
-  chipTextInactive: { 
+  chipTextInactive: {
     color: '#6B7280',
-    
+
     fontWeight: '500',
   },
 
@@ -796,7 +794,7 @@ const styles = StyleSheet.create({
   },
   propertyInfo: {
     padding: 16,
-     
+
   },
   propertyTitle: {
     fontSize: 18,
@@ -804,7 +802,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_700Bold',
     color: '#111827',
     marginBottom: 8,
-    
+
   },
   propertyLocation: {
     flexDirection: 'row',
@@ -967,8 +965,8 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    
-    
+
+
   }
 });
 

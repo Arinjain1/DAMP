@@ -343,7 +343,7 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
 
             {/* Additional Info */}
             <Text style={styles.additionalInfo}>
-              You'll receive a notification once they accept your request.
+              You&apos;ll receive a notification once they accept your request.
             </Text>
 
             {/* Done Button */}

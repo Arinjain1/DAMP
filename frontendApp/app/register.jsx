@@ -7,8 +7,6 @@ import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -22,7 +20,7 @@ import {
 import { authAPI } from '../src/config/api';
 import { showToast } from '../src/utils/toast';
 
-const { height } = Dimensions.get('window');
+
 
 export default function Register() {
   const [formData, setFormData] = useState({
