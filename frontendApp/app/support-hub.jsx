@@ -78,8 +78,8 @@ export default function SupportHub() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => router.back()}
         >
           <ArrowLeft size={24} color="#fff" />
@@ -88,7 +88,7 @@ export default function SupportHub() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -103,7 +103,7 @@ export default function SupportHub() {
         {/* FAQ Section */}
         <View style={styles.faqSection}>
           <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
-          
+
           {FAQ_DATA.map((faq) => (
             <View key={faq.id} style={styles.faqCard}>
               <TouchableOpacity
@@ -118,7 +118,7 @@ export default function SupportHub() {
                   <ChevronDown size={20} color="#6B7280" />
                 )}
               </TouchableOpacity>
-              
+
               {expandedId === faq.id && (
                 <View style={styles.faqAnswer}>
                   <Text style={styles.faqAnswerText}>{faq.answer}</Text>
@@ -151,130 +151,4 @@ export default function SupportHub() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  header: {
-    backgroundColor: '#A78BFA',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 1 : 30,
-    paddingBottom: 14,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  scrollContent: {
-    paddingBottom: 30,
-  },
-  welcomeCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  welcomeTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  welcomeText: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-  faqSection: {
-    marginHorizontal: 16,
-    marginTop: 10,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  faqCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    overflow: 'hidden',
-  },
-  faqHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  faqQuestion: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-    marginRight: 12,
-  },
-  faqAnswer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    paddingTop: 0,
-  },
-  faqAnswerText: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-  contactCard: {
-    backgroundColor: '#F3F4F6',
-    marginHorizontal: 16,
-    marginTop: 24,
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  contactTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  contactText: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 16,
-  },
-  contactInfo: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  contactLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    width: 60,
-  },
-  contactValue: {
-    flex: 1,
-    fontSize: 14,
-    color: '#6B7280',
-  },
-});
+import styles from '../src/styles/supportHubStyles';
