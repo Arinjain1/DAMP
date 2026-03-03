@@ -1,17 +1,19 @@
 import { Calendar, CheckCircle, CirclePlus } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ScrollView, Switch, Text, TouchableOpacity, View, Alert } from 'react-native';
+import { ScrollView, Switch, Text, TouchableOpacity, View, Linking } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateDeal } from '../store/slices/dealsSlice';
 import { setFollowUps, setLoading, setError } from '../store/slices/followUpsSlice';
 import AddModal from '../Modal and Sheets/AddModal';
+import WhatsAppIcon from '../Components/WhatsAppIcon';
 import { tasksAPI } from '../config/api';
+import { showToast } from '../utils/toast';
 
 export default function MeetingView({ selectedDeal, reminderEnabled, setReminderEnabled, setShowReminderSetAlert }) {
   const dispatch = useDispatch();
   const { customers } = useSelector(state => state.customers);
   const { properties } = useSelector(state => state.properties);
-  const { followUps, loading } = useSelector(state => state.followUps);
+  const { loading } = useSelector(state => state.followUps);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [localMeetings, setLocalMeetings] = useState([]);
@@ -24,26 +26,26 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
   const fetchTasks = async () => {
     try {
       dispatch(setLoading(true));
-      const response = await tasksAPI.getAll({ 
+      const response = await tasksAPI.getAll({
         status: 'All',
-        task_type: 'Meeting' 
+        task_type: 'Meeting'
       });
-      
+
       if (response.data.success) {
         const tasks = response.data.data;
         dispatch(setFollowUps(tasks));
-        
+
         // Filter tasks for this deal's client AND only Meeting/FollowUp tasks (exclude Site Visit)
         if (selectedDeal?.customerId) {
-          const dealTasks = tasks.filter(t => 
-            t.client_id === selectedDeal.customerId && 
-            t.task_type !== 'Site Visit' && 
+          const dealTasks = tasks.filter(t =>
+            t.client_id === selectedDeal.customerId &&
+            t.task_type !== 'Site Visit' &&
             t.task_type !== 'Visit'
           );
           const formattedMeetings = dealTasks.map(task => {
             // Get property name(s)
             let propertyTitle = task.property_title;
-            
+
             // For Site Visit tasks with multiple properties
             if (task.site_visit_properties && Array.isArray(task.site_visit_properties)) {
               const propertyNames = task.site_visit_properties.map(p => p.title).filter(Boolean);
@@ -51,27 +53,27 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
                 propertyTitle = propertyNames.join(', ');
               }
             }
-            
+
             // Fallback: Get from properties array if not in task
             if (!propertyTitle && task.property_id) {
               const property = properties.find(p => p.id === task.property_id);
               propertyTitle = property?.title;
             }
-            
+
             // Get customer name
             let clientName = task.client_name;
             if (!clientName) {
               const customer = customers.find(c => c.id === task.client_id);
               clientName = customer?.name || 'Unknown Client';
             }
-            
+
             // Generate title if not present or if it's generic
             let taskTitle = task.title;
             if (!taskTitle || taskTitle === 'Meeting' || taskTitle === 'Site Visit') {
               const taskType = task.task_type || 'Meeting';
               taskTitle = `${taskType}: ${clientName}`;
             }
-            
+
             return {
               id: task.id,
               title: taskTitle,
@@ -101,7 +103,15 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
   const handleSaveTask = async (taskData) => {
     try {
       dispatch(setLoading(true));
-      
+
+      // Validate that customerId is a valid UUID (not a mock ID like "c1", "c2", etc.)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!taskData.customerId || !uuidRegex.test(taskData.customerId)) {
+        showToast.error('Invalid customer selected. Please refresh the app and try again.');
+        dispatch(setLoading(false));
+        return;
+      }
+
       // Prepare data for backend
       const backendData = {
         client_id: taskData.customerId,
@@ -113,15 +123,15 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
       };
 
       const response = await tasksAPI.create(backendData);
-      
+
       if (response.data.success) {
-        Alert.alert('Success', 'Task scheduled successfully!');
+        showToast.success('Task scheduled successfully!');
         fetchTasks(); // Refresh tasks
         setShowAddModal(false);
       }
     } catch (error) {
       console.error('Error creating task:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to create task');
+      showToast.error(error.response?.data?.message || 'Failed to create task');
     } finally {
       dispatch(setLoading(false));
     }
@@ -130,19 +140,19 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
   const handleMarkDone = async (meetingId) => {
     try {
       const response = await tasksAPI.toggleStatus(meetingId);
-      
+
       if (response.data.success) {
         // Update local state
-        setLocalMeetings(prev => 
-          prev.map(m => 
+        setLocalMeetings(prev =>
+          prev.map(m =>
             m.id === meetingId ? { ...m, status: 'completed' } : m
           )
         );
-        Alert.alert('Success', 'Task marked as done!');
+        showToast.success('Task marked as done!');
       }
     } catch (error) {
       console.error('Error updating task:', error);
-      Alert.alert('Error', 'Failed to update task');
+      showToast.error('Failed to update task');
     }
   };
 
@@ -174,6 +184,51 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
       minute: '2-digit',
       hour12: false
     });
+  };
+
+  const handleWhatsApp = (meeting) => {
+    const customer = customers.find(c => c.id === selectedDeal?.customerId);
+    const phone = customer?.phone;
+
+    if (!phone) {
+      showToast.error('Customer phone number not found');
+      return;
+    }
+
+    // Format date and time
+    const meetingDate = new Date(meeting.date);
+    const formattedDate = meetingDate.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+    const formattedTime = meetingDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    // Create default message
+    const message = `Hi ${customer.name},\n\nThis is a reminder for our ${meeting.type || 'meeting'} scheduled on ${formattedDate} at ${formattedTime}.\n\n${meeting.property_title ? `Property: ${meeting.property_title}\n` : ''}${meeting.note ? `Note: ${meeting.note}\n` : ''}\nLooking forward to meeting you!\n\nRegards`;
+
+    // Clean phone number (remove spaces, dashes, etc.)
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+
+    // Open WhatsApp with pre-filled message
+    const whatsappUrl = `whatsapp://send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
+
+    Linking.canOpenURL(whatsappUrl)
+      .then((supported) => {
+        if (supported) {
+          return Linking.openURL(whatsappUrl);
+        } else {
+          showToast.error('WhatsApp is not installed on this device');
+        }
+      })
+      .catch((err) => {
+        console.error('Error opening WhatsApp:', err);
+        showToast.error('Failed to open WhatsApp');
+      });
   };
 
   return (
@@ -243,8 +298,17 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
                       <CheckCircle size={24} color="#10b981" />
                     ) : (
                       <View className="items-end gap-2">
-                        <View className="bg-[#fef3c7] px-3 py-1 rounded-lg">
-                          <Text className="text-[11px] font-semibold text-[#d97706]">Upcoming</Text>
+                        <View className="flex-row items-center gap-2">
+                          {/* WhatsApp Icon - Left of Upcoming badge */}
+                          <TouchableOpacity
+                            onPress={() => handleWhatsApp(item)}
+                          >
+                            <WhatsAppIcon size={20} color="#25D366" />
+                          </TouchableOpacity>
+
+                          <View className="bg-[#fef3c7] px-3 py-1 rounded-lg">
+                            <Text className="text-[11px] font-semibold text-[#d97706]">Upcoming</Text>
+                          </View>
                         </View>
                         <TouchableOpacity
                           className="py-[2px]"

@@ -3,19 +3,19 @@ import { router } from 'expo-router';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../src/store/slices/authSlice';
+import { showToast } from '../src/utils/toast';
 
 export default function NewPassword() {
   const dispatch = useDispatch();
@@ -33,38 +33,29 @@ export default function NewPassword() {
 
   const handleResetPassword = async () => {
     if (!formData.newPassword || !formData.confirmPassword) return;
-    
+
     if (formData.newPassword !== formData.confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match!');
+      showToast.error('Passwords do not match!');
       return;
     }
 
     if (formData.newPassword.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters long!');
+      showToast.error('Password must be at least 8 characters long!');
       return;
     }
 
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      Alert.alert(
-        'Success!', 
-        'Your password has been reset successfully. You will be logged in automatically.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              const userData = {
-                id: 1,
-                name: 'Rajesh Sharma',
-                email: 'rajesh@example.com',
-                phone: '+91 98765 43210'
-              };
-              dispatch(loginSuccess(userData));
-            }
-          }
-        ]
-      );
+      showToast.success('Password reset successfully!');
+
+      const userData = {
+        id: 1,
+        name: 'Rajesh Sharma',
+        email: 'rajesh@example.com',
+        phone: '+91 98765 43210'
+      };
+      dispatch(loginSuccess(userData));
     }, 1500);
   };
 
@@ -151,10 +142,10 @@ export default function NewPassword() {
             </View>
 
             {/* SUBMIT BUTTON */}
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handleResetPassword}
               style={[
-                styles.continueBtn, 
+                styles.continueBtn,
                 (!isFormValid || loading) && { opacity: 0.5 }
               ]}
               disabled={!isFormValid || loading}
@@ -186,124 +177,4 @@ export default function NewPassword() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 33,
-    paddingTop: 60,
-  },
-
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 40,
-    borderWidth: 1,
-    borderColor: '#15151520',
-  },
-
-  header: {
-    marginBottom: 20,
-  },
-
-  title: {
-    fontSize: 42,
-    fontWeight: '500',
-    color: '#111827',
-    marginBottom: 60,
-  },
-
-  subtitle: {
-    fontSize: 15,
-    fontWeight: '400',
-    color: '#1A1D1B',
-  },
-
-  form: {
-    gap: 18,
-  },
-
-  passwordContainer: {
-    position: 'relative',
-  },
-
-  passwordInput: {
-    height: 60,
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    paddingRight: 60,
-    fontSize: 16,
-    fontWeight: '400',
-    borderWidth: 1.2,
-    borderColor: '#D1D5DB',
-    color: '#111827',
-    backgroundColor: 'transparent',
-  },
-
-  eyeButton: {
-    position: 'absolute',
-    right: 20,
-    top: 20,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  continueBtn: {
-    backgroundColor: '#C4B5FD',
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 66,
-  },
-
-  continueText: {
-    fontSize: 16,
-    color: '#111827',
-    fontWeight: '600',
-  },
-
-  signupRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-
-  signupText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '400',
-  },
-
-  signupLink: {
-    fontSize: 14,
-    color: '#AFA0F8',
-    fontWeight: '600',
-  },
-
-  footer: {
-    marginTop: 'auto',
-    marginBottom: 28,
-    paddingHorizontal: 10,
-  },
-
-  footerText: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '400',
-    lineHeight: 18,
-  },
-
-  link: {
-    textDecorationLine: 'underline',
-    fontWeight: '700',
-    color: '#374151',
-  },
-});
+import styles from '../src/styles/newPasswordStyles';

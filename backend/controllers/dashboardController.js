@@ -1,23 +1,24 @@
 import { query } from '../config/db.js';
 
 export const getDashboardOverview = async (req, res, next) => {
-  const brokerId = req.user.id; 
+  const brokerId = req.user.id;
 
   try {
     const [
-      visitorCount, 
-      saleCount, 
-      pendingCount, 
-      rejectedCount, 
-      activeDealsList, 
-      todayTasksData
+      visitorCount,
+      saleCount,
+      pendingCount,
+      rejectedCount,
+      activeDealsList,
+      todayTasksData,
+      networkCount
     ] = await Promise.all([
       query('SELECT COUNT(*) FROM contacts WHERE broker_id = $1', [brokerId]),
       query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status = 'Closed'", [brokerId]),
       query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status NOT IN ('Closed', 'Lost')", [brokerId]),
       query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status = 'Lost'", [brokerId]),
       query(
-        `SELECT d.id, d.status, d.final_price, 
+        `SELECT d.id, d.status, d.final_price, d.client_id, d.property_id,
                 p.title as property_title, p.cover_image_url, p.price as listing_price,
                 c.name as client_name
          FROM deals d
@@ -25,7 +26,7 @@ export const getDashboardOverview = async (req, res, next) => {
          JOIN contacts c ON d.client_id = c.id
          WHERE d.broker_id = $1 AND d.status NOT IN ('Closed', 'Lost')
          ORDER BY d.updated_at DESC
-         LIMIT 5`, 
+         LIMIT 5`,
         [brokerId]
       ),
       query(
@@ -37,7 +38,8 @@ export const getDashboardOverview = async (req, res, next) => {
          AND t.due_date::date = CURRENT_DATE 
          ORDER BY t.due_date ASC`,
         [brokerId]
-      )
+      ),
+      query(`SELECT COUNT(*) FROM collaborations WHERE (sender_id = $1 OR receiver_id = $1) AND status = 'accepted'`, [brokerId])
     ]);
     res.json({
       success: true,
@@ -46,10 +48,11 @@ export const getDashboardOverview = async (req, res, next) => {
           total_visitor: parseInt(visitorCount.rows[0].count),
           total_sale: parseInt(saleCount.rows[0].count),
           pending: parseInt(pendingCount.rows[0].count),
-          rejected: parseInt(rejectedCount.rows[0].count)
+          rejected: parseInt(rejectedCount.rows[0].count),
+          network_count: parseInt(networkCount.rows[0].count)
         },
-        active_deals: activeDealsList.rows, 
-        todays_focus: todayTasksData.rows   
+        active_deals: activeDealsList.rows,
+        todays_focus: todayTasksData.rows
       }
     });
 

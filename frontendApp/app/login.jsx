@@ -1,29 +1,29 @@
 import { Lato_400Regular, Lato_700Bold, useFonts } from '@expo-google-fonts/lato';
 import {
-    Montserrat_400Regular,
-    Montserrat_500Medium,
-    Montserrat_600SemiBold,
-    Montserrat_700Bold,
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_600SemiBold,
+  Montserrat_700Bold,
 } from '@expo-google-fonts/montserrat';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { authAPI, setAuthToken } from '../src/config/api';
 import { loginSuccess } from '../src/store/slices/authSlice';
+import { showToast } from '../src/utils/toast';
 
 export default function Login() {
   const dispatch = useDispatch();
@@ -46,39 +46,38 @@ export default function Login() {
   const handleLogin = async () => {
     // Validation
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
+      showToast.warn('Please enter email and password');
       return;
     }
 
     setLoading(true);
     try {
       const response = await authAPI.login({ email, password });
-      
+
       if (response.data) {
         // Backend returns user data directly (no success flag)
         const { id, full_name, email: userEmail, role, token } = response.data;
-        
-        const userData = { 
-          id, 
-          name: full_name, 
+
+        const userData = {
+          id,
+          name: full_name,
           full_name,
-          email: userEmail, 
-          role, 
-          token 
+          email: userEmail,
+          role,
+          token
         };
-        
+
         // Set auth token for future API calls
         setAuthToken(token);
-        
+
         dispatch(loginSuccess(userData));
-        
         // Don't navigate - let the auth state change handle the navigation automatically
         // The AppNavigator will switch from Stack to Tabs when isAuthenticated becomes true
       }
     } catch (error) {
       console.error('Login error:', error);
       const errorMessage = error.response?.data?.message || 'Unable to connect to server. Please check your connection.';
-      Alert.alert('Login Failed', errorMessage);
+      showToast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -150,7 +149,7 @@ export default function Login() {
             </View>
 
             {/* FORGOT PASSWORD */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.forgotWrap}
               onPress={() => router.push('/forgot-password')}
             >
@@ -190,147 +189,4 @@ export default function Login() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 33,
-    paddingTop: 60,
-  },
-
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 40,
-    borderWidth: 1,
-    borderColor: '#15151520',
-  },
-
-  header: {
-    marginBottom: 20,
-  },
-
-  title: {
-    fontSize: 42,
-    fontFamily: 'Montserrat_500Medium',
-    fontWeight: '400',
-    color: '#111827',
-    marginBottom: 60,
-  },
-
-  subtitle: {
-    fontSize: 15,
-    fontFamily: 'Montserrat_400Regular',
-    color: '#1A1D1B',
-  },
-
-  form: {
-    gap: 18,
-  },
-
-  input: {
-    height: 60,
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    fontSize: 16,
-    fontFamily: 'Lato_400Regular',
-    borderWidth: 1.2,
-    borderColor: '#D1D5DB',
-    color: '#111827',
-    
-  },
-
-  passwordContainer: {
-    position: 'relative',
-  },
-
-  passwordInput: {
-    height: 60,
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    paddingRight: 60,
-    fontSize: 16,
-    fontFamily: 'Lato_400Regular',
-    borderWidth: 1.2,
-    borderColor: '#D1D5DB',
-    color: '#111827',
-  },
-
-  eyeButton: {
-    position: 'absolute',
-    right: 20,
-    top: 20,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  forgotWrap: {
-    alignSelf: 'flex-end',
-    marginTop: -10,
-  },
-
-  forgotText: {
-    fontSize: 13,
-    color: '#AFA0F8',
-    fontFamily: 'Montserrat_500Medium',
-  },
-
-  continueBtn: {
-    backgroundColor: '#C4B5FD',
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 66,
-  },
-
-  continueText: {
-    fontSize: 16,
-    color: '#111827',
-    fontFamily: 'Montserrat_600SemiBold',
-  },
-
-  signupRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-
-  signupText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontFamily: 'Montserrat_400Regular',
-  },
-
-  signupLink: {
-    fontSize: 14,
-    color: '#AFA0F8',
-    fontFamily: 'Montserrat_600SemiBold',
-  },
-
-  footer: {
-    marginTop: 'auto',
-    marginBottom: 28,
-    paddingHorizontal: 10,
-  },
-
-  footerText: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#6B7280',
-    fontFamily: 'Lato_400Regular',
-    lineHeight: 18,
-  },
-
-  link: {
-    textDecorationLine: 'underline',
-    fontFamily: 'Lato_700Bold',
-    color: '#374151',
-  },
-});
+import styles from '../src/styles/loginStyles';

@@ -1,21 +1,20 @@
 import React from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
-  Image 
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity
 } from 'react-native';
 import { Scale, FileText } from 'lucide-react-native';
 
 const LegalPage = () => {
-  
+
   const documents = [
-    'Sale Agreement', 
-    'Rent Agreement', 
-    'Token Receipt', 
-    'MOU Draft', 
-    'NOC Format', 
+    'Sale Agreement',
+    'Rent Agreement',
+    'Token Receipt',
+    'MOU Draft',
+    'NOC Format',
     'Commission Slip'
   ];
 
@@ -30,17 +29,17 @@ const LegalPage = () => {
         <Text className="text-[3.5vw] text-gray-500 mt-[1vw]">Generate & Manage Documents</Text>
       </View>
 
-      <ScrollView 
-        className="flex-1" 
+      <ScrollView
+        className="flex-1"
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
-        
+
         {/* Document Grid */}
         <View className="p-[5vw] flex-row flex-wrap gap-[4vw]">
           {documents.map((doc, i) => (
-            <TouchableOpacity 
-              key={i} 
+            <TouchableOpacity
+              key={i}
               activeOpacity={0.7}
               className="w-[43vw] h-[32vw] bg-white rounded-2xl border border-gray-100 items-center justify-center gap-[3vw] shadow-sm active:scale-95 active:border-indigo-200"
             >
@@ -57,7 +56,7 @@ const LegalPage = () => {
         {/* Expert Help Banner */}
         <View className="px-[5vw] mt-[2vw]">
           <View className="bg-indigo-900 p-[5vw] rounded-2xl shadow-lg relative overflow-hidden">
-            
+
             {/* Content (Z-Index 10) */}
             <View className="relative z-10">
               <Text className="font-bold text-[4.5vw] text-white">Need Expert Help?</Text>
@@ -71,7 +70,7 @@ const LegalPage = () => {
 
             {/* Background Icon Decoration */}
             <View className="absolute -bottom-4 -right-4 opacity-10 transform rotate-12">
-               <Scale size={100} color="white" />
+              <Scale size={100} color="white" />
             </View>
 
           </View>

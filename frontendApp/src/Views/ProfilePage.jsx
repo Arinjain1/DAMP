@@ -11,7 +11,7 @@ import {
 } from 'lucide-react-native';
 import {
   Alert,
-  Dimensions,
+  Image,
   Platform,
   ScrollView,
   StatusBar,
@@ -21,13 +21,12 @@ import {
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { SUBSCRIPTION_PLANS } from '../Constants/Constants';
-import { Image } from 'react-native';
 import { logout } from '../store/slices/authSlice';
 import { clearAuthToken } from '../config/api';
 
-const { width } = Dimensions.get('window');
 
-export default function ProfilePage({ onRenew }) {
+
+export default function ProfilePage({ onRenew, onLogout }) {
   const router = useRouter();
   const dispatch = useDispatch();
 
@@ -48,10 +47,10 @@ export default function ProfilePage({ onRenew }) {
   const handleLogout = () => {
     // Clear token from API config
     clearAuthToken();
-    
+
     // Dispatch logout action
     dispatch(logout());
-    
+
     // Navigation will be handled automatically by auth state change
   };
 

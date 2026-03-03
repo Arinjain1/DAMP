@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, Alert } from 'react-native';
+import { View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
 import AddModal from '../src/Modal and Sheets/AddModal';
@@ -8,17 +8,18 @@ import CustomersList from '../src/Views/CustomersList';
 
 // Redux actions
 import { addCustomer, clearSelectedCustomer, setSelectedCustomer, updateCustomer, updateCustomerStatus, setCustomers, setLoading, setError } from '../src/store/slices/customersSlice';
-import { addDeal, clearSelectedDeal, closeDeal, setSelectedDeal, updateDeal } from '../src/store/slices/dealsSlice';
+import { addDeal, clearSelectedDeal, closeDeal, setSelectedDeal, updateDeal, setDeals } from '../src/store/slices/dealsSlice';
 import { addFollowUp, deleteFollowUp, updateFollowUp } from '../src/store/slices/followUpsSlice';
 import { clearEditItem, setEditItem, setModalOpen, setModalType } from '../src/store/slices/uiSlice';
 
 // API
-import { customersAPI, tasksAPI, visitsAPI } from '../src/config/api';
+import { customersAPI, tasksAPI, visitsAPI, dealsAPI } from '../src/config/api';
+import { showToast } from '../src/utils/toast';
 
 export default function Customers() {
   const dispatch = useDispatch();
   const router = useRouter();
-  
+
   const { properties } = useSelector(state => state.properties);
   const { customers, selectedCustomer, loading } = useSelector(state => state.customers);
   const { deals, selectedDeal } = useSelector(state => state.deals);
@@ -28,28 +29,24 @@ export default function Customers() {
   // Fetch customers on component mount
   useEffect(() => {
     fetchCustomers();
+    fetchDeals();
   }, []);
 
   const fetchCustomers = async () => {
     try {
       dispatch(setLoading(true));
       const response = await customersAPI.getAll();
-      
+
       if (response.data.success) {
+
+
         // Map backend data to frontend format
         const mappedCustomers = response.data.data.map(client => {
-          // Map database status to UI stage
-          let stage = 'New';
-          if (client.status === 'New Lead') stage = 'New';
-          else if (client.status === 'Contacted') stage = 'Contacted';
-          else if (client.status === 'Site Visit') stage = 'Site Visit';
-          else if (client.status === 'Interested') stage = 'Interested';
-          else if (client.status === 'Meeting') stage = 'Meeting';
-          else if (client.status === 'Negotiation') stage = 'Negotiation';
-          else if (client.status === 'Token') stage = 'Token';
-          else if (client.status === 'Agreement') stage = 'Agreement';
-          else if (client.status === 'Completed') stage = 'Completed';
-          
+          // Use status directly as stage (backend already has proper status values)
+          const stage = client.status || 'New Lead';
+
+
+
           return {
             id: client.id,
             name: client.name,
@@ -66,9 +63,15 @@ export default function Customers() {
             location: client.preferred_location,
             notes: client.notes,
             createdAt: client.created_at,
+            selectedProperties: client.selectedProperties || [],
+            interestedProperties: client.interestedProperties || [],
+            holdProperties: client.holdProperties || [],
+            activeDealCount: client.active_deal_count || 0,
+            nextTask: client.next_task,
           };
         });
-        
+
+
         dispatch(setCustomers(mappedCustomers));
       }
     } catch (error) {
@@ -76,6 +79,36 @@ export default function Customers() {
       dispatch(setError(error.response?.data?.message || 'Failed to fetch customers'));
     } finally {
       dispatch(setLoading(false));
+    }
+  };
+
+  const fetchDeals = async () => {
+    try {
+      const response = await dealsAPI.getAll();
+
+      if (response.data.success) {
+
+
+        // Map backend deals to frontend format
+        const mappedDeals = response.data.data.map(deal => ({
+          id: deal.id,
+          customerId: deal.client_id,
+          propertyId: deal.property_id,
+          stage: deal.status,
+          status: deal.status,
+          startedAt: deal.created_at,
+          finalPrice: deal.final_price,
+          tokenAmount: deal.token_amount,
+          meetings: []
+        }));
+
+
+
+        // Set all deals at once using setDeals
+        dispatch(setDeals(mappedDeals));
+      }
+    } catch (error) {
+      console.error('Error fetching deals:', error);
     }
   };
 
@@ -91,8 +124,8 @@ export default function Customers() {
   };
 
   const handleEditCustomer = (customer) => {
-    
-    
+
+
     // Map customer data to form format
     const editData = {
       id: customer.id,
@@ -109,9 +142,9 @@ export default function Customers() {
       budgetMin: customer.budgetMin,
       budgetMax: customer.budgetMax,
     };
-    
-   
-    
+
+
+
     dispatch(setEditItem(editData));
     dispatch(setModalType('Customer'));
     setTimeout(() => {
@@ -137,7 +170,7 @@ export default function Customers() {
       };
 
       const response = await customersAPI.create(apiPayload);
-      
+
       if (response.data.success) {
         // Map backend response to frontend format
         const mappedCustomer = {
@@ -155,23 +188,23 @@ export default function Customers() {
           location: response.data.data.preferred_location,
           notes: response.data.data.notes,
         };
-        
+
         dispatch(addCustomer(mappedCustomer));
         dispatch(setModalOpen(false));
-        Alert.alert('Success', 'Customer added successfully!');
+        showToast.success('Customer added successfully!');
         // Refresh customers list
         fetchCustomers();
       }
     } catch (error) {
       console.error('Error creating customer:', error);
       const errorMessage = error.response?.data?.message || 'Failed to add customer. Please try again.';
-      Alert.alert('Error', errorMessage);
+      showToast.error(errorMessage);
     }
   };
 
   const handleUpdate = async (updatedItem) => {
-    
-    
+
+
     if (modalType === 'FollowUp') {
       try {
         // Prepare data for API
@@ -184,18 +217,18 @@ export default function Customers() {
           notes: updatedItem.note || updatedItem.description || '',
           title: updatedItem.title
         };
-        
+
         const response = await tasksAPI.update(updatedItem.id, updateData);
-        
+
         if (response.data.success) {
           dispatch(updateFollowUp(response.data.data));
           dispatch(clearEditItem());
           dispatch(setModalOpen(false));
-          Alert.alert('Success', 'Task updated successfully!');
+          showToast.success('Task updated successfully!');
         }
       } catch (error) {
         console.error('Error updating task:', error);
-        Alert.alert('Error', error.response?.data?.message || 'Failed to update task');
+        showToast.error(error.response?.data?.message || 'Failed to update task');
       }
     } else if (modalType === 'Customer') {
       try {
@@ -214,12 +247,12 @@ export default function Customers() {
           notes: updatedItem.details || '',
         };
 
-        
+
 
         const response = await customersAPI.update(updatedItem.id, apiPayload);
-        
-        
-        
+
+
+
         if (response.data.success) {
           // Map backend response to frontend format
           const mappedCustomer = {
@@ -237,18 +270,18 @@ export default function Customers() {
             location: response.data.data.preferred_location,
             notes: response.data.data.notes,
           };
-          
+
           dispatch(updateCustomer(mappedCustomer));
           dispatch(clearEditItem());
           dispatch(setModalOpen(false));
-          Alert.alert('Success', 'Customer updated successfully!');
+          showToast.success('Customer updated successfully!');
           fetchCustomers();
         }
       } catch (error) {
         console.error('=== Error updating customer ===', error);
         console.error('Error response:', error.response?.data);
         const errorMessage = error.response?.data?.message || 'Failed to update customer. Please try again.';
-        Alert.alert('Error', errorMessage);
+        showToast.error(errorMessage);
       }
     }
   };
@@ -266,10 +299,10 @@ export default function Customers() {
             scheduled_date: taskData.date.split('T')[0],
             scheduled_time: taskData.date.split('T')[1]?.substring(0, 5) || '10:00'
           });
-          
+
           if (visitResponse.data.success) {
-            Alert.alert('Success', 'Site visit scheduled!');
-            
+            showToast.success('Site visit scheduled!');
+
             // Fetch updated tasks and add to Redux
             const tasksResponse = await tasksAPI.getAll({ status: 'All' });
             if (tasksResponse.data.success) {
@@ -284,7 +317,7 @@ export default function Customers() {
                 siteVisitId: task.site_visit_id,
                 propertyCount: task.site_visit_property_count || 0
               }));
-              
+
               // Update Redux with all tasks
               dispatch({ type: 'followUps/setFollowUps', payload: transformedTasks });
             }
@@ -299,10 +332,10 @@ export default function Customers() {
             schedule_time: taskData.date.split('T')[1]?.substring(0, 5) || '10:00',
             notes: taskData.note || ''
           });
-          
+
           if (taskResponse.data.success) {
-            Alert.alert('Success', 'Task created!');
-            
+            showToast.success('Task created!');
+
             // Transform and add to Redux for immediate UI update
             const newTask = {
               id: taskResponse.data.data.id,
@@ -318,42 +351,61 @@ export default function Customers() {
         }
       } else {
         // Otherwise, open modal for adding new task
-        dispatch(setEditItem({ customerId: taskData?.id })); 
+        dispatch(setEditItem({ customerId: taskData?.id }));
         dispatch(setModalType('FollowUp'));
         dispatch(setModalOpen(true));
       }
     } catch (error) {
       console.error('Error creating task:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to create task');
+      showToast.error(error.response?.data?.message || 'Failed to create task');
     }
   };
 
   const handleEditTask = (task) => {
-    
+
     dispatch(setEditItem(task));
     dispatch(setModalType('FollowUp'));
     dispatch(setModalOpen(true));
-    
+
   };
 
   const handleDeleteTask = (taskId) => {
     dispatch(deleteFollowUp(taskId));
   };
 
-  const handleStartDeal = (customer, property) => {
-    const newDeal = {
-      id: generateId(),
-      customerId: customer.id,
-      propertyId: property.id,
-      stage: 'In-Process',
-      startedAt: new Date().toISOString(),
-      meetings: []
-    };
-    dispatch(addDeal(newDeal));
-    dispatch(clearSelectedCustomer());
-    dispatch(setSelectedDeal(newDeal));
-    // Navigate to deal page
-    router.push('/deal-page');
+  const handleStartDeal = async (customer, property) => {
+    try {
+      // Call backend API to create deal
+      const response = await dealsAPI.create({
+        client_id: customer.id,
+        property_id: property.id
+      });
+
+      if (response.data.success) {
+        showToast.success(response.data.message || 'Deal started successfully!');
+
+        // Add deal to Redux
+        const newDeal = {
+          id: response.data.data.id,
+          customerId: customer.id,
+          propertyId: property.id,
+          stage: response.data.data.status || 'Interested',
+          startedAt: response.data.data.created_at,
+          meetings: []
+        };
+
+        dispatch(addDeal(newDeal));
+        dispatch(clearSelectedCustomer());
+        dispatch(setSelectedDeal(newDeal));
+
+        // Navigate to deal page
+        router.push('/deal-page');
+      }
+    } catch (error) {
+      console.error('Error starting deal:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to start deal. Please try again.';
+      showToast.error(errorMessage);
+    }
   };
 
   const handleUpdateDeal = (id, updatedDeal) => {
@@ -366,85 +418,109 @@ export default function Customers() {
 
   return (
     <View className="flex-1 bg-gray-50">
-      <CustomersList 
-        customers={customers} 
+      <CustomersList
+        customers={customers}
         loading={loading}
-        onSelect={(customer) => dispatch(setSelectedCustomer(customer))} 
+        onSelect={(customer) => dispatch(setSelectedCustomer(customer))}
         onAddCustomer={handleAddCustomer}
         onEditCustomer={handleEditCustomer}
         onOpenDeal={(customer) => {
+
           // Find the deal for this customer
           const customerDeal = deals.find(d => d.customerId === customer.id);
+
+
           if (customerDeal) {
             dispatch(setSelectedDeal(customerDeal));
             router.push('/deal-page');
           } else {
+
             // If no deal found, open customer details
             dispatch(setSelectedCustomer(customer));
           }
         }}
       />
 
-      <AddModal 
-        isOpen={modalOpen} 
-        type={modalType} 
+      <AddModal
+        isOpen={modalOpen}
+        type={modalType}
         onClose={() => {
-         
+
           dispatch(setModalOpen(false));
-        }} 
-        onSave={handleAdd} 
-        onUpdate={handleUpdate} 
-        editItem={editItem} 
-        properties={properties} 
-        customers={customers} 
-        initialCustomer={selectedCustomer} 
+        }}
+        onSave={handleAdd}
+        onUpdate={handleUpdate}
+        editItem={editItem}
+        properties={properties}
+        customers={customers}
+        initialCustomer={selectedCustomer}
       />
-      
+
       {selectedCustomer && (
-        <CustomerDetailSheet 
-          customer={selectedCustomer} 
-          onClose={() => dispatch(clearSelectedCustomer())} 
-          properties={properties} 
-          activeDeals={deals} 
-          followUps={followUps} 
-          onAddFollowUp={handleAddFollowUpFromCustomer} 
-          onEditTask={handleEditTask}
-          onDeleteTask={handleDeleteTask}
-          onUpdateStatus={(id, status) => dispatch(updateCustomerStatus({ id, status }))}
-          onUpdateStage={async (id, stage) => {
-            try {
-              const response = await customersAPI.updateStage(id, stage);
-              if (response.data.success) {
+        (() => {
+          // Check if customer is In-Process and has a deal
+          const isInProcess = selectedCustomer.stage === 'In-Process';
+          const customerDeal = deals.find(d => d.customerId === selectedCustomer.id);
+
+
+
+          // If In-Process and has deal, open deal page directly
+          if (isInProcess && customerDeal) {
+
+            dispatch(setSelectedDeal(customerDeal));
+            dispatch(clearSelectedCustomer());
+            router.push('/deal-page');
+            return null;
+          }
+
+          // Otherwise show customer detail sheet
+          return (
+            <CustomerDetailSheet
+              customer={selectedCustomer}
+              onClose={() => dispatch(clearSelectedCustomer())}
+              properties={properties}
+              activeDeals={deals}
+              followUps={followUps}
+              onAddFollowUp={handleAddFollowUpFromCustomer}
+              onEditTask={handleEditTask}
+              onDeleteTask={handleDeleteTask}
+              onUpdateStatus={(id, status) => dispatch(updateCustomerStatus({ id, status }))}
+              onUpdateStage={async (id, stage) => {
+                try {
+                  const response = await customersAPI.updateStage(id, stage);
+                  if (response.data.success) {
+                    const customer = customers.find(c => c.id === id);
+                    if (customer) {
+                      dispatch(updateCustomer({ ...customer, stage }));
+                    }
+                    showToast.success(`Moved to ${stage}`);
+                  }
+                } catch (error) {
+                  console.error('Error updating stage:', error);
+                  showToast.error(error.response?.data?.message || 'Failed to update stage');
+                }
+              }}
+              onSelectProperties={(id, selectedProperties, interestedProperties, holdProperties) => {
                 const customer = customers.find(c => c.id === id);
                 if (customer) {
-                  dispatch(updateCustomer({ ...customer, stage }));
+                  const updates = { selectedProperties };
+                  if (interestedProperties !== undefined) {
+                    updates.interestedProperties = interestedProperties;
+                  }
+                  if (holdProperties !== undefined) {
+                    updates.holdProperties = holdProperties;
+                  }
+                  dispatch(updateCustomer({ ...customer, ...updates }));
                 }
-                Alert.alert('Success', `Moved to ${stage}`);
-              }
-            } catch (error) {
-              console.error('Error updating stage:', error);
-              Alert.alert('Error', error.response?.data?.message || 'Failed to update stage');
-            }
-          }}
-          onSelectProperties={(id, selectedProperties, interestedProperties, holdProperties) => {
-            const customer = customers.find(c => c.id === id);
-            if (customer) {
-              const updates = { selectedProperties };
-              if (interestedProperties !== undefined) {
-                updates.interestedProperties = interestedProperties;
-              }
-              if (holdProperties !== undefined) {
-                updates.holdProperties = holdProperties;
-              }
-              dispatch(updateCustomer({ ...customer, ...updates }));
-            }
-          }}
-          onStartDeal={handleStartDeal}
-          onOpenDeal={(deal) => {
-            dispatch(setSelectedDeal(deal));
-            router.push('/deal-page');
-          }}
-        />
+              }}
+              onStartDeal={handleStartDeal}
+              onOpenDeal={(deal) => {
+                dispatch(setSelectedDeal(deal));
+                router.push('/deal-page');
+              }}
+            />
+          );
+        })()
       )}
     </View>
   );
