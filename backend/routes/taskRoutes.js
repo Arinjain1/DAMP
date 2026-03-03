@@ -5,10 +5,7 @@ import { requireActiveSubscription } from '../middleware/subscriptionMiddleware.
 
 const router = express.Router();
 router.use(verifyToken);
-router.get('/', getTasks);
-router.post('/', createTask);
-router.put('/:id', updateTask);
-router.put('/:id/status', toggleTaskStatus);
+router.put('/:id', requireActiveSubscription,updateTask);
 router.get('/',requireActiveSubscription, getTasks);
 router.post('/',requireActiveSubscription, createTask);
 router.put('/:id/status',requireActiveSubscription, toggleTaskStatus);

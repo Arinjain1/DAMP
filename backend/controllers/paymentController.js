@@ -2,6 +2,9 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { query } from '../config/db.js';
 
+
+
+
 // Initialize Razorpay with your keys (Make sure these are in your backend .env file)
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
