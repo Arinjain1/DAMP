@@ -42,8 +42,6 @@ export const getClients = async (req, res, next) => {
     }
     sql += ' ORDER BY created_at DESC';
     const result = await query(sql, params);
-    
-    // Transform snake_case to camelCase for property arrays
     const transformedData = result.rows.map(client => ({
       ...client,
       selectedProperties: client.selected_properties || [],
@@ -85,8 +83,6 @@ export const updateClient = async (req, res, next) => {
     if (!name || !phone) {
       return res.status(400).json({ success: false, message: "Name and Phone are required" });
     }
-
-    // Build dynamic query based on what fields are provided
     let updateFields = [
       'name = $1', 'phone = $2', 
       'requirement_type = $3', 'property_category = $4', 'property_type = $5', 
@@ -102,8 +98,6 @@ export const updateClient = async (req, res, next) => {
     ];
 
     let paramIndex = 12;
-
-    // Add property arrays if provided
     if (selected_properties !== undefined) {
       updateFields.push(`selected_properties = $${paramIndex}`);
       values.push(selected_properties);
@@ -121,10 +115,7 @@ export const updateClient = async (req, res, next) => {
       values.push(hold_properties);
       paramIndex++;
     }
-
-    // Add clientId and brokerId at the end
     values.push(clientId, brokerId);
-
     const result = await query(
       `UPDATE contacts 
        SET ${updateFields.join(', ')}
@@ -132,17 +123,14 @@ export const updateClient = async (req, res, next) => {
        RETURNING *`,
       values
     );
-
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Client not found" });
     }
-
     res.json({
       success: true,
       message: "Client updated successfully!",
       data: result.rows[0]
     });
-
   } catch (err) {
     console.error("Update Client Error:", err);
     next(err);
@@ -176,8 +164,6 @@ export const getClientDetails = async (req, res, next) => {
        LIMIT 5`,
       [brokerId, client.property_category, client.budget_min, client.budget_max, clientId]
     );
-
-    // Transform snake_case to camelCase for property arrays
     const transformedClient = {
       ...client,
       selectedProperties: client.selected_properties || [],
@@ -259,8 +245,6 @@ export const updateClientProperties = async (req, res, next) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Client not found" });
     }
-
-    // Transform snake_case to camelCase for response
     const transformedClient = {
       ...result.rows[0],
       selectedProperties: result.rows[0].selected_properties || [],
