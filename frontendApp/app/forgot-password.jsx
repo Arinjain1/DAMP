@@ -1,24 +1,24 @@
 import { Lato_400Regular, Lato_700Bold, useFonts } from '@expo-google-fonts/lato';
 import {
-  Montserrat_400Regular,
-  Montserrat_500Medium,
-  Montserrat_600SemiBold,
-  Montserrat_700Bold,
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
 } from '@expo-google-fonts/montserrat';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 export default function ForgotPassword() {
@@ -71,7 +71,7 @@ export default function ForgotPassword() {
           {/* HEADER */}
           <View style={styles.header}>
             <Text style={styles.title}>Forgot Password?</Text>
-            <Text style={styles.subtitle}>Don&apos;t worry! Enter your email and we&apos;ll send you a verification code</Text>
+            <Text style={styles.subtitle}>Don't worry! Enter your email and we'll send you a verification code</Text>
           </View>
 
           {/* FORM */}
@@ -99,7 +99,7 @@ export default function ForgotPassword() {
             </TouchableOpacity>
 
             {/* INFO TEXT */}
-
+            
 
             {/* BACK TO LOGIN */}
             <View style={styles.signupRow}>

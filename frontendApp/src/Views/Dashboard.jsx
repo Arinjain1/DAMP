@@ -1,33 +1,35 @@
 import {
-  ArrowRight,
-  Briefcase,
-  Clock,
-  Handshake,
-  Plus,
-  UserPlus
+    ArrowRight,
+    Briefcase,
+    Clock,
+    Handshake,
+    Plus,
+    UserPlus
 } from 'lucide-react-native';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
-  Image,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  RefreshControl,
+    ActivityIndicator,
+    Alert,
+    Image,
+    Platform,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    RefreshControl,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { dashboardAPI } from '../config/api';
 import {
-  INITIAL_CUSTOMERS,
-  INITIAL_DEALS,
-  INITIAL_FOLLOWUPS,
-  INITIAL_PROFILE,
-  INITIAL_PROPERTIES,
+    INITIAL_CUSTOMERS,
+    INITIAL_DEALS,
+    INITIAL_FOLLOWUPS,
+    INITIAL_PROFILE,
+    INITIAL_PROPERTIES,
 } from '../MockData/Mockdata';
 
 // Currency formatter
@@ -43,7 +45,7 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-
+  
   // Get logged-in user from Redux
   const { user } = useSelector(state => state.auth);
 
@@ -59,9 +61,9 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
     try {
       setLoading(true);
       const response = await dashboardAPI.getOverview();
-
+      
       if (response.data.success) {
-
+       
         setDashboardData(response.data.data);
         setError(null);
       }
@@ -97,7 +99,6 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
     total_sale: INITIAL_DEALS.filter(d => d.stage === 'Completed').length,
     pending: INITIAL_DEALS.filter(d => d.stage !== 'Completed').length,
     rejected: 0,
-    network_count: 99, // Fallback for local UI
   };
 
   const todaysTasks = dashboardData?.todays_focus || followUps.filter(f => f.status === 'Pending').slice(0, 3);
@@ -121,7 +122,7 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
   }, []);
 
   // Memoize filtered data
-  const pendingFollowUps = useMemo(() =>
+  const pendingFollowUps = useMemo(() => 
     todaysTasks,
     [todaysTasks]
   );
@@ -162,7 +163,7 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
               source={require('../../assets/images/Group 1.png')}
               style={styles.headerDecoration}
             />
-
+            
             <View style={styles.profileRow}>
               <View style={styles.profileLeft}>
                 <View style={styles.skeletonAvatar} />
@@ -187,7 +188,7 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
           {/* Body Skeleton */}
           <View style={styles.body}>
             <View style={styles.skeletonSectionTitle} />
-
+            
             {/* Quick Actions Skeleton */}
             <View style={styles.billPaymentsWrapper}>
               <View style={styles.iconsGroup}>
@@ -243,175 +244,175 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
           </View>
         </ScrollView>
       ) : (
-        <ScrollView
+        <ScrollView 
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          {/* ================= HEADER ================= */}
-          <View style={styles.header}>
-            <Image
-              source={require('../../assets/images/Group 1.png')}
-              style={styles.headerDecoration}
-            />
+        {/* ================= HEADER ================= */}
+        <View style={styles.header}>
+          <Image
+            source={require('../../assets/images/Group 1.png')}
+            style={styles.headerDecoration}
+          />
 
-            <View style={styles.profileRow}>
-              <View style={styles.profileLeft}>
-                <Image source={{ uri: INITIAL_PROFILE.avatar }} style={styles.avatar} />
-                <View style={styles.nameRow}>
-                  <Text style={styles.userName}>{user?.name || 'User'}</Text>
-                  <Image
-                    source={require('../../assets/images/pajamas_partner-verified.png')}
-                    style={styles.verificationBadge}
-                  />
-                </View>
-              </View>
-
-              <TouchableOpacity style={styles.bellButton}>
-                <Image
-                  source={require('../../assets/images/famicons_notifications.png')}
-                  style={styles.notificationIcon}
+          <View style={styles.profileRow}>
+            <View style={styles.profileLeft}>
+              <Image source={{ uri: INITIAL_PROFILE.avatar }} style={styles.avatar} />
+              <View style={styles.nameRow}>
+                <Text style={styles.userName}>{user?.name || 'User'}</Text>
+                <Image 
+                  source={require('../../assets/images/pajamas_partner-verified.png')} 
+                  style={styles.verificationBadge}
                 />
-                {unreadCount > 0 && <View style={styles.dot} />}
-              </TouchableOpacity>
+              </View>
             </View>
 
-            {/* Stats */}
-            <View style={styles.statsOuterBox}>
-              <StatBlock label="Total Visitor" count={stats.total_visitor} />
-              <StatBlock label="Total Sale" count={stats.total_sale} />
-              <StatBlock label="Pending" count={stats.pending} />
-              <StatBlock label="Rejected" count={stats.rejected} />
-            </View>
+            <TouchableOpacity style={styles.bellButton}>
+              <Image 
+                source={require('../../assets/images/famicons_notifications.png')} 
+                style={styles.notificationIcon}
+              />
+              {unreadCount > 0 && <View style={styles.dot} />}
+            </TouchableOpacity>
           </View>
 
-          {/* ================= BODY ================= */}
-          <View style={styles.body}>
+          {/* Stats */}
+          <View style={styles.statsOuterBox}>
+            <StatBlock label="Total Visitor" count={stats.total_visitor} />
+            <StatBlock label="Total Sale" count={stats.total_sale} />
+            <StatBlock label="Pending" count={stats.pending} />
+            <StatBlock label="Rejected" count={stats.rejected} />
+          </View>
+        </View>
 
-            <Text style={styles.sectionTitle} className=''>Quick Actions</Text>
-
-            {/* --- MODIFIED BILL PAYMENTS CONTAINER --- */}
-            <View style={styles.billPaymentsWrapper}>
-
-              {/* Left Side: The 4 Icons */}
-              <View style={styles.iconsGroup}>
-                <NavItem icon={UserPlus} label="New Lead" onPress={() => onOpenModal?.('Customer')} />
-                <NavItem icon={Plus} label="Add Prop" onPress={() => onOpenModal?.('Property')} />
-                <NavItem icon={Briefcase} label="Deal" onPress={() => onNavigate?.('/deals')} />
-                <NavItem icon={Handshake} label="Collab" onPress={onOpenCollab} />
-              </View>
-
-              {/* Right Side: Broker Card (Touches Edge) */}
-              <TouchableOpacity style={styles.brokerBlock} onPress={onOpenCollab}>
-                <Text style={styles.brokerLabel}>Broker</Text>
-                <Text style={styles.brokerNumber}>{stats.network_count}</Text>
-              </TouchableOpacity>
-
+        {/* ================= BODY ================= */}
+        <View style={styles.body}>
+          
+          <Text style={styles.sectionTitle} className=''>Quick Actions</Text>
+          
+          {/* --- MODIFIED BILL PAYMENTS CONTAINER --- */}
+          <View style={styles.billPaymentsWrapper}>
+            
+            {/* Left Side: The 4 Icons */}
+            <View style={styles.iconsGroup}>
+              <NavItem icon={UserPlus} label="New Lead" onPress={() => onOpenModal?.('Customer')} />
+              <NavItem icon={Plus} label="Add Prop" onPress={() => onOpenModal?.('Property')} />
+              <NavItem icon={Briefcase} label="Deal" onPress={() => onNavigate?.('/deals')} />
+              <NavItem icon={Handshake} label="Collab" onPress={onOpenCollab} />
             </View>
-            {/* -------------------------------------- */}
 
-            {/* Active Deals */}
-            {activeDeals.length > 0 && (
-              <View style={{ marginTop: 24 }}>
-                <Text style={styles.sectionTitle}>Active Deals</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {activeDeals.map((deal) => {
-                    // Handle both API format and mock format
-                    const propertyTitle = deal.property_title || properties.find(p => p.id === deal.propertyId)?.title;
-                    const propertyImage = deal.cover_image_url || properties.find(p => p.id === deal.propertyId)?.image;
-                    const propertyPrice = deal.listing_price || deal.final_price || properties.find(p => p.id === deal.propertyId)?.price;
-                    const clientName = deal.client_name || customers.find(c => c.id === deal.customerId)?.name;
-                    const dealStatus = deal.status || deal.stage;
-                    const stage = getStageBadgeStyle(dealStatus);
+            {/* Right Side: Broker Card (Touches Edge) */}
+            <TouchableOpacity style={styles.brokerBlock}>
+              <Text style={styles.brokerLabel}>Broker</Text>
+              <Text style={styles.brokerNumber}>99</Text>
+            </TouchableOpacity>
 
-                    return (
-                      <TouchableOpacity
-                        key={deal.id}
-                        style={styles.dealCard}
-                        onPress={() => onOpenDeal(deal)}
-                      >
-                        <View style={styles.dealTop}>
-                          <Image source={{ uri: propertyImage }} style={styles.dealImage} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.dealTitle}>{propertyTitle}</Text>
-                            <Text style={styles.dealSubtitle}>{clientName}</Text>
-                          </View>
-                        </View>
+          </View>
+          {/* -------------------------------------- */}
 
-                        <View style={styles.dealBottom}>
-                          <View style={[styles.stageBadge, { backgroundColor: stage.bg }]}>
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: stage.text }}>
-                              {dealStatus}
-                            </Text>
-                          </View>
-                          <Text style={styles.price}>{formatCurrency(propertyPrice)}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            )}
-
-            {/* Today's Focus */}
+          {/* Active Deals */}
+          {activeDeals.length > 0 && (
             <View style={{ marginTop: 24 }}>
-              <View style={styles.focusHeader}>
-                <Text style={styles.sectionTitle}>Today’s Focus</Text>
-                <TouchableOpacity style={styles.viewAll}>
-                  <Text style={styles.viewAllText}>View All</Text>
-                  <ArrowRight size={14} color="#968CE4" />
-                </TouchableOpacity>
-              </View>
-
-              {pendingFollowUps.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Image
-                    source={require('../../assets/images/rafiki.png')}
-                    style={styles.emptyStateImage}
-                    resizeMode="contain"
-                  />
-                  <Text style={styles.emptyStateTitle}>All Clear!</Text>
-                  <Text style={styles.emptyStateText}>
-                    No tasks for today. Time to relax or plan ahead!
-                  </Text>
-                </View>
-              ) : (
-                pendingFollowUps.map(task => {
-                  // Handle both API format (due_date, client_name) and mock format (date, customerId)
-                  const taskDate = task.due_date || task.date;
-                  const clientName = task.client_name || customers.find(c => c.id === task.customerId)?.name;
-                  const taskNote = task.title || task.note;
-                  const date = new Date(taskDate);
+              <Text style={styles.sectionTitle}>Active Deals</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {activeDeals.map((deal) => {
+                  // Handle both API format and mock format
+                  const propertyTitle = deal.property_title || properties.find(p => p.id === deal.propertyId)?.title;
+                  const propertyImage = deal.cover_image_url || properties.find(p => p.id === deal.propertyId)?.image;
+                  const propertyPrice = deal.listing_price || deal.final_price || properties.find(p => p.id === deal.propertyId)?.price;
+                  const clientName = deal.client_name || customers.find(c => c.id === deal.customerId)?.name;
+                  const dealStatus = deal.status || deal.stage;
+                  const stage = getStageBadgeStyle(dealStatus);
 
                   return (
-                    <View key={task.id} style={styles.taskCard}>
-                      <View style={styles.dateBox}>
-                        <Text style={styles.dateMonth}>
-                          {date.toLocaleString('default', { month: 'short' })}
-                        </Text>
-                        <Text style={styles.dateDay}>{date.getDate()}</Text>
-                      </View>
-
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.taskTitle}>{clientName || 'Client'}</Text>
-                        <Text style={styles.taskNote} numberOfLines={1}>
-                          {taskNote}
-                        </Text>
-                        <View style={styles.timeRow}>
-                          <Clock size={10} color="#9ca3af" />
-                          <Text style={styles.timeText}>
-                            {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </Text>
+                    <TouchableOpacity
+                      key={deal.id}
+                      style={styles.dealCard}
+                      onPress={() => onOpenDeal(deal)}
+                    >
+                      <View style={styles.dealTop}>
+                        <Image source={{ uri: propertyImage }} style={styles.dealImage} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.dealTitle}>{propertyTitle}</Text>
+                          <Text style={styles.dealSubtitle}>{clientName}</Text>
                         </View>
                       </View>
-                    </View>
+
+                      <View style={styles.dealBottom}>
+                        <View style={[styles.stageBadge, { backgroundColor: stage.bg }]}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: stage.text }}>
+                            {dealStatus}
+                          </Text>
+                        </View>
+                        <Text style={styles.price}>{formatCurrency(propertyPrice)}</Text>
+                      </View>
+                    </TouchableOpacity>
                   );
-                })
-              )}
+                })}
+              </ScrollView>
             </View>
+          )}
+
+          {/* Today's Focus */}
+          <View style={{ marginTop: 24 }}>
+            <View style={styles.focusHeader}>
+              <Text style={styles.sectionTitle}>Today’s Focus</Text>
+              <TouchableOpacity style={styles.viewAll}>
+                <Text style={styles.viewAllText}>View All</Text>
+                <ArrowRight size={14} color="#968CE4" />
+              </TouchableOpacity>
+            </View>
+
+            {pendingFollowUps.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Image 
+                  source={require('../../assets/images/rafiki.png')} 
+                  style={styles.emptyStateImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.emptyStateTitle}>All Clear!</Text>
+                <Text style={styles.emptyStateText}>
+                  No tasks for today. Time to relax or plan ahead!
+                </Text>
+              </View>
+            ) : (
+              pendingFollowUps.map(task => {
+                // Handle both API format (due_date, client_name) and mock format (date, customerId)
+                const taskDate = task.due_date || task.date;
+                const clientName = task.client_name || customers.find(c => c.id === task.customerId)?.name;
+                const taskNote = task.title || task.note;
+                const date = new Date(taskDate);
+
+                return (
+                  <View key={task.id} style={styles.taskCard}>
+                    <View style={styles.dateBox}>
+                      <Text style={styles.dateMonth}>
+                        {date.toLocaleString('default', { month: 'short' })}
+                      </Text>
+                      <Text style={styles.dateDay}>{date.getDate()}</Text>
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.taskTitle}>{clientName || 'Client'}</Text>
+                      <Text style={styles.taskNote} numberOfLines={1}>
+                        {taskNote}
+                      </Text>
+                      <View style={styles.timeRow}>
+                        <Clock size={10} color="#9ca3af" />
+                        <Text style={styles.timeText}>
+                          {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })
+            )}
           </View>
-        </ScrollView>
+        </View>
+      </ScrollView>
       )}
     </View>
   );
@@ -483,35 +484,35 @@ const styles = StyleSheet.create({
   },
   statCount: { fontSize: 14, fontWeight: '400' },
   statLabel: { fontSize: 11, marginTop: 6 },
-
+  
   // Body Padding is 20
   body: { padding: 20 },
-
-  sectionTitle: { fontFamily: 'MONTSERRAT_700', fontSize: 16, fontWeight: '700', marginBottom: 15, color: '#313131' },
+  
+  sectionTitle: { fontFamily: 'MONTSERRAT_700' , fontSize: 16, fontWeight: '700', marginBottom: 15 , color:'#313131'},
 
   /* --- MODIFIED BILL PAYMENTS STYLES --- */
-
+  
   billPaymentsWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: -20,
+    marginRight: -20, 
     marginBottom: 4,
   },
 
   iconsGroup: {
-    flex: 1,
+    flex: 1, 
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingRight: 22,
+    paddingRight: 22, 
   },
 
-  navItem: {
+  navItem: { 
     alignItems: 'center',
-    minWidth: 50,
+    minWidth: 50, 
   },
 
   navIconContainer: {
-    width: 54,
+    width: 54, 
     height: 54,
     borderRadius: 14,
     alignItems: 'center',
@@ -519,22 +520,22 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
 
-  navLabel: {
-    fontSize: 11,
+  navLabel: { 
+    fontSize: 11, 
     fontWeight: '600',
     color: '#111827',
-    textAlign: 'center'
+    textAlign: 'center' 
   },
 
   brokerBlock: {
     backgroundColor: '#E9e6f7',
-    width: 80,
-    height: 80,
+    width: 80, 
+    height: 80, 
     borderTopLeftRadius: 18,
     borderBottomLeftRadius: 18,
     borderTopRightRadius: 0,
     borderBottomRightRadius: 0,
-
+    
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -554,7 +555,7 @@ const styles = StyleSheet.create({
     marginBottom: 1,
     fontFamily: 'MONTSERRAT_600',
   },
-
+  
   errorBanner: {
     backgroundColor: '#FEF3C7',
     padding: 12,
@@ -599,7 +600,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  viewAll: { flexDirection: 'row', gap: 4, bottom: 8 },
+  viewAll: { flexDirection: 'row',  gap: 4 , bottom:8},
   viewAllText: { fontSize: 12, fontWeight: '700', color: '#968CE4' },
   taskCard: {
     backgroundColor: '#fff',
@@ -624,7 +625,7 @@ const styles = StyleSheet.create({
   taskTitle: { fontWeight: '700' },
   taskNote: { fontSize: 12, color: '#6b7280', marginTop: 2 },
   timeRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
-  timeText: { fontSize: 10, fontWeight: '700', color: '#9ca3af', bottom: 3 },
+  timeText: { fontSize: 10, fontWeight: '700', color: '#9ca3af' , bottom :3},
 });
 
 // Skeleton Loader Styles - Added after closing brace

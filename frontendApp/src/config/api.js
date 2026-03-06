@@ -102,10 +102,6 @@ export const dealsAPI = {
   create: (data) => api.post('/clients/deal', data),
   update: (id, data) => api.put(`/deals/${id}`, data),
   delete: (id) => api.delete(`/deals/${id}`),
-  updateNegotiation: (dealId, data) => api.put(`/deals/${dealId}/negotiation`, data),
-  addTransaction: (dealId, data) => api.post(`/deals/${dealId}/transactions`, data),
-  completeTransaction: (transactionId, data) => api.put(`/deals/transactions/${transactionId}/complete`, data),
-  getHistory: (dealId) => api.get(`/deals/${dealId}/history`),
 };
 
 // Tasks/FollowUps API endpoints
@@ -121,15 +117,6 @@ export const visitsAPI = {
   create: (data) => api.post('/visits', data),
   getById: (id) => api.get(`/visits/${id}`),
   submitFeedback: (itemId, data) => api.put(`/visits/item/${itemId}`, data),
-};
-
-// Collaboration API endpoints
-export const collabAPI = {
-  search: (q) => api.get('/collab/search', { params: { q } }),
-  sendRequest: (data) => api.post('/collab/connect', data),
-  getNetwork: () => api.get('/collab/my-network'),
-  getRequests: () => api.get('/collab/requests'),
-  updateStatus: (id, status) => api.put(`/collab/requests/${id}`, { status }),
 };
 
 export default api;
