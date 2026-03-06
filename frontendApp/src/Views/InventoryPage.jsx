@@ -4,8 +4,7 @@ import {
    Text,
    ScrollView,
    TouchableOpacity,
-   ImageBackground,
-   Image
+   ImageBackground
 } from 'react-native';
 import {
    Filter,
