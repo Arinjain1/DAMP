@@ -12,16 +12,17 @@ import {
   Phone,
   Plus,
   Search,
+  Sparkles,
   ThumbsDown,
   ThumbsUp,
   Trash2,
   Users,
   X
 } from 'lucide-react-native';
-import { useState, useEffect } from 'react';
+import { memo, useCallback, useMemo, useState, useEffect } from 'react';
 import {
-  Alert,
   Image,
+  ImageBackground,
   Linking,
   Modal,
   Platform,

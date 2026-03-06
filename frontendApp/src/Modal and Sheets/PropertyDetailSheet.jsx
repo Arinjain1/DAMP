@@ -1,9 +1,10 @@
-import { Building, Layout, MapPin, Phone, Sofa, X } from 'lucide-react-native';
+import { Briefcase, Building, Edit3, Layout, MapPin, Phone, Search, Sofa, Users, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Image, Linking, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { router } from 'expo-router';
 import WhatsAppIcon from '../Components/WhatsAppIcon';
+import { getAmenitiesForType } from '../MockData/Mockdata';
 import { setSelectedDeal } from '../store/slices/dealsSlice';
 
 const formatCurrency = (amount) =>

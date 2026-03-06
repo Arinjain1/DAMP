@@ -1,5 +1,5 @@
 import { Check, ChevronDown, ChevronUp, Phone, Plus, X } from 'lucide-react-native';
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import {
   Image,
   Linking,
@@ -9,12 +9,11 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  ActivityIndicator
+  View
 } from 'react-native';
 import { showToast } from '../utils/toast';
 import WhatsAppIcon from '../Components/WhatsAppIcon';
-import { collabAPI } from '../config/api';
+import { INITIAL_COLLABORATORS, PENDING_REQUESTS } from '../MockData/Mockdata';
 
 const CollaborationSheet = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState('collab'); // 'collab' or 'requests'
@@ -25,32 +24,18 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successData, setSuccessData] = useState({ id: '', number: '' });
 
-  // API State
-  const [network, setNetwork] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(false);
+  if (!isOpen) return null;
 
-  const fetchNetworkData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [networkRes, requestsRes] = await Promise.all([
-        collabAPI.getNetwork(),
-        collabAPI.getRequests()
-      ]);
-
-      if (networkRes.data.success) {
-        setNetwork(networkRes.data.data);
-      }
-      if (requestsRes.data.success) {
-        setRequests(requestsRes.data.data);
-      }
-    } catch (_err) {
-      console.error('Error fetching collab data:', _err);
-      showToast.error('Failed to load collaboration data');
-    } finally {
-      setLoading(false);
+  const handleAddCollaborator = () => {
+    if (!brokerId.trim() || !brokerNo.trim()) {
+      showToast.info('Please fill in both Broker ID and Broker Number to send connection request.');
+      return;
     }
-  }, []);
+
+    // Show custom success modal
+    setSuccessData({ id: brokerId, number: brokerNo });
+    setShowSuccessModal(true);
+  };
 
   const closeSuccessModal = () => {
     setShowSuccessModal(false);
@@ -59,58 +44,12 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
     setShowAddForm(false);
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchNetworkData();
-    }
-  }, [isOpen, fetchNetworkData]);
-
-  if (!isOpen) return null;
-
-  const handleAddCollaborator = async () => {
-    if (!brokerId.trim() || !brokerNo.trim()) {
-      showToast.info('Please fill in both Broker ID and Broker Number.');
-      return;
-    }
-
-    try {
-      const response = await collabAPI.sendRequest({
-        receiver_id: brokerId,
-      });
-
-      if (response.data.success) {
-        setSuccessData({ id: brokerId, number: brokerNo });
-        setShowSuccessModal(true);
-        fetchNetworkData(); // Refresh
-      }
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to send request';
-      showToast.error(msg);
-    }
+  const handleAcceptRequest = (requestId) => {
+    showToast.success('Collaboration request accepted successfully!');
   };
 
-  const handleAcceptRequest = async (requestId) => {
-    try {
-      const response = await collabAPI.updateStatus(requestId, 'accepted');
-      if (response.data.success) {
-        showToast.success('Collaboration request accepted!');
-        fetchNetworkData(); // Refresh network and requests
-      }
-    } catch (_err) {
-      showToast.error('Failed to accept request');
-    }
-  };
-
-  const handleRejectRequest = async (requestId) => {
-    try {
-      const response = await collabAPI.updateStatus(requestId, 'rejected');
-      if (response.data.success) {
-        showToast.info('Request declined');
-        fetchNetworkData(); // Refresh requests
-      }
-    } catch (_err) {
-      showToast.error('Failed to decline request');
-    }
+  const handleRejectRequest = (requestId) => {
+    showToast.info('The collaboration request has been declined.');
   };
 
   const handleCall = (phone) => {
@@ -234,77 +173,79 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                   {/* My Collaboration Network Section */}
                   <Text style={styles.sectionTitle}>My Collaboration Network</Text>
 
-                  {loading ? (
-                    <ActivityIndicator size="large" color="#C4B5FD" style={{ marginVertical: 20 }} />
-                  ) : (
-                    <View style={styles.collaboratorList}>
-                      {network && network.length > 0 ? (
-                        network.map(collaborator => (
-                          <TouchableOpacity
-                            key={collaborator.id}
-                            style={styles.collaboratorCard}
-                            onPress={() => handleCollaboratorClick(collaborator.id)}
-                          >
-                            <View style={styles.collaboratorHeader}>
-                              <Image
-                                source={{ uri: collaborator.avatar_url || 'https://via.placeholder.com/150' }}
-                                style={styles.avatar}
-                              />
-                              <View style={styles.collaboratorInfo}>
-                                <Text style={styles.collaboratorName}>{collaborator.full_name}</Text>
-                                <Text style={styles.collaboratorLocation}>{collaborator.operating_area}</Text>
+                  <View style={styles.collaboratorList}>
+                    {INITIAL_COLLABORATORS && INITIAL_COLLABORATORS.length > 0 ? (
+                      INITIAL_COLLABORATORS.map(collaborator => (
+                        <TouchableOpacity
+                          key={collaborator.id}
+                          style={styles.collaboratorCard}
+                          onPress={() => handleCollaboratorClick(collaborator.id)}
+                        >
+                          <View style={styles.collaboratorHeader}>
+                            <Image
+                              source={{ uri: collaborator.avatar }}
+                              style={styles.avatar}
+                            />
+                            <View style={styles.collaboratorInfo}>
+                              <Text style={styles.collaboratorName}>{collaborator.name}</Text>
+                              <Text style={styles.collaboratorLocation}>{collaborator.location}</Text>
+                            </View>
+                            <View style={styles.expandIcon}>
+                              {expandedCollaborator === collaborator.id ? (
+                                <ChevronUp size={20} color="#6b7280" />
+                              ) : (
+                                <ChevronDown size={20} color="#6b7280" />
+                              )}
+                            </View>
+                          </View>
+
+                          {/* Expanded Stats Section */}
+                          {expandedCollaborator === collaborator.id && (
+                            <View style={styles.statsContainer}>
+                              <View style={styles.statsGrid}>
+                                <View style={styles.statBox}>
+                                  <Text style={styles.statText}>Total Properties <Text style={styles.statValue}>{collaborator.properties}</Text></Text>
+                                </View>
+                                <View style={styles.statBox}>
+                                  <Text style={styles.statText}>Total Deals <Text style={styles.statValue}>{collaborator.deals}</Text></Text>
+                                </View>
                               </View>
-                              <View style={styles.expandIcon}>
-                                {expandedCollaborator === collaborator.id ? (
-                                  <ChevronUp size={20} color="#6b7280" />
-                                ) : (
-                                  <ChevronDown size={20} color="#6b7280" />
-                                )}
+                              <View style={styles.statsGrid}>
+                                <View style={styles.statBox}>
+                                  <Text style={styles.statText}>Total Clients <Text style={styles.statValue}>{collaborator.collaboratedDeals * 15}</Text></Text>
+                                </View>
+                                <View style={styles.statBox}>
+                                  <Text style={styles.statText}>Collaborations <Text style={styles.statValue}>{collaborator.collaboratedDeals}</Text></Text>
+                                </View>
+                              </View>
+
+                              {/* Action Buttons */}
+                              <View style={styles.actionButtons}>
+                                <TouchableOpacity
+                                  style={styles.callButton}
+                                  onPress={() => handleCall(collaborator.phone)}
+                                >
+                                  <Phone size={14} color="#4f46e5" />
+                                  <Text style={styles.callButtonText}>Call</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={styles.messageButton}
+                                  onPress={() => handleWhatsApp(collaborator.phone)}
+                                >
+                                  <WhatsAppIcon size={14} color="#25D366" />
+                                  <Text style={styles.messageButtonText}>Message</Text>
+                                </TouchableOpacity>
                               </View>
                             </View>
-
-                            {/* Expanded Stats Section */}
-                            {expandedCollaborator === collaborator.id && (
-                              <View style={styles.statsContainer}>
-                                <View style={styles.statsGrid}>
-                                  <View style={styles.statBox}>
-                                    <Text style={styles.statText}>Phone <Text style={styles.statValue}>{collaborator.phone_number}</Text></Text>
-                                  </View>
-                                </View>
-                                <View style={styles.statsGrid}>
-                                  <View style={styles.statBox}>
-                                    <Text style={styles.statText}>Email <Text style={styles.statValue}>{collaborator.email}</Text></Text>
-                                  </View>
-                                </View>
-
-                                {/* Action Buttons */}
-                                <View style={styles.actionButtons}>
-                                  <TouchableOpacity
-                                    style={styles.callButton}
-                                    onPress={() => handleCall(collaborator.phone_number)}
-                                  >
-                                    <Phone size={14} color="#4f46e5" />
-                                    <Text style={styles.callButtonText}>Call</Text>
-                                  </TouchableOpacity>
-                                  <TouchableOpacity
-                                    style={styles.messageButton}
-                                    onPress={() => handleWhatsApp(collaborator.phone_number)}
-                                  >
-                                    <WhatsAppIcon size={14} color="#25D366" />
-                                    <Text style={styles.messageButtonText}>Message</Text>
-                                  </TouchableOpacity>
-                                </View>
-                              </View>
-                            )}
-                          </TouchableOpacity>
-                        ))
-                      ) : (
-                        <View style={styles.emptyState}>
-                          <Text style={styles.emptyStateText}>No collaborators yet</Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
+                          )}
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <View style={styles.emptyState}>
+                        <Text style={styles.emptyStateText}>No collaborators yet</Text>
+                      </View>
+                    )}
+                  </View>
                 </>
               )}
 
@@ -313,53 +254,49 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                 <>
                   <Text style={styles.sectionTitle}>Pending Requests</Text>
 
-                  {loading ? (
-                    <ActivityIndicator size="large" color="#C4B5FD" style={{ marginVertical: 20 }} />
-                  ) : (
-                    <View style={styles.collaboratorList}>
-                      {requests && requests.length > 0 ? (
-                        requests.map(request => (
-                          <View
-                            key={request.request_id}
-                            style={styles.requestCard}
-                          >
-                            <View style={styles.requestInfo}>
-                              <Image
-                                source={{ uri: request.avatar_url || 'https://via.placeholder.com/150' }}
-                                style={styles.avatar}
-                              />
-                              <View style={styles.collaboratorInfo}>
-                                <Text style={styles.collaboratorName}>{request.full_name}</Text>
-                                <Text style={styles.collaboratorLocation}>{request.operating_area}</Text>
-                                <Text style={styles.brokerId}>ID: {request.user_id}</Text>
-                              </View>
-                            </View>
-
-                            <View style={styles.requestActions}>
-                              <TouchableOpacity
-                                style={styles.rejectButton}
-                                onPress={() => handleRejectRequest(request.request_id)}
-                              >
-                                <X size={16} color="#ef4444" />
-                                <Text style={styles.rejectButtonText}>Reject</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.acceptButton}
-                                onPress={() => handleAcceptRequest(request.request_id)}
-                              >
-                                <Check size={16} color="#22c55e" />
-                                <Text style={styles.acceptButtonText}>Accept</Text>
-                              </TouchableOpacity>
+                  <View style={styles.collaboratorList}>
+                    {PENDING_REQUESTS && PENDING_REQUESTS.length > 0 ? (
+                      PENDING_REQUESTS.map(request => (
+                        <View
+                          key={request.id}
+                          style={styles.requestCard}
+                        >
+                          <View style={styles.requestInfo}>
+                            <Image
+                              source={{ uri: request.avatar }}
+                              style={styles.avatar}
+                            />
+                            <View style={styles.collaboratorInfo}>
+                              <Text style={styles.collaboratorName}>{request.name}</Text>
+                              <Text style={styles.collaboratorLocation}>{request.location}</Text>
+                              <Text style={styles.brokerId}>ID: {request.brokerId}</Text>
                             </View>
                           </View>
-                        ))
-                      ) : (
-                        <View style={styles.emptyState}>
-                          <Text style={styles.emptyStateText}>No pending requests</Text>
+
+                          <View style={styles.requestActions}>
+                            <TouchableOpacity
+                              style={styles.rejectButton}
+                              onPress={() => handleRejectRequest(request.id)}
+                            >
+                              <X size={16} color="#ef4444" />
+                              <Text style={styles.rejectButtonText}>Reject</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.acceptButton}
+                              onPress={() => handleAcceptRequest(request.id)}
+                            >
+                              <Check size={16} color="#22c55e" />
+                              <Text style={styles.acceptButtonText}>Accept</Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
-                      )}
-                    </View>
-                  )}
+                      ))
+                    ) : (
+                      <View style={styles.emptyState}>
+                        <Text style={styles.emptyStateText}>No pending requests</Text>
+                      </View>
+                    )}
+                  </View>
                 </>
               )}
 
@@ -406,7 +343,7 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
 
             {/* Additional Info */}
             <Text style={styles.additionalInfo}>
-              You&apos;ll receive a notification once they accept your request.
+              You'll receive a notification once they accept your request.
             </Text>
 
             {/* Done Button */}

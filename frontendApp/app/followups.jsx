@@ -32,6 +32,8 @@ import { clearEditItem, setEditItem, setModalOpen, setModalType } from '@/src/st
 import {
   setFollowUps,
   deleteFollowUp,
+  setActiveSiteVisit,
+  updateFollowUp,
   updateFollowUpStatus,
   setLoading
 } from '../src/store/slices/followUpsSlice';
@@ -51,7 +53,7 @@ export default function FollowUps() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Redux state
-  const { followUps, loading } = useSelector(state => state.followUps);
+  const { followUps, activeSiteVisit, loading } = useSelector(state => state.followUps);
   const { customers } = useSelector(state => state.customers);
   const { properties } = useSelector(state => state.properties);
   const { modalOpen, modalType, editItem } = useSelector(state => state.ui);

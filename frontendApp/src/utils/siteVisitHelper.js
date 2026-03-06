@@ -1,4 +1,4 @@
-
+import { Alert } from 'react-native';
 import { visitsAPI } from '../config/api';
 
 /**
@@ -39,7 +39,7 @@ export const createSiteVisit = async (data) => {
 export const getSiteVisitDetails = async (visitId) => {
   try {
     const response = await visitsAPI.getById(visitId);
-
+    
     if (response.data.success) {
       return {
         success: true,
