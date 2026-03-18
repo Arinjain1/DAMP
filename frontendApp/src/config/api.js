@@ -38,13 +38,30 @@ api.interceptors.request.use(
   }
 );
 
+// Store navigation reference for redirects
+let navigationRef = null;
+
+export const setNavigationRef = (ref) => {
+  navigationRef = ref;
+};
+
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
-      // Server responded with error
-      console.error('API Error:', error.response.data);
+      // Check for authentication errors (401 Unauthorized or 403 Forbidden)
+      if (error.response.status === 401 || error.response.status === 403) {
+        // Clear auth token
+        clearAuthToken();
+        // Directly redirect to login page, no error shown for smooth UX
+        if (navigationRef && navigationRef.replace) {
+          navigationRef.replace('/login');
+        }
+      } else {
+        // Server responded with other error
+        console.error('API Error:', error.response.data);
+      }
     } else if (error.request) {
       // Request made but no response
       console.error('Network Error:', error.message);
@@ -102,6 +119,13 @@ export const dealsAPI = {
   create: (data) => api.post('/clients/deal', data),
   update: (id, data) => api.put(`/deals/${id}`, data),
   delete: (id) => api.delete(`/deals/${id}`),
+  
+  // Payment/Transaction endpoints
+  getNegotiation: (dealId) => api.get(`/deals/${dealId}/negotiation`),
+  updateNegotiation: (dealId, data) => api.put(`/deals/${dealId}/negotiation`, data),
+  addTransaction: (dealId, data) => api.post(`/deals/${dealId}/transactions`, data),
+  completeTransaction: (transactionId, data) => api.put(`/deals/transactions/${transactionId}/complete`, data),
+  getHistory: (dealId) => api.get(`/deals/${dealId}/history`),
 };
 
 // Tasks/FollowUps API endpoints
@@ -109,6 +133,7 @@ export const tasksAPI = {
   getAll: (params) => api.get('/tasks', { params }),
   create: (data) => api.post('/tasks', data),
   update: (id, data) => api.put(`/tasks/${id}`, data),
+  delete: (id) => api.delete(`/tasks/${id}`),
   toggleStatus: (id) => api.put(`/tasks/${id}/status`),
 };
 
@@ -117,6 +142,13 @@ export const visitsAPI = {
   create: (data) => api.post('/visits', data),
   getById: (id) => api.get(`/visits/${id}`),
   submitFeedback: (itemId, data) => api.put(`/visits/item/${itemId}`, data),
+};
+
+// Collaboration API endpoints
+export const collabAPI = {
+  searchBrokers: (query) => api.get('/collab/search', { params: { q: query } }),
+  sendRequest: (receiverId) => api.post('/collab/request', { receiver_id: receiverId }),
+  getMyNetwork: () => api.get('/collab/network'),
 };
 
 export default api;

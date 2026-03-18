@@ -6,7 +6,7 @@ import {
   ThumbsUp,
   X
 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Image,
   Linking,
@@ -39,8 +39,32 @@ const SiteVisitMapModal = ({
 }) => {
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
   const [isPropertyExpanded, setIsPropertyExpanded] = useState(true);
+  
+  // Ref to track touch position for swipe gestures
+  const touchY = useRef(0);
 
   if (!visible || properties.length === 0) return null;
+
+  const handleTouchStart = (e) => {
+    touchY.current = e.nativeEvent.pageY;
+  };
+
+  const handleCollapsedTouchEnd = (e) => {
+    // Swipe Up: if the end Y position is less than the start Y position by at least 20px
+    if (touchY.current - e.nativeEvent.pageY > 20) {
+      if (properties.length > 0) {
+        setCurrentPropertyIndex(0);
+        setIsPropertyExpanded(true);
+      }
+    }
+  };
+
+  const handleExpandedTouchEnd = (e) => {
+    // Swipe Down: if the end Y position is greater than the start Y position by at least 20px
+    if (e.nativeEvent.pageY - touchY.current > 20) {
+      setIsPropertyExpanded(false);
+    }
+  };
 
   return (
     <Modal
@@ -71,18 +95,24 @@ const SiteVisitMapModal = ({
         {/* Properties Horizontal Scroll - Small Cards */}
         {!isPropertyExpanded && (
           <View style={styles.collapsedModalCard}>
-            <TouchableOpacity 
-              activeOpacity={1}
-              onPress={() => {
-                if (properties.length > 0) {
-                  setCurrentPropertyIndex(0);
-                  setIsPropertyExpanded(true);
-                }
-              }}
+            {/* Swipeable & Tappable Header */}
+            <View
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleCollapsedTouchEnd}
             >
-              <View style={styles.handleBar} />
-              <Text style={styles.propertiesToShowLabel}>Visit Sites</Text>
-            </TouchableOpacity>
+              <TouchableOpacity 
+                activeOpacity={1}
+                onPress={() => {
+                  if (properties.length > 0) {
+                    setCurrentPropertyIndex(0);
+                    setIsPropertyExpanded(true);
+                  }
+                }}
+              >
+                <View style={styles.handleBar} />
+                <Text style={styles.propertiesToShowLabel}>Visit Sites</Text>
+              </TouchableOpacity>
+            </View>
 
             <ScrollView 
               horizontal 
@@ -116,15 +146,16 @@ const SiteVisitMapModal = ({
         {/* Expanded Property Details */}
         {isPropertyExpanded && properties.length > 0 && (
           <View style={styles.expandedModalCard}>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => setIsPropertyExpanded(false)}
+            
+            {/* Swipeable Header (Cross button removed) */}
+            <View
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleExpandedTouchEnd}
+              style={styles.swipeableHeader}
             >
-              <X size={20} color="#6b7280" />
-            </TouchableOpacity>
-
-            <View style={styles.handleBar} />
-            <Text style={styles.propertiesToShowLabel}>Properties to Visit</Text>
+              <View style={styles.handleBar} />
+              <Text style={styles.propertiesToShowLabel}>Properties to Visit</Text>
+            </View>
 
             <View style={styles.scrollWrapper}>
               <ScrollView 
@@ -289,10 +320,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 30,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 10,
+    
   },
   propertiesScrollContent: {
     paddingHorizontal: 4,
@@ -346,17 +374,10 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 30,
   },
-  backButton: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    width: 36,
-    height: 36,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
+  swipeableHeader: {
+    // Adds a little extra padding so it's easier to grab/swipe
+    paddingTop: 10, 
+    paddingBottom: 5,
   },
   handleBar: {
     width: 70,
@@ -364,7 +385,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#d1d5db',
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   propertiesToShowLabel: {
     fontSize: 20,
@@ -379,7 +400,7 @@ const styles = StyleSheet.create({
   expandedPropertiesScroll: {
     paddingHorizontal: 0,
     gap: 10,
-    marginBottom: 20,
+    marginBottom: 6,
   },
   expandedPropertyCard: {
     width: 310,

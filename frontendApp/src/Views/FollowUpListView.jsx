@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setFollowUps, setLoading, updateFollowUpStatus } from '../store/slices/followUpsSlice';
 import { tasksAPI } from '../config/api';
 import { showToast } from '../utils/toast';
+import Skeleton from '../Components/Skeleton';
 
 export default function FollowUpListView() {
   const dispatch = useDispatch();
@@ -110,21 +111,6 @@ export default function FollowUpListView() {
   const pendingTasks = filteredTasks.filter(t => t.status === 'pending');
   const completedTasks = filteredTasks.filter(t => t.status === 'completed');
 
-  // Skeleton Loader Component
-  const SkeletonCard = () => (
-    <View className="bg-white rounded-2xl p-4 border border-[#e5e7eb]">
-      <View className="flex-row items-start gap-3">
-        <View className="w-5 h-5 rounded-full bg-[#e5e7eb] mt-1" />
-        <View className="flex-1">
-          <View className="w-24 h-3 bg-[#e5e7eb] rounded mb-2" />
-          <View className="w-full h-4 bg-[#e5e7eb] rounded mb-2" />
-          <View className="w-32 h-3 bg-[#e5e7eb] rounded" />
-        </View>
-        <View className="w-6 h-6 rounded-full bg-[#e5e7eb] mt-1" />
-      </View>
-    </View>
-  );
-
   return (
     <View className="flex-1 bg-[#f9fafb]">
       {/* Filter Tabs */}
@@ -162,11 +148,31 @@ export default function FollowUpListView() {
         }
       >
         {loading ? (
-          <View className="px-4 py-4">
-            <View className="w-32 h-5 bg-[#e5e7eb] rounded mb-3" />
-            <View className="gap-3">
+          <View style={{ paddingHorizontal: 16, paddingVertical: 16, backgroundColor: '#f9fafb' }}>
+            <Skeleton width={120} height={20} borderRadius={4} style={{ marginBottom: 12 }} />
+            <View style={{ gap: 12 }}>
               {[1, 2, 3, 4, 5].map((i) => (
-                <SkeletonCard key={i} />
+                <View 
+                  key={i} 
+                  style={{ 
+                    backgroundColor: 'white', 
+                    borderRadius: 16, 
+                    padding: 16, 
+                    borderWidth: 1, 
+                    borderColor: '#e5e7eb',
+                    marginBottom: 8,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                    <Skeleton width={20} height={20} circle style={{ marginTop: 4 }} />
+                    <View style={{ flex: 1, gap: 8 }}>
+                      <Skeleton width={96} height={12} borderRadius={4} />
+                      <Skeleton height={16} borderRadius={4} />
+                      <Skeleton width={128} height={12} borderRadius={4} />
+                    </View>
+                    <Skeleton width={24} height={24} circle style={{ marginTop: 4 }} />
+                  </View>
+                </View>
               ))}
             </View>
           </View>

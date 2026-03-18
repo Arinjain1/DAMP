@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.use(verifyToken); 
 router.get('/search', searchBrokers);
-router.post('/connect', sendConnectionRequest);
-router.get('/my-network', getMyNetwork);
+router.post('/request', sendConnectionRequest);
+router.get('/network', getMyNetwork);
 
 export default router;

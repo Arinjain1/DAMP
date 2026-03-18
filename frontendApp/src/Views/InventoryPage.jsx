@@ -5,7 +5,7 @@ import {
   ScrollView, 
   TouchableOpacity, 
   ImageBackground,
-  Dimensions 
+  TextInput
 } from 'react-native';
 import { 
   Filter, 
@@ -17,8 +17,6 @@ import {
   Search 
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const PROPERTY_STRUCTURE = {
   Residential: { types: ['Apartment/Flats', 'Villa', 'Plot', 'Duplex'] },
@@ -40,6 +38,7 @@ const InventoryPage = ({ properties = [], onSelect, onEdit }) => {
   const [listingFilter, setListingFilter] = useState('Sell');
   const [activeCategory, setActiveCategory] = useState('Residential');
   const [activeType, setActiveType] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const filteredProperties = useMemo(() => {
     if (!Array.isArray(properties)) return [];
@@ -51,9 +50,16 @@ const InventoryPage = ({ properties = [], onSelect, onEdit }) => {
       const matchCategory = p.category === activeCategory;
       const matchType = activeType === 'All' || p.type === activeType;
       
-      return matchListing && matchCategory && matchType;
+      // Search filter
+      const matchSearch = searchQuery === '' || 
+        (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (p.location && p.location.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (p.type && p.type.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (p.bhk && p.bhk.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      return matchListing && matchCategory && matchType && matchSearch;
     });
-  }, [properties, listingFilter, activeCategory, activeType]);
+  }, [properties, listingFilter, activeCategory, activeType, searchQuery]);
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -129,6 +135,25 @@ const InventoryPage = ({ properties = [], onSelect, onEdit }) => {
               ))}
            </ScrollView>
         </View>
+
+        {/* Search Bar */}
+        <View className="pb-4">
+           <View className="bg-gray-100 rounded-xl flex-row items-center px-4 py-3">
+              <Search size={18} color="#9ca3af" />
+              <TextInput
+                 value={searchQuery}
+                 onChangeText={setSearchQuery}
+                 placeholder="Search by title, location, type..."
+                 placeholderTextColor="#9ca3af"
+                 className="flex-1 ml-3 text-sm text-gray-900 font-medium"
+              />
+              {searchQuery !== '' && (
+                 <TouchableOpacity onPress={() => setSearchQuery('')}>
+                    <Text className="text-xs font-bold text-gray-500">Clear</Text>
+                 </TouchableOpacity>
+              )}
+           </View>
+        </View>
       </View>
 
       {/* --- SCROLLABLE CONTENT --- */}
@@ -136,19 +161,9 @@ const InventoryPage = ({ properties = [], onSelect, onEdit }) => {
          className="flex-1 px-4" 
          // Large paddingTop pushes content below the absolute header
          // Large paddingBottom ensures the last card isn't hidden behind the FAB
-         contentContainerStyle={{ paddingTop: 280, paddingBottom: 100 }}
+         contentContainerStyle={{ paddingTop: 340, paddingBottom: 100 }}
          showsVerticalScrollIndicator={false}
       >
-        <View className="flex-row justify-between items-center px-1 mb-4">
-           <Text className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-              {filteredProperties.length} Properties found
-           </Text>
-           <TouchableOpacity className="flex-row items-center gap-1">
-              <Filter size={14} color="#111827"/>
-              <Text className="text-xs font-bold text-gray-900">Filters</Text>
-           </TouchableOpacity>
-        </View>
-
         {filteredProperties.length > 0 ? (
            <View className="gap-5">
               {filteredProperties.map(p => (
@@ -237,12 +252,13 @@ const InventoryPage = ({ properties = [], onSelect, onEdit }) => {
               <Search size={48} color="#9ca3af" />
               <Text className="text-gray-900 font-bold text-lg mt-4">No Properties Found</Text>
               <Text className="text-gray-500 text-sm mt-1 text-center px-10">
-                 We couldn't find any properties matching your current filters.
+                 We couldn&apos;t find any properties matching your current filters.
               </Text>
               <TouchableOpacity 
                  onPress={() => {
                     setActiveCategory('Residential');
                     setActiveType('All');
+                    setSearchQuery('');
                  }} 
                  className="mt-6 bg-gray-900 px-6 py-3 rounded-lg"
               >

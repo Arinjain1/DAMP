@@ -9,9 +9,10 @@ import {
   Plus,
   Trash2
 } from 'lucide-react-native';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import {
   Linking,
+  FlatList,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -32,8 +33,6 @@ import { clearEditItem, setEditItem, setModalOpen, setModalType } from '@/src/st
 import {
   setFollowUps,
   deleteFollowUp,
-  setActiveSiteVisit,
-  updateFollowUp,
   updateFollowUpStatus,
   setLoading
 } from '../src/store/slices/followUpsSlice';
@@ -42,6 +41,245 @@ import { tasksAPI, visitsAPI } from '../src/config/api';
 
 // Helper for generating IDs
 const generateId = () => Math.random().toString(36).substring(2, 11);
+
+// Task Card Component - Memoized for performance
+const TaskCard = memo(({ 
+  task, 
+  index, 
+  filter, 
+  customer, 
+  taskProperties, 
+  handleEditTask, 
+  handleDeleteTask, 
+  handleUpdateStatus,
+  handleCall,
+  handleWhatsApp,
+  handleStartVisit,
+  generateId
+}) => {
+  const date = new Date(task.date);
+  const isFirst = index === 0;
+  const isPendingFirst = filter === 'Pending' && isFirst;
+  const cardStyle = isPendingFirst ? styles.cardPurple : styles.cardWhite;
+  const textPrimary = isPendingFirst ? '#374151' : '#1f2937';
+  const textSecondary = isPendingFirst ? '#4b5563' : '#6b7280';
+  const iconColor = isPendingFirst ? '#6b7280' : '#9ca3af';
+
+  const displayCustomerName = customer?.name || customer?.full_name || task.clientNameFallback || 'Unknown Customer';
+
+  return (
+    <View style={styles.timelineRow}>
+      {/* Time Column */}
+      <View style={styles.timeCol}>
+        <Text style={styles.startTime}>
+          {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+        </Text>
+      </View>
+
+      {/* Task Card */}
+      <TouchableOpacity
+        onPress={() => handleEditTask(task)}
+        activeOpacity={0.9}
+        style={[styles.card, cardStyle]}
+      >
+        {/* Card Header: Title & Action Buttons */}
+        <View style={styles.cardHeader}>
+          <Text style={[styles.cardTitle, { color: textPrimary }]} numberOfLines={1}>
+            {task.type}
+          </Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={(e) => {
+              e.stopPropagation();
+              handleEditTask(task);
+            }}>
+              <Edit3 size={14} color={textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={(e) => {
+              e.stopPropagation();
+              handleDeleteTask(task.id);
+            }}>
+              <Trash2 size={14} color={isPendingFirst ? '#dc2626' : '#ef4444'} />
+            </TouchableOpacity>
+            {filter !== 'Done' && (
+              <TouchableOpacity onPress={(e) => {
+                e.stopPropagation();
+                handleUpdateStatus(task.id, 'Done');
+              }}>
+                <CheckCircle size={16} color={isPendingFirst ? '#059669' : '#10b981'} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Customer Name */}
+        <Text style={[styles.customerName, { color: textPrimary }]} numberOfLines={1}>
+          {displayCustomerName}
+        </Text>
+
+        {/* Properties List */}
+        {taskProperties.length > 0 && (
+          <View>
+            <View>
+              <View style={styles.infoRow}>
+                <Home size={12} color={iconColor} />
+                <Text style={[styles.infoText, { color: textSecondary }]} numberOfLines={1}>
+                  {taskProperties[0].title}
+                </Text>
+              </View>
+              <View style={styles.infoRow}>
+                <MapPin size={12} color={iconColor} />
+                <Text style={[styles.infoText, { color: textSecondary }]} numberOfLines={1}>
+                  {taskProperties[0].location || 'No location set'}
+                </Text>
+              </View>
+            </View>
+            {taskProperties.length > 1 && (
+              <Text style={[styles.showMoreText, { color: textSecondary }]}>
+                +{taskProperties.length - 1} more {taskProperties.length - 1 === 1 ? 'property' : 'properties'}
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* Note */}
+        {task.note && (
+          <Text style={[styles.noteText, { color: textSecondary }]} numberOfLines={2}>
+            {task.note}
+          </Text>
+        )}
+
+        {/* Action Buttons */}
+        <View style={[
+          styles.actionContainer,
+          filter === 'Done' && styles.actionContainerNoBorder
+        ]}>
+          {isPendingFirst ? (
+            (task.type === 'Site Visit' || task.type === 'Visit') ? (
+              <>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (taskProperties.length === 1) {
+                      const prop = taskProperties[0];
+                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                    } else {
+                      handleStartVisit({
+                        id: generateId(),
+                        customer,
+                        properties: taskProperties,
+                        taskId: task.id
+                      });
+                    }
+                  }}
+                  style={styles.startVisitButton}
+                >
+                  <Map size={12} color="#fbbf24" />
+                  <Text style={styles.startVisitText}>
+                    {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
+                  </Text>
+                </TouchableOpacity>
+                <View style={[styles.contactButtonsRow, { marginTop: 8 }]}>
+                  <TouchableOpacity onPress={(e) => {
+                    e.stopPropagation();
+                    handleCall(customer?.phone);
+                  }} style={styles.miniBtn}>
+                    <Phone size={12} color="#4b5563" />
+                    <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={(e) => {
+                    e.stopPropagation();
+                    handleWhatsApp(customer?.phone, task, customer);
+                  }} style={styles.miniBtn}>
+                    <WhatsAppIcon size={12} color="#4b5563" />
+                    <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <View style={styles.contactButtonsRow}>
+                <TouchableOpacity onPress={(e) => {
+                  e.stopPropagation();
+                  handleCall(customer?.phone);
+                }} style={styles.miniBtn}>
+                  <Phone size={12} color="#4b5563" />
+                  <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={(e) => {
+                  e.stopPropagation();
+                  handleWhatsApp(customer?.phone, task, customer);
+                }} style={styles.miniBtn}>
+                  <WhatsAppIcon size={12} color="#4b5563" />
+                  <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
+                </TouchableOpacity>
+              </View>
+            )
+          ) : (
+            (task.type === 'Site Visit' || task.type === 'Visit') && filter === 'Pending' && taskProperties.length > 0 ? (
+              <View>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (taskProperties.length === 1) {
+                      const prop = taskProperties[0];
+                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                    } else {
+                      handleStartVisit({
+                        id: generateId(),
+                        customer,
+                        properties: taskProperties,
+                        taskId: task.id
+                      });
+                    }
+                  }}
+                  style={styles.startVisitButton}
+                >
+                  <Map size={12} color="#fbbf24" />
+                  <Text style={styles.startVisitText}>
+                    {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
+                  </Text>
+                </TouchableOpacity>
+                <View style={[styles.contactButtonsRow, { marginTop: 8 }]}>
+                  <TouchableOpacity onPress={(e) => {
+                    e.stopPropagation();
+                    handleCall(customer?.phone);
+                  }} style={styles.miniBtn}>
+                    <Phone size={12} color="#4b5563" />
+                    <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={(e) => {
+                    e.stopPropagation();
+                    handleWhatsApp(customer?.phone, task, customer);
+                  }} style={styles.miniBtn}>
+                    <WhatsAppIcon size={12} color="#4b5563" />
+                    <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : filter === 'Pending' ? (
+              <View style={styles.contactButtonsRow}>
+                <TouchableOpacity onPress={(e) => {
+                  e.stopPropagation();
+                  handleCall(customer?.phone);
+                }} style={styles.miniBtn}>
+                  <Phone size={12} color="#4b5563" />
+                  <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={(e) => {
+                  e.stopPropagation();
+                  handleWhatsApp(customer?.phone, task, customer);
+                }} style={styles.miniBtn}>
+                  <WhatsAppIcon size={12} color="#4b5563" />
+                  <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null
+          )}
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+});
+TaskCard.displayName = 'TaskCard';
 
 export default function FollowUps() {
   const dispatch = useDispatch();
@@ -53,25 +291,14 @@ export default function FollowUps() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Redux state
-  const { followUps, activeSiteVisit, loading } = useSelector(state => state.followUps);
+  const { followUps, loading } = useSelector(state => state.followUps);
   const { customers } = useSelector(state => state.customers);
   const { properties } = useSelector(state => state.properties);
   const { modalOpen, modalType, editItem } = useSelector(state => state.ui);
   const { user } = useSelector(state => state.auth); // Get logged-in user
 
   // Fetch tasks from backend on mount
-  useEffect(() => {
-    fetchTasks();
-  }, []);
-
-  // Refresh tasks when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      fetchTasks();
-    }, [])
-  );
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       dispatch(setLoading(true));
       const response = await tasksAPI.getAll({ status: 'All' });
@@ -110,7 +337,18 @@ export default function FollowUps() {
     } finally {
       dispatch(setLoading(false));
     }
-  };
+  }, [dispatch]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  // Refresh tasks when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchTasks();
+    }, [fetchTasks])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -148,23 +386,85 @@ export default function FollowUps() {
   const extendedDates = getExtendedDates();
 
   // --- FILTER & SORT LOGIC ---
-  const filteredTasks = (followUps || [])
-    .filter(t => {
-      const taskDate = new Date(t.date);
-      const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-      const taskDateOnly = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
+  const filteredTasks = useMemo(() => {
+    return (followUps || [])
+      .filter(t => {
+        const taskDate = new Date(t.date);
+        const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+        const taskDateOnly = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
 
-      // Match Status AND Date
-      return t.status === filter && taskDateOnly.getTime() === selectedDateOnly.getTime();
-    })
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
+        return t.status === filter && taskDateOnly.getTime() === selectedDateOnly.getTime();
+      })
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [followUps, filter, selectedDate]);
+
+  const renderTaskCard = useCallback(({ item: task, index }) => {
+    const customer = customers.find(c => String(c.id) === String(task.customerId));
+    const taskPropertyIds = task.propertyIds || (task.propertyId ? [task.propertyId] : []);
+    const taskProperties = properties.filter(p => taskPropertyIds.includes(p.id));
+
+    return (
+      <TaskCard
+        task={task}
+        index={index}
+        filter={filter}
+        customer={customer}
+        taskProperties={taskProperties}
+        handleEditTask={handleEditTask}
+        handleDeleteTask={handleDeleteTask}
+        handleUpdateStatus={handleUpdateStatus}
+        handleCall={handleCall}
+        handleWhatsApp={handleWhatsApp}
+        handleStartVisit={handleStartVisit}
+        generateId={generateId}
+      />
+    );
+  }, [customers, properties, filter, handleEditTask, handleDeleteTask, handleUpdateStatus, handleCall, handleWhatsApp, handleStartVisit]);
+
+  const keyExtractor = useCallback((item) => item.id.toString(), []);
+
+  const ListHeaderComponent = useMemo(() => (
+    <View style={styles.timelineHeader}>
+      <Text style={styles.colHeaderTime}>Time</Text>
+      <Text style={styles.colHeaderTask}>Tasks</Text>
+    </View>
+  ), []);
+
+  const ListEmptyComponent = useMemo(() => (
+    <View style={styles.emptyContainer}>
+      <Clock size={40} color="#e5e7eb" />
+      <Text style={styles.emptyText}>No {filter.toLowerCase()} tasks</Text>
+    </View>
+  ), [filter]);
+
+  const renderSkeletonItem = useCallback(({ item }) => (
+    <View style={styles.timelineRow}>
+      <View style={styles.timeCol}>
+        <View style={styles.skeletonTime} />
+      </View>
+      <View style={[styles.card, styles.cardWhite]}>
+        <View style={styles.cardHeader}>
+          <View style={styles.skeletonTitle} />
+          <View style={styles.skeletonActions} />
+        </View>
+        <View style={styles.skeletonCustomerName} />
+        <View style={styles.skeletonInfoRow} />
+        <View style={styles.skeletonInfoRow} />
+        <View style={styles.skeletonNote} />
+        <View style={styles.skeletonActionButtons}>
+          <View style={styles.skeletonButton} />
+          <View style={styles.skeletonButton} />
+        </View>
+      </View>
+    </View>
+  ), []);
 
   // --- HANDLERS ---
-  const handleCall = (phone) => {
+  const handleCall = useCallback((phone) => {
     if (phone) Linking.openURL(`tel:${phone}`);
-  };
+  }, []);
 
-  const handleWhatsApp = (phone, task, customer) => {
+  const handleWhatsApp = useCallback((phone, task, customer) => {
     if (!phone) return;
 
     // Get broker name
@@ -211,9 +511,9 @@ export default function FollowUps() {
     }
 
     Linking.openURL(`https://wa.me/${cleanPhone}?text=${encodedMessage}`);
-  };
+  }, [user]);
 
-  const handleUpdateStatus = async (taskId, status) => {
+  const handleUpdateStatus = useCallback(async (taskId, status) => {
     try {
       const response = await tasksAPI.toggleStatus(taskId);
 
@@ -225,9 +525,9 @@ export default function FollowUps() {
       console.error('Error updating task:', error);
       showToast.error('Failed to update task status');
     }
-  };
+  }, [dispatch]);
 
-  const handleStartVisit = async (visitData) => {
+  const handleStartVisit = useCallback(async (visitData) => {
     // If site visit already exists, fetch details
     if (visitData.siteVisitId) {
       try {
@@ -255,11 +555,11 @@ export default function FollowUps() {
       setSiteVisitProperties(visitProps);
       setShowSiteVisitModal(true);
     }
-  };
+  }, [properties]);
 
-  const handleDeleteTask = (taskId) => {
+  const handleDeleteTask = useCallback((taskId) => {
     dispatch(deleteFollowUp(taskId));
-  };
+  }, [dispatch]);
 
   const handleFABClick = () => {
 
@@ -269,11 +569,11 @@ export default function FollowUps() {
 
   };
 
-  const handleEditTask = (task) => {
+  const handleEditTask = useCallback((task) => {
     dispatch(setEditItem(task));
     dispatch(setModalType('FollowUp'));
     dispatch(setModalOpen(true));
-  };
+  }, [dispatch]);
 
   const handleAdd = async (data) => {
     try {
@@ -433,265 +733,36 @@ export default function FollowUps() {
 
       {/* --- TASKS TIMELINE --- */}
       <View style={styles.timelineWrapper}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
-          <View style={styles.timelineHeader}>
-            <Text style={styles.colHeaderTime}>Time</Text>
-            <Text style={styles.colHeaderTask}>Tasks</Text>
-          </View>
-
-          {/* Continuous Vertical Line */}
-          <View style={styles.timelineContainer}>
-            <View style={styles.continuousVerticalLine} />
-
-            {loading ? (
-              // Skeleton Loader
-              <>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <View key={i} style={styles.timelineRow}>
-                    {/* Time Column Skeleton */}
-                    <View style={styles.timeCol}>
-                      <View style={styles.skeletonTime} />
-                    </View>
-
-                    {/* Task Card Skeleton */}
-                    <View style={[styles.card, styles.cardWhite]}>
-                      <View style={styles.cardHeader}>
-                        <View style={styles.skeletonTitle} />
-                        <View style={styles.skeletonActions} />
-                      </View>
-                      <View style={styles.skeletonCustomerName} />
-                      <View style={styles.skeletonInfoRow} />
-                      <View style={styles.skeletonInfoRow} />
-                      <View style={styles.skeletonNote} />
-                      <View style={styles.skeletonActionButtons}>
-                        <View style={styles.skeletonButton} />
-                        <View style={styles.skeletonButton} />
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </>
-            ) : filteredTasks.length > 0 ? filteredTasks.map((task, index) => {
-              // FIXED: Convert IDs to strings for robust matching
-              const customer = customers.find(c => String(c.id) === String(task.customerId));
-
-              // FIXED: Added robust fallback logic for displaying customer name
-              const displayCustomerName = customer?.name || customer?.full_name || task.clientNameFallback || 'Unknown Customer';
-
-              // Support both single propertyId (old) and propertyIds array (new)
-              const taskPropertyIds = task.propertyIds || (task.propertyId ? [task.propertyId] : []);
-              const taskProperties = properties.filter(p => taskPropertyIds.includes(p.id));
-              const firstProperty = taskProperties[0]; // For backward compatibility
-              const date = new Date(task.date);
-
-              // Logic: Only first card in Pending is purple, all others (including all Done cards) are grey/white
-              const isFirst = index === 0;
-              const isPendingFirst = filter === 'Pending' && isFirst;
-              const cardStyle = isPendingFirst ? styles.cardPurple : styles.cardWhite;
-              const textPrimary = isPendingFirst ? '#374151' : '#1f2937'; // Dark grey for purple card
-              const textSecondary = isPendingFirst ? '#4b5563' : '#6b7280'; // Darker grey for purple card
-              const iconColor = isPendingFirst ? '#6b7280' : '#9ca3af'; // Dark grey icons for purple card
-
-              return (
-                <View key={task.id} style={styles.timelineRow}>
-                  {/* Time Column */}
-                  <View style={styles.timeCol}>
-                    <Text style={styles.startTime}>
-                      {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                    </Text>
-                  </View>
-
-                  {/* Task Card */}
-                  <TouchableOpacity
-                    onPress={() => handleEditTask(task)}
-                    activeOpacity={0.9}
-                    style={[styles.card, cardStyle]}
-                  >
-                    {/* Card Header: Title & Action Buttons */}
-                    <View style={styles.cardHeader}>
-                      <Text style={[styles.cardTitle, { color: textPrimary }]} numberOfLines={1}>
-                        {task.type}
-                      </Text>
-                      <View style={styles.headerActions}>
-                        <TouchableOpacity onPress={() => handleEditTask(task)}>
-                          <Edit3 size={14} color={textPrimary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleDeleteTask(task.id)}>
-                          <Trash2 size={14} color={isPendingFirst ? '#dc2626' : '#ef4444'} />
-                        </TouchableOpacity>
-                        {filter !== 'Done' && (
-                          <TouchableOpacity onPress={() => handleUpdateStatus(task.id, 'Done')}>
-                            <CheckCircle size={16} color={isPendingFirst ? '#059669' : '#10b981'} />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </View>
-
-                    {/* Customer Name */}
-                    <Text style={[styles.customerName, { color: textPrimary }]} numberOfLines={1}>
-                      {displayCustomerName}
-                    </Text>
-
-                    {/* Properties List */}
-                    {taskProperties.length > 0 && (
-                      <View>
-                        {/* Show first property */}
-                        <View>
-                          <View style={styles.infoRow}>
-                            <Home size={12} color={iconColor} />
-                            <Text style={[styles.infoText, { color: textSecondary }]} numberOfLines={1}>
-                              {taskProperties[0].title}
-                            </Text>
-                          </View>
-                          <View style={styles.infoRow}>
-                            <MapPin size={12} color={iconColor} />
-                            <Text style={[styles.infoText, { color: textSecondary }]} numberOfLines={1}>
-                              {taskProperties[0].location || 'No location set'}
-                            </Text>
-                          </View>
-                        </View>
-                        {/* Show "Show More" if multiple properties */}
-                        {taskProperties.length > 1 && (
-                          <Text style={[styles.showMoreText, { color: textSecondary }]}>
-                            +{taskProperties.length - 1} more {taskProperties.length - 1 === 1 ? 'property' : 'properties'}
-                          </Text>
-                        )}
-                      </View>
-                    )}
-
-                    {/* Note */}
-                    {task.note && (
-                      <Text style={[styles.noteText, { color: textSecondary }]} numberOfLines={2}>
-                        {task.note}
-                      </Text>
-                    )}
-
-                    {/* Action Buttons */}
-                    <View style={[
-                      styles.actionContainer,
-                      filter === 'Done' && styles.actionContainerNoBorder
-                    ]}>
-                      {isPendingFirst ? (
-                        // Purple card actions based on task type
-                        (task.type === 'Site Visit' || task.type === 'Visit') ? (
-                          <>
-                            <TouchableOpacity
-                              onPress={() => {
-                                if (taskProperties.length === 1) {
-                                  // Single property - directly navigate to Google Maps
-                                  const prop = taskProperties[0];
-                                  Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
-                                } else {
-                                  // Multiple properties - start site visit flow
-                                  handleStartVisit({
-                                    id: generateId(),
-                                    customer,
-                                    properties: taskProperties,
-                                    taskId: task.id
-                                  });
-                                }
-                              }}
-                              style={styles.startVisitButton}
-                            >
-                              <Map size={12} color="#fbbf24" />
-                              <Text style={styles.startVisitText}>
-                                {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
-                              </Text>
-                            </TouchableOpacity>
-                            <View style={[styles.contactButtonsRow, { marginTop: 8 }]}>
-                              <TouchableOpacity onPress={() => handleCall(customer?.phone)} style={styles.miniBtn}>
-                                <Phone size={12} color="#4b5563" />
-                                <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone, task, customer)} style={styles.miniBtn}>
-                                <WhatsAppIcon size={12} color="#4b5563" />
-                                <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </>
-                        ) : (
-                          // For Meeting, Call, Follow-up etc. - show Call & Msg buttons
-                          <View style={styles.contactButtonsRow}>
-                            <TouchableOpacity onPress={() => handleCall(customer?.phone)} style={styles.miniBtn}>
-                              <Phone size={12} color="#4b5563" />
-                              <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone, task, customer)} style={styles.miniBtn}>
-                              <WhatsAppIcon size={12} color="#4b5563" />
-                              <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
-                            </TouchableOpacity>
-                          </View>
-                        )
-                      ) : (
-                        // Non-purple cards (white cards)
-                        (task.type === 'Site Visit' || task.type === 'Visit') && filter === 'Pending' && taskProperties.length > 0 ? (
-                          <View>
-                            <TouchableOpacity
-                              onPress={() => {
-                                if (taskProperties.length === 1) {
-                                  // Single property - directly navigate to Google Maps
-                                  const prop = taskProperties[0];
-                                  Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
-                                } else {
-                                  // Multiple properties - start site visit flow
-                                  handleStartVisit({
-                                    id: generateId(),
-                                    customer,
-                                    properties: taskProperties,
-                                    taskId: task.id
-                                  });
-                                }
-                              }}
-                              style={styles.startVisitButton}
-                            >
-                              <Map size={12} color="#fbbf24" />
-                              <Text style={styles.startVisitText}>
-                                {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
-                              </Text>
-                            </TouchableOpacity>
-                            <View style={[styles.contactButtonsRow, { marginTop: 8 }]}>
-                              <TouchableOpacity onPress={() => handleCall(customer?.phone)} style={styles.miniBtn}>
-                                <Phone size={12} color="#4b5563" />
-                                <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone, task, customer)} style={styles.miniBtn}>
-                                <WhatsAppIcon size={12} color="#4b5563" />
-                                <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        ) : filter === 'Pending' ? (
-                          <View style={styles.contactButtonsRow}>
-                            <TouchableOpacity onPress={() => handleCall(customer?.phone)} style={styles.miniBtn}>
-                              <Phone size={12} color="#4b5563" />
-                              <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Call</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleWhatsApp(customer?.phone, task, customer)} style={styles.miniBtn}>
-                              <WhatsAppIcon size={12} color="#4b5563" />
-                              <Text style={[styles.miniBtnText, { color: '#4b5563' }]}>Msg</Text>
-                            </TouchableOpacity>
-                          </View>
-                        ) : null
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              );
-            }) : (
-              <View style={styles.emptyContainer}>
-                <Clock size={40} color="#e5e7eb" />
-                <Text style={styles.emptyText}>No {filter.toLowerCase()} tasks</Text>
-              </View>
-            )}
-          </View>
-        </ScrollView>
+        <View style={styles.timelineContainer}>
+          <View style={styles.continuousVerticalLine} />
+          
+          {loading ? (
+            <FlatList
+              data={[1, 2, 3, 4, 5]}
+              keyExtractor={(item) => item.toString()}
+              renderItem={renderSkeletonItem}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              ListHeaderComponent={ListHeaderComponent}
+            />
+          ) : (
+            <FlatList
+              data={filteredTasks}
+              keyExtractor={keyExtractor}
+              renderItem={renderTaskCard}
+              ListHeaderComponent={ListHeaderComponent}
+              ListEmptyComponent={ListEmptyComponent}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              }
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              windowSize={5}
+            />
+          )}
+        </View>
       </View>
 
       {/* Floating Action Button */}
@@ -773,7 +844,7 @@ const styles = StyleSheet.create({
 
   // --- HEADER STYLES ---
   headerContainer: {
-    paddingTop: 60, // Safe area
+    paddingTop: 60, 
     paddingHorizontal: 24,
     paddingBottom: 20,
     flexDirection: 'row',
@@ -864,7 +935,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   calendarScrollContent: {
-    paddingRight: 16, // Extra padding at the end
+    paddingRight: 16, 
   },
   dayItem: {
     alignItems: 'center',
