@@ -2,7 +2,7 @@ import { query } from '../config/db.js';
 
 export const searchBrokers = async (req, res, next) => {
   const myId = req.user.id;
-  const { q } = req.query;
+  const { q } = req.query; 
 
   try {
     const sql = `
@@ -25,7 +25,7 @@ export const searchBrokers = async (req, res, next) => {
 
 export const sendConnectionRequest = async (req, res, next) => {
   const senderId = req.user.id;
-  const { receiver_id } = req.body;
+  const { receiver_id } = req.body; 
 
   try {
     const existing = await query(
@@ -36,9 +36,9 @@ export const sendConnectionRequest = async (req, res, next) => {
     );
 
     if (existing.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Request already exists (Status: ${existing.rows[0].status})`
+      return res.status(400).json({ 
+        success: false, 
+        message: `Request already exists (Status: ${existing.rows[0].status})` 
       });
     }
     const result = await query(
@@ -139,29 +139,6 @@ export const updateConnectionStatus = async (req, res, next) => {
       data: result.rows[0]
     });
   } catch (err) {
-    next(err);
-  }
-};
-export const removeConnection = async (req, res, next) => {
-  const myId = req.user.id;
-  const targetUserId = req.params.targetUserId; 
-  try {
-    const result = await query(
-      `DELETE FROM collaborations 
-       WHERE (sender_id = $1 AND receiver_id = $2) 
-       OR (sender_id = $2 AND receiver_id = $1)
-       RETURNING id`,
-      [myId, targetUserId]
-    );
-    if (result.rowCount === 0) {
-      return res.status(404).json({ success: false, message: "Connection not found" });
-    }
-    res.json({ 
-      success: true, 
-      message: "Connection removed successfully." 
-    });
-  } catch (err) {
-    console.error("Remove Connection Error:", err);
     next(err);
   }
 };

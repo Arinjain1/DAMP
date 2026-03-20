@@ -18,20 +18,26 @@ import {
   Users,
   X
 } from 'lucide-react-native';
+import CustomerHeader from '../Components/CustomerHeader';
+import StageIndicator from '../Components/CustomerDetailComponents/StageIndicator';
+import PropertyListItem from '../Components/CustomerDetailComponents/PropertyListItem';
 import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import {
-  ActivityIndicator,
-  Alert,
   Image,
   Linking,
   Modal,
+  Platform,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Alert
 } from 'react-native';
 import AddModal from './AddModal';
+import SiteVisitMapModal from './SiteVisitMapModal';
 import { visitsAPI, customersAPI } from '../config/api';
 import { showToast } from '../utils/toast';
 
@@ -64,52 +70,7 @@ const getStageIcon = (iconName, size, color) => {
   return icons[iconName] || <Check size={size} color={color} />;
 };
 
-// --- STAGE INDICATOR COMPONENT ---
-const StageIndicator = ({ currentStage }) => {
-  const currentIndex = SALES_STAGES.findIndex(s => s.id === currentStage);
-
-  return (
-    <View style={styles.stageContainer}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.stageScrollContent}
-      >
-        {SALES_STAGES.map((stage, index) => {
-          const isCurrent = currentIndex === index;
-          const isCompleted = currentIndex > index;
-
-          let circleStyle, iconColor;
-          if (isCompleted) {
-            circleStyle = styles.stageCircleCompleted;
-            iconColor = '#ffffff';
-          } else if (isCurrent) {
-            circleStyle = styles.stageCircleCurrent;
-            iconColor = '#ffffff';
-          } else {
-            circleStyle = styles.stageCircleFuture;
-            iconColor = '#d1d5db';
-          }
-
-          return (
-            <View key={stage.id} style={styles.stageItem}>
-              <View style={[styles.stageCircle, circleStyle]}>
-                {getStageIcon(stage.icon, 20, iconColor)}
-              </View>
-              <Text style={[
-                styles.stageLabel,
-                isCurrent && styles.stageLabelActive
-              ]}>
-                {stage.label}
-              </Text>
-              {isCurrent && <View style={styles.stageUnderline} />}
-            </View>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-};
+// StageIndicator component is now imported
 
 // Helper for currency formatting
 const formatCurrency = (amount) => {
@@ -120,7 +81,11 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals = [], followUps = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask, onUpdateStage, onSelectProperties, openMapView = false }) => {
+const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask, onUpdateStage, onSelectProperties, openMapView = false }) => {
+  // Get followUps and deals directly from Redux for real-time updates
+  const followUps = useSelector((state) => state.followUps.followUps);
+  const activeDeals = useSelector((state) => state.deals.deals);
+  
   const [showPropertyPicker, setShowPropertyPicker] = useState(false);
   const [selectedPropertyIds, setSelectedPropertyIds] = useState(customer.selectedProperties || []);
   const [interestedPropertyIds, setInterestedPropertyIds] = useState(customer.interestedProperties || []);
@@ -142,23 +107,39 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
         const response = await customersAPI.getById(customer.id);
 
         if (response.data.success) {
-          const customerData = response.data.data.profile;
+          const customerData = response.data.data.profile || response.data.data;
 
-          // Update state with fetched data
-          setSelectedPropertyIds(customerData.selectedProperties || []);
-          setInterestedPropertyIds(customerData.interestedProperties || []);
-          setHoldPropertyIds(customerData.holdProperties || []);
+          // Update state with fetched data - handle both array and JSON string formats
+          const parsePropertyArray = (data) => {
+            if (!data) return [];
+            if (Array.isArray(data)) return data;
+            if (typeof data === 'string') {
+              try {
+                return JSON.parse(data);
+              } catch (e) {
+                return [];
+              }
+            }
+            return [];
+          };
+
+          setSelectedPropertyIds(parsePropertyArray(customerData.selected_properties || customerData.selectedProperties));
+          setInterestedPropertyIds(parsePropertyArray(customerData.interested_properties || customerData.interestedProperties));
+          setHoldPropertyIds(parsePropertyArray(customerData.hold_properties || customerData.holdProperties));
         }
       } catch (error) {
         console.error('Error fetching customer details:', error);
         // Keep using props data if fetch fails
+        setSelectedPropertyIds(customer.selectedProperties || []);
+        setInterestedPropertyIds(customer.interestedProperties || []);
+        setHoldPropertyIds(customer.holdProperties || []);
       } finally {
         setLoading(false);
       }
     };
 
     fetchCustomerDetails();
-  }, [customer?.id]);
+  }, [customer?.id, customer.selectedProperties, customer.interestedProperties, customer.holdProperties]);
 
   // Reset search query when property picker opens
   const handleOpenPropertyPicker = () => {
@@ -173,9 +154,18 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
   const showNextStepCard = nextStage && (customer.stage === 'New' || customer.stage === 'Contacted');
 
-  const handleProceedToNextStage = () => {
+  const handleProceedToNextStage = async () => {
     if (nextStage && onUpdateStage) {
-      onUpdateStage(customer.id, nextStage.id);
+      try {
+        setLoading(true);
+        await onUpdateStage(customer.id, nextStage.id);
+        showToast.success(`Moved to ${nextStage.label} stage!`);
+      } catch (error) {
+        console.error('Error updating stage:', error);
+        showToast.error('Failed to update stage');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -228,32 +218,32 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
       setInterestedPropertyIds(newInterestedProperties);
 
-      // Remove from selectedProperties so it doesn't show in Site Visit anymore
-      const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
-      setSelectedPropertyIds(newSelectedProperties);
+      // Only remove property from selectedProperties after feedback, not after adding a task
+      // If feedback is submitted (interested), remove property
+      if (true) { // Feedback context only
+        const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
+        setSelectedPropertyIds(newSelectedProperties);
 
-      // Save to database
-      await customersAPI.updateProperties(customer.id, {
-        selected_properties: newSelectedProperties,
-        interested_properties: newInterestedProperties
-      });
+        // Save to database
+        await customersAPI.updateProperties(customer.id, {
+          selected_properties: newSelectedProperties,
+          interested_properties: newInterestedProperties
+        });
 
-      // Update customer with both arrays
-      if (onSelectProperties) {
-        onSelectProperties(customer.id, newSelectedProperties, newInterestedProperties);
-      }
+        // Update customer with both arrays
+        if (onSelectProperties) {
+          onSelectProperties(customer.id, newSelectedProperties, newInterestedProperties);
+        }
 
-      // DON'T move customer to Interested stage yet - stay in Site Visit
-      // Only move when they click "View Interested" button
-
-      // If no more properties to visit, close map view
-      if (newSelectedProperties.length === 0) {
-        setShowMapView(false);
-        setIsPropertyExpanded(false);
-      } else {
-        // Move to next property if available
-        if (currentPropertyIndex >= newSelectedProperties.length) {
-          setCurrentPropertyIndex(newSelectedProperties.length - 1);
+        // If no more properties to visit, close map view
+        if (newSelectedProperties.length === 0) {
+          setShowMapView(false);
+          setIsPropertyExpanded(false);
+        } else {
+          // Move to next property if available
+          if (currentPropertyIndex >= newSelectedProperties.length) {
+            setCurrentPropertyIndex(newSelectedProperties.length - 1);
+          }
         }
       }
     } catch (error) {
@@ -279,28 +269,31 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
         });
       }
 
-      // Remove property from selectedProperties
-      const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
-      setSelectedPropertyIds(newSelectedProperties);
+      // Only remove property from selectedProperties after feedback, not after adding a task
+      // If feedback is submitted (not interested), remove property
+      if (true) { // Feedback context only
+        const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
+        setSelectedPropertyIds(newSelectedProperties);
 
-      // Save to database
-      await customersAPI.updateProperties(customer.id, {
-        selected_properties: newSelectedProperties
-      });
+        // Save to database
+        await customersAPI.updateProperties(customer.id, {
+          selected_properties: newSelectedProperties
+        });
 
-      // Update customer with updated selected properties
-      if (onSelectProperties) {
-        onSelectProperties(customer.id, newSelectedProperties, interestedPropertyIds);
-      }
+        // Update customer with updated selected properties
+        if (onSelectProperties) {
+          onSelectProperties(customer.id, newSelectedProperties, interestedPropertyIds);
+        }
 
-      // If no properties left, close map view
-      if (newSelectedProperties.length === 0) {
-        setShowMapView(false);
-        setIsPropertyExpanded(false);
-      } else {
-        // Move to next property if available
-        if (currentPropertyIndex >= newSelectedProperties.length) {
-          setCurrentPropertyIndex(newSelectedProperties.length - 1);
+        // If no properties left, close map view
+        if (newSelectedProperties.length === 0) {
+          setShowMapView(false);
+          setIsPropertyExpanded(false);
+        } else {
+          // Move to next property if available
+          if (currentPropertyIndex >= newSelectedProperties.length) {
+            setCurrentPropertyIndex(newSelectedProperties.length - 1);
+          }
         }
       }
     } catch (error) {
@@ -374,23 +367,10 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
         <View style={styles.sheetContainer}>
 
           {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerContent}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{customer.name.charAt(0)}</Text>
-              </View>
-              <View>
-                <Text style={styles.customerName}>{customer.name}</Text>
-                <Text style={styles.customerPhone}>{customer.phone}</Text>
-              </View>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color="#6b7280" />
-            </TouchableOpacity>
-          </View>
+          <CustomerHeader name={customer.name} phone={customer.phone} onClose={onClose} />
 
           {/* Stage Indicator */}
-          <StageIndicator currentStage={customer.stage || 'New'} />
+          <StageIndicator currentStage={customer.stage || 'New'} loading={loading} />
 
           {/* Main Content */}
           <ScrollView
@@ -411,14 +391,17 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 <TouchableOpacity
                   style={[
                     styles.proceedButton,
-                    customer.stage === 'Contacted' && selectedPropertyIds.length === 0 && styles.proceedButtonDisabled
+                    (customer.stage === 'Contacted' && selectedPropertyIds.length === 0) && styles.proceedButtonDisabled,
+                    loading && styles.proceedButtonDisabled
                   ]}
                   onPress={handleProceedToNextStage}
                   activeOpacity={0.9}
-                  disabled={customer.stage === 'Contacted' && selectedPropertyIds.length === 0}
+                  disabled={(customer.stage === 'Contacted' && selectedPropertyIds.length === 0) || loading}
                 >
-                  <Text style={styles.proceedButtonText}>Proceed to {nextStage.label}</Text>
-                  <ChevronRight size={16} color="white" />
+                  <Text style={styles.proceedButtonText}>
+                    {loading ? 'Processing...' : `Proceed to ${nextStage.label}`}
+                  </Text>
+                  {!loading && <ChevronRight size={16} color="white" />}
                 </TouchableOpacity>
               </View>
             )}
@@ -481,24 +464,11 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                   </View>
                 ) : selectedPropertyIds.length > 0 ? (
                   <View style={styles.listContainer}>
-                    {selectedPropertyIds.map(propId => {
-                      const prop = properties.find(p => p.id === propId);
-                      if (!prop) return null;
-                      return (
-                        <View key={prop.id} style={styles.selectedPropertyItem}>
-                          <Image source={{ uri: prop.image }} style={styles.compactImg} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.compactTitle} numberOfLines={1}>{prop.title}</Text>
-                            <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
-                          </View>
-                          <TouchableOpacity
-                            onPress={() => handleToggleProperty(prop.id)}
-                            style={styles.removeButton}
-                          >
-                            <X size={16} color="#ef4444" />
-                          </TouchableOpacity>
-                        </View>
-                      );
+                    {selectedPropertyIds.map(id => {
+                      const item = properties.find(p => p.id === id);
+                      return item ? (
+                        <PropertyListItem key={item.id} prop={item} onRemove={handleToggleProperty} />
+                      ) : null;
                     })}
                   </View>
                 ) : null}
@@ -628,7 +598,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     if (!prop) return null;
 
                     // Check if deal already exists for this property
-                    const hasDeal = dealtPropertyIds.includes(prop.id);
+                    // const hasDeal = dealtPropertyIds.includes(prop.id); // Removed unused variable
 
                     return (
                       <View key={prop.id} style={styles.matchCard}>
@@ -644,7 +614,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
                           <View style={styles.matchFooter}>
                             <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
-                            {!hasDeal ? (
+                            {!dealtPropertyIds.includes(prop.id) ? (
                               <TouchableOpacity
                                 onPress={() => {
                                   // Open Google Maps with property location
@@ -680,7 +650,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     if (!prop) return null;
 
                     // Check if deal already exists for this property
-                    const hasDeal = dealtPropertyIds.includes(prop.id);
+                    // Inline check used above
 
                     return (
                       <View key={prop.id} style={styles.pendingCardWithButtons}>
@@ -928,20 +898,44 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
               </View>
 
               <ScrollView style={styles.pickerContent}>
-                {properties
-                  .filter(p => {
+                {(() => {
+                  const filteredProperties = properties.filter(p => {
                     // Filter by search query
                     const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                       p.location.toLowerCase().includes(searchQuery.toLowerCase());
-                    // For Contacted and Site Visit stages: show all matching properties
-                    // For other stages: show only available properties not in deals
+                    
+                    // Filter by customer requirements (only Category and Type)
+                    const matchesCategory = !customer.category || p.category === customer.category;
+                    const matchesType = !customer.type || p.type === customer.type;
+                    
+                    // For Contacted and Site Visit stages: show matching properties
                     if (customer.stage === 'Contacted' || customer.stage === 'Site Visit') {
-                      return matchesSearch && p.type === customer.type && p.status !== 'Sold';
+                      return matchesSearch && 
+                             matchesCategory && 
+                             matchesType && 
+                             p.status !== 'Sold';
                     } else {
-                      return matchesSearch && p.status === 'Available' && !dealtPropertyIds.includes(p.id);
+                      return matchesSearch && 
+                             matchesCategory && 
+                             matchesType && 
+                             p.status === 'Available' && 
+                             !dealtPropertyIds.includes(p.id);
                     }
-                  })
-                  .map(p => {
+                  });
+
+                  if (filteredProperties.length === 0) {
+                    return (
+                      <View style={styles.noResultsContainer}>
+                        <Text style={styles.noResultsText}>No properties match the requirements</Text>
+                        <Text style={styles.noResultsSubtext}>
+                          {customer.category && `Category: ${customer.category}`}
+                          {customer.type && ` • Type: ${customer.type}`}
+                        </Text>
+                      </View>
+                    );
+                  }
+
+                  return filteredProperties.map(p => {
                     const isSelected = selectedPropertyIds.includes(p.id);
                     const canToggle = customer.stage === 'Contacted' || customer.stage === 'Site Visit';
                     return (
@@ -1002,7 +996,8 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                         )}
                       </TouchableOpacity>
                     );
-                  })}
+                  });
+                })()}
               </ScrollView>
 
               {/* Done button for Contacted and Site Visit stages */}
@@ -1111,234 +1106,18 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
       {/* Map View Modal */}
       {showMapView && (
-        <Modal
-          visible={true}
-          transparent={false}
-          animationType="slide"
-          onRequestClose={() => {
+        <SiteVisitMapModal
+          visible={showMapView}
+          onClose={() => {
             setShowMapView(false);
             setIsPropertyExpanded(false);
           }}
-          statusBarTranslucent
-        >
-          <View style={styles.mapViewContainer}>
-            {/* Background Map Image */}
-            <Image
-              source={require('../../assets/images/Rectangle.png')}
-              style={styles.mapImage}
-              resizeMode="cover"
-              progressiveRenderingEnabled={true}
-              fadeDuration={300}
-            />
-
-            {/* Header with Title and Close Button */}
-            <View style={styles.mapHeader}>
-              <TouchableOpacity
-                style={styles.mapCloseButton}
-                onPress={() => {
-                  setShowMapView(false);
-                  setIsPropertyExpanded(false);
-                }}
-              >
-                <X size={24} color="#111827" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Properties Horizontal Scroll - Small Cards */}
-            {!isPropertyExpanded && (
-              <View style={styles.collapsedModalCard}>
-                {/* Horizontal Line */}
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={() => {
-                    if (selectedPropertyIds.length > 0) {
-                      setCurrentPropertyIndex(0);
-                      setIsPropertyExpanded(true);
-                    }
-                  }}
-                >
-                  <View style={styles.handleBar} />
-
-                  {/* Visit Sites Label */}
-                  <Text style={styles.propertiesToShowLabel}>Visit Sites</Text>
-                </TouchableOpacity>
-
-                {/* Property Horizontal Scroll */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.propertiesScrollContent}
-                  nestedScrollEnabled={true}
-                  removeClippedSubviews={true}
-                  maxToRenderPerBatch={3}
-                  windowSize={5}
-                >
-                  {selectedPropertyIds.map((propId, index) => {
-                    const prop = properties.find(p => p.id === propId);
-                    if (!prop) return null;
-
-                    return (
-                      <TouchableOpacity
-                        key={prop.id}
-                        style={styles.propertyScrollCard}
-                        onPress={() => {
-                          setCurrentPropertyIndex(index);
-                          setIsPropertyExpanded(true);
-                        }}
-                        activeOpacity={0.9}
-                      >
-                        <Image source={{ uri: prop.image }} style={styles.propertyScrollImageSmall} />
-                        <View style={styles.propertyScrollInfo}>
-                          <Text style={styles.propertyScrollTitle} numberOfLines={2}>{prop.title}</Text>
-                          <View style={styles.propertyScrollLocation}>
-                            <MapPin size={14} color="#6b7280" />
-                            <Text style={styles.propertyScrollLocationText} numberOfLines={1}>{prop.location}</Text>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            )}
-
-            {/* Expanded Property Details */}
-            {isPropertyExpanded && selectedPropertyIds.length > 0 && (
-              <View style={styles.expandedModalCard}>
-                {/* Horizontal Line */}
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={() => setIsPropertyExpanded(false)}
-                >
-                  <View style={styles.handleBar} />
-                </TouchableOpacity>
-
-                {/* Visit Sites Label */}
-                <Text style={styles.propertiesToShowLabel}>Visit Sites</Text>
-
-                {/* Property Horizontal Scroll */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.expandedPropertiesScroll}
-                  nestedScrollEnabled={true}
-                  scrollEnabled={true}
-                  snapToInterval={322}
-                  decelerationRate="fast"
-                  onMomentumScrollEnd={(event) => {
-                    const index = Math.round(event.nativeEvent.contentOffset.x / 322);
-                    setCurrentPropertyIndex(index);
-                  }}
-                >
-                  {selectedPropertyIds.map((propId, index) => {
-                    const prop = properties.find(p => p.id === propId);
-                    if (!prop) return null;
-
-                    // Check if property is on hold
-                    const isOnHold = holdPropertyIds.includes(propId);
-
-                    return (
-                      <View
-                        key={prop.id}
-                        style={styles.expandedPropertyCard}
-                      >
-                        <Image source={{ uri: prop.image }} style={styles.expandedPropertyCardImage} />
-                        <View style={styles.expandedPropertyCardInfo}>
-                          <View style={styles.propertyCardHeader}>
-                            <Text style={styles.expandedPropertyCardTitle} numberOfLines={1}>
-                              {prop.title}
-                            </Text>
-                            {isOnHold && (
-                              <View style={styles.holdBadgeSmall}>
-                                <Clock size={10} color="#d97706" />
-                                <Text style={styles.holdBadgeSmallText}>Hold</Text>
-                              </View>
-                            )}
-                          </View>
-                          <View style={styles.expandedPropertyCardLocation}>
-                            <MapPin size={12} color="#9ca3af" />
-                            <Text style={styles.expandedPropertyCardLocationText} numberOfLines={1}>
-                              {prop.location}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </ScrollView>
-
-                {/* Feedback Buttons - Single Row with Partitions */}
-                <View style={styles.feedbackButtonsRow}>
-                  <TouchableOpacity
-                    style={styles.feedbackBtn}
-                    onPress={() => {
-                      const propId = selectedPropertyIds[currentPropertyIndex];
-                      if (propId) {
-                        handlePropertyInterested(propId);
-                      }
-                    }}
-                  >
-                    <ThumbsUp size={20} color="#374151" />
-                    <Text style={styles.feedbackTextHorizontal}>Interested</Text>
-                  </TouchableOpacity>
-                  <View style={styles.verticalDivider} />
-                  <TouchableOpacity
-                    style={styles.feedbackBtn}
-                    onPress={() => {
-                      const propId = selectedPropertyIds[currentPropertyIndex];
-                      if (propId) {
-                        handlePropertyNotInterested(propId);
-                      }
-                    }}
-                  >
-                    <ThumbsDown size={20} color="#374151" />
-                    <Text style={styles.feedbackTextHorizontal}>Not-Interested</Text>
-                  </TouchableOpacity>
-                  <View style={styles.verticalDivider} />
-                  <TouchableOpacity
-                    style={styles.feedbackBtn}
-                    onPress={() => {
-                      const propId = selectedPropertyIds[currentPropertyIndex];
-                      if (propId) {
-                        handlePropertyHold(propId);
-                      }
-                    }}
-                  >
-                    <Clock size={20} color="#374151" />
-                    <Text style={styles.feedbackTextHorizontal}>Hold</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Contact Owner Button */}
-                <TouchableOpacity
-                  style={styles.contactOwnerButton}
-                  onPress={() => {
-                    const prop = properties.find(p => p.id === selectedPropertyIds[currentPropertyIndex]);
-                    if (prop && prop.ownerPhone) {
-                      Linking.openURL(`tel:${prop.ownerPhone}`);
-                    }
-                  }}
-                >
-                  <Phone size={18} color="#374151" />
-                  <Text style={styles.contactOwnerText}>Call Owner</Text>
-                </TouchableOpacity>
-
-                {/* Navigate Button */}
-                <TouchableOpacity
-                  style={styles.navigateButtonExpanded}
-                  onPress={() => {
-                    const prop = properties.find(p => p.id === selectedPropertyIds[currentPropertyIndex]);
-                    if (prop) {
-                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
-                    }
-                  }}
-                >
-                  <Text style={styles.navigateButtonExpandedText}>Navigate to Property</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </Modal>
+          properties={properties.filter(p => selectedPropertyIds.includes(p.id))}
+          customer={customer}
+          onPropertyInterested={handlePropertyInterested}
+          onPropertyNotInterested={handlePropertyNotInterested}
+          onPropertyHold={handlePropertyHold}
+        />
       )}
 
       {/* Add Follow Up Modal */}
@@ -1348,7 +1127,14 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
         type="FollowUp"
         onSave={(taskData) => {
           if (onAddFollowUp) {
-            onAddFollowUp(taskData);
+            // Generate unique ID for the task
+            const taskWithId = {
+              ...taskData,
+              id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              customerId: customer.id,
+              customerName: customer.name,
+            };
+            onAddFollowUp(taskWithId);
           }
           setShowAddFollowUpModal(false);
         }}
@@ -1363,6 +1149,1156 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
   );
 };
 
-import styles from '../styles/customerDetailStyles';
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  sheetContainer: {
+    backgroundColor: '#f9fafb',
+    width: '100%',
+    height: '83%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+  },
+
+  // Header
+  header: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatar: {
+    height: 44,
+    width: 44,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#374151',
+  },
+  customerName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  customerPhone: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  closeButton: {
+    padding: 10,
+    backgroundColor: '#f9fafb',
+    borderRadius: 99,
+  },
+
+  // Content
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    backgroundColor: '#ffffff',
+  },
+
+  // Sections
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 14,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#9ca3af',
+    fontWeight: '500',
+  },
+  addTaskHeaderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#9f95f2',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  addTaskHeaderButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+
+  },
+  listContainer: {
+    gap: 8,
+    paddingBottom: 12,
+  },
+
+  // Compact Deal Card
+  compactCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 14,
+    gap: 14,
+
+  },
+  compactImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#f3f4f6',
+  },
+  compactTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  compactSub: {
+    fontSize: 12,
+    color: '#4f46e5',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+
+  // Task Card
+  taskCard: {
+    padding: 14,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+  },
+  taskHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    //marginBottom: 10,
+  },
+  taskTypeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  taskTypeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
+  },
+  statusText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: 'white',
+    textTransform: 'uppercase',
+  },
+  taskNote: {
+    fontSize: 13,
+    color: '#374151',
+    marginBottom: 10,
+    lineHeight: 18,
+  },
+  taskFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    paddingTop: 10,
+    gap: 10,
+  },
+  taskDate: {
+    fontSize: 11,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  taskProperty: {
+    fontSize: 11,
+    color: '#9ca3af',
+    marginTop: 3,
+  },
+  taskSiteVisitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#9f95f2',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    flexShrink: 0,
+  },
+  taskSiteVisitButtonText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'white',
+  },
+  emptyTasksContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTasksText: {
+    fontSize: 13,
+    color: '#9ca3af',
+    textAlign: 'center',
+  },
+
+  // Match Card
+  matchCard: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    gap: 16,
+
+  },
+  pendingCard: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    gap: 16,
+  },
+  pendingCardVertical: {
+    flexDirection: 'column',
+    padding: 16,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    gap: 12,
+  },
+  pendingCardWithButtons: {
+    flexDirection: 'column',
+    padding: 16,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    gap: 12,
+  },
+  pendingCardTop: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  pendingCardImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+  },
+  pendingCardContent: {
+    gap: 8,
+  },
+  matchImg: {
+    width: 70,
+    height: 70,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+  },
+  matchContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  matchTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  matchLoc: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginLeft: 4,
+  },
+  rowCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  matchFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  matchPrice: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#6b7280',
+  },
+  pendingActionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  pendingActionButtonsVertical: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  interestedActionBtn: {
+    flex: 1,
+    backgroundColor: '#34d399',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  interestedActionBtnFull: {
+    width: '100%',
+    backgroundColor: '#34d399',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  interestedActionText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  visitActionBtn: {
+    flex: 1,
+    backgroundColor: '#1f2937',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  visitActionText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  startDealActionBtn: {
+    flex: 1,
+    backgroundColor: '#1f2937',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  startDealActionText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  smallDealBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#111827',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  smallDealText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  visitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#111827',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  visitBtnText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  dealStartedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#d1fae5',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  dealStartedText: {
+    color: '#059669',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  holdBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fef3c7',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  holdBadgeText: {
+    color: '#d97706',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  holdBadgeSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#fef3c7',
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+  },
+  holdBadgeSmallText: {
+    color: '#d97706',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  emptyState: {
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    backgroundColor: '#f9fafb',
+  },
+  emptyText: {
+    fontSize: 13,
+    color: '#9ca3af',
+  },
+
+  // Property Picker
+  pickerOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'white',
+    zIndex: 50,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    marginTop: 0,
+    backgroundColor: '#ffffff',
+  },
+  pickerTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginLeft: 6,
+  },
+  searchContainer: {
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#111827',
+    padding: 0,
+  },
+  pickerContent: { padding: 20, paddingTop: 8 },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 14,
+    marginBottom: 12,
+    gap: 14,
+  },
+  pickerImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: '#f3f4f6',
+  },
+  pickerItemTitle: { fontSize: 14, fontWeight: 'bold' },
+  pickerItemLocation: { fontSize: 11, color: '#9ca3af', marginLeft: 4 },
+  pickerItemPrice: { fontSize: 13, color: '#6b7280', marginTop: 4 },
+
+  // Stage Indicator
+  stageContainer: {
+    backgroundColor: 'white',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  stageScrollContent: {
+    paddingHorizontal: 8,
+    gap: 24,
+  },
+  stageItem: {
+    alignItems: 'center',
+    minWidth: 70,
+  },
+  stageCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  stageCircleCompleted: { backgroundColor: '#86efac' },
+  stageCircleCurrent: { backgroundColor: '#1f2937' },
+  stageCircleFuture: { backgroundColor: '#f3f4f6' },
+  stageLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9ca3af',
+    textAlign: 'center',
+  },
+  stageLabelActive: { color: '#1f2937', fontWeight: '700' },
+  stageUnderline: {
+    width: 32,
+    height: 3,
+    backgroundColor: '#1f2937',
+    borderRadius: 2,
+    marginTop: 4,
+  },
+
+  // --- UPDATED NEXT STEP CARD ---
+  nextStepCard: {
+    backgroundColor: '#E9E6F7', // Reference Card BG
+    borderColor: '#BFB7FD',     // Reference Card Border
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 24,
+    // Column layout (default in RN) ensures vertical stacking
+    shadowColor: '#BFB7FD',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  nextStepInfo: {
+    marginBottom: 16, // Space between Text and Button
+  },
+  nextStepLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#7c3aed',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  nextStepTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  nextStepSub: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  proceedButton: {
+    backgroundColor: '#9f95f2', // Darker purple when enabled
+    paddingVertical: 14,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%', // Full Width
+    shadowColor: '#9f95f2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  proceedButtonDisabled: {
+    backgroundColor: '#BFB7FD', // Light purple when disabled
+    shadowColor: '#BFB7FD',
+    opacity: 0.6,
+  },
+  proceedButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: 'white', // White Text
+  },
+
+  // Customer Contact Card Styles
+  contactCard: {
+    backgroundColor: 'white',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+
+  },
+  contactInfoSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 12,
+  },
+  contactAvatar: {
+    width: 46,
+    height: 46,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactAvatarText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#6b7280',
+  },
+  contactDetails: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 3,
+  },
+  contactPhone: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  contactButtonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  contactActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  contactActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+  },
+
+  // Select Properties Styles
+  formLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  selectedCount: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6366f1',
+  },
+  selectPropertiesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#ffffff',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e1e3e6',
+    borderStyle: 'dashed',
+    marginBottom: 12,
+  },
+  selectPropertiesButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#6a7380',
+  },
+  selectedPropertyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 14,
+    gap: 14,
+
+  },
+  removeButton: {
+    padding: 6,
+    backgroundColor: '#fee2e2',
+    borderRadius: 8,
+  },
+  selectablePropertyCard: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    gap: 16,
+    shadowColor: '#000',
+
+  },
+  selectedPropertyCard: {
+    borderColor: '#a78bfa',
+    backgroundColor: '#f3f0ff',
+  },
+  pickerItemSelected: {
+    backgroundColor: '#f3f0ff',
+    borderColor: '#a78bfa',
+  },
+  pickerFooter: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    backgroundColor: 'white',
+  },
+  doneButton: {
+    backgroundColor: '#a78bfa',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  doneButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'white',
+  },
+  checkboxCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  checkboxCircleSelected: {
+    backgroundColor: '#a78bfa',
+    borderColor: '#a78bfa',
+  },
+
+  // Fixed Bottom Button
+  fixedBottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingBottom: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    shadowColor: '#000',
+
+
+  },
+  visitSitesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 15,
+    backgroundColor: '#9f95f2',
+    paddingVertical: 16,
+    borderRadius: 14,
+    shadowColor: '#9f95f2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  visitSitesButtonDisabled: {
+    backgroundColor: '#bfb7fd',
+    shadowColor: '#bfb7fd',
+    opacity: 0.6,
+  },
+  visitSitesButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'white',
+  },
+  twoButtonRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  halfWidthButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 14,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  interestedButton: {
+    backgroundColor: '#34d399',
+    shadowColor: '#34d399',
+  },
+  pendingDecisionButton: {
+    backgroundColor: '#1f2937',
+    shadowColor: '#1f2937',
+  },
+
+  // Map View Styles
+  mapViewContainer: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+  },
+  mapImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    top: 0,
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 50,
+    paddingBottom: 16,
+    backgroundColor: 'transparent',
+  },
+  mapHeaderContent: {
+    flex: 1,
+  },
+  mapHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  mapHeaderSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  mapCloseButton: {
+    width: 40,
+    height: 40,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  collapsedModalCard: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    padding: 20,
+    paddingBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  propertiesScrollContent: {
+    paddingHorizontal: 4,
+    gap: 12,
+  },
+  propertyScrollCard: {
+    width: 300,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    marginHorizontal: 6,
+  },
+  propertyScrollImageSmall: {
+    width: 70,
+    height: 70,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+  },
+  propertyScrollInfo: {
+    flex: 1,
+    gap: 6,
+  },
+  propertyScrollTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  propertyScrollLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  propertyScrollLocationText: {
+    fontSize: 12,
+    color: '#6b7280',
+    flex: 1,
+  },
+
+  // Expanded Modal Card
+  expandedModalCard: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    padding: 20,
+    paddingBottom: 30,
+
+  },
+  backButton: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    width: 36,
+    height: 36,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  handleBar: {
+    width: 70,
+    height: 5,
+    backgroundColor: '#d1d5db',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  propertiesToShowLabel: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 23,
+    textAlign: 'center',
+  },
+  scrollWrapper: {
+    marginBottom: 20,
+  },
+  expandedPropertiesContainer: {
+    marginBottom: 28,
+  },
+  expandedPropertiesScroll: {
+    paddingHorizontal: 0,
+    gap: 10,
+    marginBottom: 20,
+  },
+  expandedPropertyCard: {
+    width: 310,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: 'row',
+    gap: 10,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    marginHorizontal: 6,
+  },
+  expandedPropertyCardActive: {
+    borderColor: '#bfb7fd',
+    backgroundColor: '#faf9ff',
+  },
+  expandedPropertyCardImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+  },
+  expandedPropertyCardInfo: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 2,
+  },
+  propertyCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  expandedPropertyCardTitle: {
+    fontFamily: 'Lato_700Bold',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    flex: 1,
+  },
+  expandedPropertyCardLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  expandedPropertyCardLocationText: {
+    fontSize: 13,
+    color: '#313131',
+    flex: 1,
+  },
+  feedbackButtonsRow: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 13,
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+    overflow: 'hidden',
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  feedbackBtn: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 18,
+  },
+  verticalDivider: {
+    width: 1.5,
+    height: '60%',
+    backgroundColor: '#e5e7eb',
+  },
+  feedbackTextHorizontal: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  contactOwnerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'white',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
+  },
+  contactOwnerText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#374151',
+  },
+  navigateButtonExpanded: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#a9a0f5',
+    paddingVertical: 16,
+    borderRadius: 14,
+
+  },
+  navigateButtonExpandedText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'white',
+  },
+  noResultsContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noResultsText: {
+    fontSize: 16,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  noResultsSubtext: {
+    fontSize: 13,
+    fontFamily: 'Lato_400Regular',
+    color: '#9ca3af',
+    textAlign: 'center',
+  },
+});
 
 export default CustomerDetailSheet;

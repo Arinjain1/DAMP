@@ -1,6 +1,7 @@
 import express from 'express';
 import { verifyToken } from '../middleware/authMiddleware.js';
 import { 
+  getNegotiation,
   updateNegotiation, 
   addTransaction, 
   completeTransaction, 
@@ -10,6 +11,7 @@ import {
 
 const router = express.Router();
 
+router.get('/:dealId/negotiation', verifyToken, getNegotiation);
 router.put('/:dealId/negotiation', verifyToken, updateNegotiation);
 router.post('/:dealId/transactions', verifyToken, addTransaction);
 router.put('/transactions/:transactionId/complete', verifyToken, completeTransaction);

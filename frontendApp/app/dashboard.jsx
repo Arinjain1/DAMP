@@ -1,50 +1,34 @@
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useMemo, lazy, Suspense } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { useEffect, useCallback } from "react";
+import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
-
-// Views
 import Dashboard from "../src/Views/Dashboard";
-
-// Components & Sheets
 import FAB from "../src/Components/FAB";
 import AddModal from "../src/Modal and Sheets/AddModal";
 import CollaborationSheet from "../src/Modal and Sheets/CollaborationSheet";
 import CustomerDetailSheet from "../src/Modal and Sheets/CustomerDetailSheet";
-const PropertyDetailSheet = lazy(() => import("../src/Modal and Sheets/PropertyDetailSheet"));
-import { SiteVisitSheet } from "../src/Modal and Sheets/SiteVisitSheet";
+import PropertyDetailSheet from "../src/Modal and Sheets/PropertyDetailSheet";
 import SubscriptionSheet from "../src/Modal and Sheets/SubscriptionSheet";
-import VisitFeedbackSheet from "../src/Modal and Sheets/VisitFeedbackSheet";
-
-// API
-import { propertiesAPI, customersAPI, dealsAPI } from "../src/config/api";
+import { propertiesAPI, customersAPI, dealsAPI, tasksAPI, visitsAPI } from "../src/config/api";
 import { showToast } from "../src/utils/toast";
-
-// Redux
+import { useInitializeData } from "../src/hooks/useInitializeData";
 import {
   addCustomer,
   clearSelectedCustomer,
-  updateCustomer,
-  updateCustomerStatus,
+  updateCustomerLocal,
+  updateCustomerStage,
 } from "../src/store/slices/customersSlice";
-
 import {
   addDeal,
-  clearSelectedDeal,
-  closeDeal,
   setSelectedDeal,
-  updateDeal,
+  fetchDeals,
 } from "../src/store/slices/dealsSlice";
-
 import {
   addFollowUp,
-  clearActiveSiteVisit,
-  clearShowFeedback,
-  setShowFeedback,
-  updateFollowUp,
+  setFollowUps,
+  setLoading as setFollowUpsLoading,
 } from "../src/store/slices/followUpsSlice";
-
 import {
   addProperty,
   clearSelectedProperty,
@@ -53,9 +37,7 @@ import {
   setLoading,
   setError,
 } from "../src/store/slices/propertiesSlice";
-
 import { activateSubscription } from "../src/store/slices/subscriptionSlice";
-
 import {
   clearEditItem,
   setCollabOpen,
@@ -74,10 +56,7 @@ export default function DashboardPage() {
   const customers = useSelector((state) => state.customers.customers);
   const selectedCustomer = useSelector((state) => state.customers.selectedCustomer);
   const followUps = useSelector((state) => state.followUps.followUps);
-  const activeSiteVisit = useSelector((state) => state.followUps.activeSiteVisit);
-  const showFeedback = useSelector((state) => state.followUps.showFeedback);
   const deals = useSelector((state) => state.deals.deals);
-  const selectedDeal = useSelector((state) => state.deals.selectedDeal);
   const unreadCount = useSelector((state) => state.notifications.unreadCount);
   const showPaywall = useSelector((state) => state.subscription.showPaywall);
   const modalOpen = useSelector((state) => state.ui.modalOpen);
@@ -87,68 +66,102 @@ export default function DashboardPage() {
 
   // Fetch properties on component mount
   useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        dispatch(setLoading(true));
+        const response = await propertiesAPI.getAll();
+
+        if (response.data.success) {
+          const mappedProperties = response.data.data.map(prop => ({
+            id: prop.id,
+            title: prop.title,
+            listingType: prop.listing_type,
+            category: prop.category || prop.property_category,
+            type: prop.property_type,
+            bhk: prop.configuration,
+            furnishing: prop.furnishing_status,
+            location: prop.locality || prop.city,
+            city: prop.city,
+            state: prop.state,
+            price: prop.price,
+            size: `${prop.size_sqft} ${prop.size_unit}`,
+            image: prop.cover_image_url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
+            status: prop.status,
+            owner: prop.owner_name,
+            ownerPhone: prop.owner_phone,
+            amenities: prop.amenities || [],
+          }));
+
+          dispatch(setProperties(mappedProperties));
+        }
+      } catch (error) {
+        dispatch(setError(error.response?.data?.message || 'Failed to fetch properties'));
+      } finally {
+        dispatch(setLoading(false));
+      }
+    };
+
     fetchProperties();
-  }, []);
+  }, [dispatch]);
 
-  const fetchProperties = async () => {
+  // Initialize data hook (handles customers and deals)
+  useInitializeData();
+
+  // Fetch deals on component mount (backup in case hook doesn't run)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      dispatch(fetchDeals());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [dispatch]);
+
+  // Fetch tasks function
+  const fetchTasks = useCallback(async () => {
     try {
-      dispatch(setLoading(true));
-      const response = await propertiesAPI.getAll();
-
+      dispatch(setFollowUpsLoading(true));
+      const response = await tasksAPI.getAll();
+      
       if (response.data.success) {
-        const mappedProperties = response.data.data.map(prop => ({
-          id: prop.id,
-          title: prop.title,
-          listingType: prop.listing_type,
-          category: prop.category || prop.property_category,
-          type: prop.property_type,
-          bhk: prop.configuration,
-          furnishing: prop.furnishing_status,
-          location: prop.locality || prop.city,
-          city: prop.city,
-          state: prop.state,
-          price: prop.price,
-          size: `${prop.size_sqft} ${prop.size_unit}`,
-          image: prop.cover_image_url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
-          status: prop.status,
-          owner: prop.owner_name,
-          ownerPhone: prop.owner_phone,
-          amenities: prop.amenities || [],
+        const mappedTasks = response.data.data.map(task => ({
+          id: task.id,
+          customerId: task.client_id,
+          customerName: task.client_name,
+          propertyId: task.property_id,
+          propertyIds: task.property_id ? [task.property_id] : [],
+          type: task.task_type,
+          date: `${task.due_date}T${task.due_time || '10:00'}`,
+          note: task.description || task.notes || '',
+          status: task.status,
+          siteVisitId: task.site_visit_id,
         }));
-
-        dispatch(setProperties(mappedProperties));
+        dispatch(setFollowUps(mappedTasks));
       }
     } catch (error) {
-      console.error('Error fetching properties:', error);
-      dispatch(setError(error.response?.data?.message || 'Failed to fetch properties'));
+      console.error('Error fetching tasks:', error);
     } finally {
-      dispatch(setLoading(false));
+      dispatch(setFollowUpsLoading(false));
     }
-  };
+  }, [dispatch]);
 
   // Navigation handler
-  const handleNavigation = (path) => {
-    try {
-      router.push(path);
-    } catch (error) {
-      console.warn("Navigation error:", error);
-    }
-  };
+  const handleNavigation = useCallback((path) => {
+    router.push(path);
+  }, [router]);
 
   // Utils
   const generateId = () => Math.random().toString(36).substring(2, 11);
 
   // Modal handler
-  const handleOpenModal = (type) => {
+  const handleOpenModal = useCallback((type) => {
     dispatch(clearEditItem());
     dispatch(setModalType(type));
     dispatch(setModalOpen(true));
-  };
+  }, [dispatch]);
 
   // FAB
-  const handleFABPress = () => {
+  const handleFABPress = useCallback(() => {
     handleOpenModal("Property");
-  };
+  }, [handleOpenModal]);
 
   // Add
   const handleAdd = async (data) => {
@@ -185,8 +198,6 @@ export default function DashboardPage() {
           dispatch(addProperty(response.data.data));
           dispatch(setModalOpen(false));
           showToast.success('Property created successfully!');
-          // Refresh properties list
-          fetchProperties();
         }
       } else if (modalType === "Customer") {
         // Map customer form data to API structure
@@ -235,7 +246,6 @@ export default function DashboardPage() {
         dispatch(setModalOpen(false));
       }
     } catch (error) {
-      console.error('Error creating item:', error);
       const errorMessage = error.response?.data?.message || 'Failed to create item. Please try again.';
       showToast.error(errorMessage);
     }
@@ -299,17 +309,82 @@ export default function DashboardPage() {
           dispatch(clearEditItem());
           dispatch(setModalOpen(false));
           showToast.success('Property updated successfully!');
-          fetchProperties();
+        }
+      } else if (modalType === "FollowUp") {
+        // Check if it's a Site Visit with multiple properties
+        if ((data.type === 'Site Visit' || data.type === 'Visit') && data.propertyIds?.length > 1) {
+          // For Site Visits with multiple properties, we need to delete and recreate
+          // because backend doesn't support updating site visits yet
+          showToast.error('To update properties in a Site Visit, please delete and create a new task');
+          return;
+        }
+
+        // Update regular task in backend
+        const updateData = {
+          client_id: data.customerId,
+          property_id: data.propertyIds?.[0] || null,
+          task_type: data.type || data.task_type,
+          schedule_date: data.date?.split('T')[0] || data.due_date?.split('T')[0],
+          schedule_time: data.date?.split('T')[1]?.substring(0, 5) || data.due_date?.split('T')[1]?.substring(0, 5) || '10:00',
+          notes: data.note || data.description || '',
+          title: data.title
+        };
+
+        const response = await tasksAPI.update(data.id, updateData);
+
+        if (response.data.success) {
+          showToast.success('Task updated successfully!');
+          await fetchTasks(); // Refresh tasks from backend
+          dispatch(clearEditItem());
+          dispatch(setModalOpen(false));
+        }
+      } else if (modalType === "Customer") {
+        // Update customer in backend
+        const apiPayload = {
+          name: data.name || '',
+          phone: data.phone || '',
+          requirement_type: data.listingType === 'Buy' ? 'Buy' : 'Rent',
+          property_category: data.category || 'Residential',
+          property_type: data.type || '',
+          configuration: data.bhk || data.commercialConfig || null,
+          furnishing_status: data.furnishing || null,
+          budget_min: data.budgetMin || 0,
+          budget_max: data.budgetMax || 0,
+          preferred_location: data.preferredLocation || '',
+          notes: data.details || '',
+        };
+
+        const response = await customersAPI.update(data.id, apiPayload);
+
+        if (response.data.success) {
+          // Map backend response to frontend format
+          const mappedCustomer = {
+            id: response.data.data.id,
+            name: response.data.data.name,
+            phone: response.data.data.phone,
+            status: response.data.data.status,
+            stage: response.data.data.status,
+            requirement: response.data.data.requirement_type,
+            category: response.data.data.property_category,
+            type: response.data.data.property_type,
+            bhk: response.data.data.configuration,
+            furnishing: response.data.data.furnishing_status,
+            budgetMin: response.data.data.budget_min,
+            budgetMax: response.data.data.budget_max,
+            location: response.data.data.preferred_location,
+            notes: response.data.data.notes,
+          };
+
+          dispatch(updateCustomerLocal(mappedCustomer));
+          dispatch(clearEditItem());
+          dispatch(setModalOpen(false));
+          showToast.success('Customer updated successfully!');
         }
       } else {
-        // For Customer and FollowUp, keep existing logic
-        if (modalType === "Customer") dispatch(updateCustomer(data));
-        if (modalType === "FollowUp") dispatch(updateFollowUp(data));
         dispatch(clearEditItem());
         dispatch(setModalOpen(false));
       }
     } catch (error) {
-      console.error('Error updating item:', error);
       const errorMessage = error.response?.data?.message || 'Failed to update item. Please try again.';
       showToast.error(errorMessage);
     }
@@ -345,58 +420,9 @@ export default function DashboardPage() {
         router.push('/deal-page');
       }
     } catch (error) {
-      console.error('Error starting deal:', error);
       const errorMessage = error.response?.data?.message || 'Failed to start deal. Please try again.';
       showToast.error(errorMessage);
     }
-  };
-
-  const handleCloseDeal = (deal) => {
-    dispatch(closeDeal(deal.id));
-
-    const prop = properties.find((p) => p.id === deal.propertyId);
-    if (prop) dispatch(updateProperty({ ...prop, status: "Sold" }));
-
-    dispatch(
-      updateCustomerStatus({
-        id: deal.customerId,
-        status: "Closed",
-      })
-    );
-  };
-
-  // Site Visit
-  const handleFinishVisit = (visit) => {
-    dispatch(clearActiveSiteVisit());
-    dispatch(setShowFeedback(visit));
-  };
-
-  const handleSubmitFeedback = (data) => {
-    const deal = deals.find(
-      (d) =>
-        d.customerId === data.customer.id &&
-        d.propertyId === data.property.id
-    );
-
-    if (deal) {
-      dispatch(
-        updateDeal({
-          id: deal.id,
-          deal: {
-            ...deal,
-            stage:
-              data.feedback.sentiment === "interested"
-                ? "Negotiation"
-                : data.feedback.sentiment === "hold"
-                  ? "Meeting"
-                  : "Dropped",
-            visits: [...(deal.visits || []), data.feedback],
-          },
-        })
-      );
-    }
-
-    dispatch(clearShowFeedback());
   };
 
   // Subscription
@@ -444,34 +470,84 @@ export default function DashboardPage() {
       />
 
       {selectedProperty && (
-        <Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color="#A78BFA" /></View>}>
-          <PropertyDetailSheet
-            property={selectedProperty}
-            onEdit={handleEdit}
-            onClose={() => dispatch(clearSelectedProperty())}
-          />
-        </Suspense>
+        <PropertyDetailSheet
+          property={selectedProperty}
+          onEdit={handleEdit}
+          onClose={() => dispatch(clearSelectedProperty())}
+        />
       )}
 
       {selectedCustomer && (
         <CustomerDetailSheet
           customer={selectedCustomer}
           properties={properties}
-          activeDeals={deals}
-          followUps={followUps}
           onClose={() => dispatch(clearSelectedCustomer())}
           onStartDeal={handleStartDeal}
+          onAddFollowUp={async (taskData) => {
+            try {
+              // Check if it's a site visit with multiple properties
+              if ((taskData.type === 'Site Visit' || taskData.type === 'Visit') && taskData.propertyIds?.length > 0) {
+                // Create site visit (this will also create task in backend)
+                const visitResponse = await visitsAPI.create({
+                  client_id: taskData.customerId,
+                  property_ids: taskData.propertyIds,
+                  scheduled_date: taskData.date.split('T')[0],
+                  scheduled_time: taskData.date.split('T')[1]?.substring(0, 5) || '10:00'
+                });
+
+                if (visitResponse.data.success) {
+                  showToast.success('Site visit scheduled!');
+                  await fetchTasks(); // Refresh tasks from backend
+                }
+              } else {
+                // Create regular task
+                const taskResponse = await tasksAPI.create({
+                  client_id: taskData.customerId,
+                  property_id: taskData.propertyIds?.[0] || null,
+                  task_type: taskData.type || 'Meeting',
+                  schedule_date: taskData.date.split('T')[0],
+                  schedule_time: taskData.date.split('T')[1]?.substring(0, 5) || '10:00',
+                  notes: taskData.note || ''
+                });
+
+                if (taskResponse.data.success) {
+                  showToast.success('Task created!');
+                  await fetchTasks(); // Refresh tasks from backend
+                }
+              }
+            } catch (error) {
+              console.error('Error creating task:', error);
+              showToast.error(error.response?.data?.message || 'Failed to create task');
+            }
+          }}
+          onEditTask={(task) => {
+            dispatch(setEditItem(task));
+            dispatch(setModalType('FollowUp'));
+            dispatch(setModalOpen(true));
+          }}
+          onDeleteTask={async (taskId) => {
+            try {
+              const response = await tasksAPI.delete(taskId);
+              if (response.data.success) {
+                showToast.success('Task deleted');
+                await fetchTasks(); // Refresh tasks from backend
+              }
+            } catch (error) {
+              console.error('Error deleting task:', error);
+              showToast.error('Failed to delete task');
+            }
+          }}
           onUpdateStage={async (id, stage) => {
             try {
               const response = await customersAPI.updateStage(id, stage);
               if (response.data.success) {
-                const customer = customers.find(c => c.id === id);
-                if (customer) {
-                  dispatch(updateCustomer({ ...customer, stage }));
-                }
+                // Use the updateCustomerStage action to update Redux state
+                dispatch(updateCustomerStage({ id, stage }));
+                showToast.success(`Customer moved to ${stage} stage`);
               }
             } catch (error) {
-              console.error('Error updating stage:', error);
+              console.error('Failed to update stage:', error);
+              showToast.error('Failed to update stage');
             }
           }}
         />
@@ -481,22 +557,6 @@ export default function DashboardPage() {
         isOpen={collabOpen}
         onClose={() => dispatch(setCollabOpen(false))}
       />
-
-      {activeSiteVisit && (
-        <SiteVisitSheet
-          activeVisit={activeSiteVisit}
-          onFinish={handleFinishVisit}
-          onClose={() => dispatch(clearActiveSiteVisit())}
-        />
-      )}
-
-      {showFeedback && (
-        <VisitFeedbackSheet
-          visitData={showFeedback}
-          onSubmit={handleSubmitFeedback}
-          onClose={() => dispatch(clearShowFeedback())}
-        />
-      )}
     </View>
   );
 }
