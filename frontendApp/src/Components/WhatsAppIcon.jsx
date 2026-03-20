@@ -1,10 +1,9 @@
 import { View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import styles from '../styles/whatsAppIconStyles';
 
 const WhatsAppIcon = ({ size = 20, color = '#000000' }) => {
   return (
-    <View style={[{ width: size, height: size }, styles.container]}>
+    <View style={{ width: size, height: size }}>
       <Svg
         width={size}
         height={size}
