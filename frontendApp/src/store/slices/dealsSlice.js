@@ -1,5 +1,117 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { INITIAL_DEALS } from '../../MockData/Mockdata';
+import { dealsAPI } from '../../config/api';
+
+// Async Thunks for API calls
+
+// Fetch all deals
+export const fetchDeals = createAsyncThunk(
+  'deals/fetchAll',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await dealsAPI.getAll();
+      if (response.data.success) {
+        return response.data.data.map(deal => ({
+          id: deal.id,
+          customerId: deal.client_id,
+          propertyId: deal.property_id,
+          stage: deal.status,
+          status: deal.status,
+          startedAt: deal.created_at,
+          finalPrice: deal.final_price,
+          tokenAmount: deal.token_amount,
+          // Include customer info
+          client_name: deal.client_name,
+          client_phone: deal.client_phone,
+          // Include property info
+          property_title: deal.property_title,
+          property_address: deal.property_address,
+          city: deal.city,
+          cover_image_url: deal.cover_image_url,
+          listing_price: deal.final_price,
+          meetings: []
+        }));
+      }
+      return [];
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch deals');
+    }
+  }
+);
+
+// Fetch single deal by ID
+export const fetchDealById = createAsyncThunk(
+  'deals/fetchById',
+  async (dealId, { rejectWithValue }) => {
+    try {
+      const response = await dealsAPI.getById(dealId);
+      if (response.data.success) {
+        const deal = response.data.data;
+        return {
+          id: deal.id,
+          customerId: deal.client_id,
+          propertyId: deal.property_id,
+          stage: deal.status,
+          status: deal.status,
+          startedAt: deal.created_at,
+          finalPrice: deal.final_price,
+          tokenAmount: deal.token_amount,
+          // Include customer info
+          client_name: deal.client_name,
+          client_phone: deal.client_phone,
+          // Include property info
+          property_title: deal.property_title,
+          property_address: deal.property_address,
+          city: deal.city,
+          cover_image_url: deal.cover_image_url,
+          listing_price: deal.final_price,
+          meetings: deal.meetings || []
+        };
+      }
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch deal');
+    }
+  }
+);
+
+// Create new deal
+export const createDeal = createAsyncThunk(
+  'deals/create',
+  async (dealData, { rejectWithValue }) => {
+    try {
+      const response = await dealsAPI.create(dealData);
+      if (response.data.success) {
+        return {
+          id: response.data.data.id,
+          customerId: dealData.client_id,
+          propertyId: dealData.property_id,
+          stage: response.data.data.status || 'Interested',
+          startedAt: response.data.data.created_at,
+          meetings: []
+        };
+      }
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to create deal');
+    }
+  }
+);
+
+// Update negotiation
+export const updateNegotiation = createAsyncThunk(
+  'deals/updateNegotiation',
+  async ({ dealId, data }, { rejectWithValue }) => {
+    try {
+      const response = await dealsAPI.updateNegotiation(dealId, data);
+      if (response.data.success) {
+        return { dealId, data: response.data.data };
+      }
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update negotiation');
+    }
+  }
+);
+
+// Note: Transaction operations moved to transactionSlice for better separation of concerns
 
 const dealsSlice = createSlice({
   name: 'deals',
@@ -42,7 +154,6 @@ const dealsSlice = createSlice({
       const deal = state.deals.find(d => d.id === id);
       if (deal) {
         deal.stage = stage;
-        // Add completedAt timestamp when transitioning to Completed
         if (stage === 'Completed' && !deal.completedAt) {
           deal.completedAt = new Date().toISOString();
         }
@@ -59,7 +170,6 @@ const dealsSlice = createSlice({
       const deal = state.deals.find(d => d.customerId === customerId);
       if (deal) {
         deal.stage = stage;
-        // Add completedAt timestamp when transitioning to Completed
         if (stage === 'Completed' && !deal.completedAt) {
           deal.completedAt = new Date().toISOString();
         }
@@ -100,6 +210,74 @@ const dealsSlice = createSlice({
     setError: (state, action) => {
       state.error = action.payload;
     },
+  },
+  extraReducers: (builder) => {
+    // Fetch Deals
+    builder
+      .addCase(fetchDeals.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchDeals.fulfilled, (state, action) => {
+        state.deals = action.payload;
+        state.loading = false;
+      })
+      .addCase(fetchDeals.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+
+    // Fetch Deal By ID
+    builder
+      .addCase(fetchDealById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchDealById.fulfilled, (state, action) => {
+        state.selectedDeal = action.payload;
+        // Also update in deals array if exists
+        const index = state.deals.findIndex(d => d.id === action.payload.id);
+        if (index !== -1) {
+          state.deals[index] = action.payload;
+        }
+        state.loading = false;
+      })
+      .addCase(fetchDealById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+
+    // Create Deal
+    builder
+      .addCase(createDeal.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createDeal.fulfilled, (state, action) => {
+        state.deals.unshift(action.payload);
+        state.loading = false;
+      })
+      .addCase(createDeal.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+
+    // Update Negotiation
+    builder
+      .addCase(updateNegotiation.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(updateNegotiation.fulfilled, (state, action) => {
+        const { dealId, data } = action.payload;
+        if (state.selectedDeal?.id === dealId) {
+          state.selectedDeal = { ...state.selectedDeal, ...data };
+        }
+        state.loading = false;
+      })
+      .addCase(updateNegotiation.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
   },
 });
 

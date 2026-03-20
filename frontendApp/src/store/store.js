@@ -8,6 +8,7 @@ import followUpsReducer from './slices/followUpsSlice';
 import notificationsReducer from './slices/notificationsSlice';
 import propertiesReducer from './slices/propertiesSlice';
 import subscriptionReducer from './slices/subscriptionSlice';
+import transactionsReducer from './slices/transactionSlice';
 import uiReducer from './slices/uiSlice';
 
 export const store = configureStore({
@@ -17,6 +18,7 @@ export const store = configureStore({
     customers: customersReducer,
     followUps: followUpsReducer,
     deals: dealsReducer,
+    transactions: transactionsReducer,
     notifications: notificationsReducer,
     subscription: subscriptionReducer,
     ui: uiReducer,

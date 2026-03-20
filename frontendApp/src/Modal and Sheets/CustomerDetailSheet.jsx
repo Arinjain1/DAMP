@@ -18,9 +18,12 @@ import {
   Users,
   X
 } from 'lucide-react-native';
+import CustomerHeader from '../Components/CustomerHeader';
+import StageIndicator from '../Components/CustomerDetailComponents/StageIndicator';
+import PropertyListItem from '../Components/CustomerDetailComponents/PropertyListItem';
 import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import {
-  Alert,
   Image,
   Linking,
   Modal,
@@ -30,9 +33,11 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Alert
 } from 'react-native';
 import AddModal from './AddModal';
+import SiteVisitMapModal from './SiteVisitMapModal';
 import { visitsAPI, customersAPI } from '../config/api';
 import { showToast } from '../utils/toast';
 
@@ -65,52 +70,7 @@ const getStageIcon = (iconName, size, color) => {
   return icons[iconName] || <Check size={size} color={color} />;
 };
 
-// --- STAGE INDICATOR COMPONENT ---
-const StageIndicator = ({ currentStage }) => {
-  const currentIndex = SALES_STAGES.findIndex(s => s.id === currentStage);
-
-  return (
-    <View style={styles.stageContainer}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.stageScrollContent}
-      >
-        {SALES_STAGES.map((stage, index) => {
-          const isCurrent = currentIndex === index;
-          const isCompleted = currentIndex > index;
-
-          let circleStyle, iconColor;
-          if (isCompleted) {
-            circleStyle = styles.stageCircleCompleted;
-            iconColor = '#ffffff';
-          } else if (isCurrent) {
-            circleStyle = styles.stageCircleCurrent;
-            iconColor = '#ffffff';
-          } else {
-            circleStyle = styles.stageCircleFuture;
-            iconColor = '#d1d5db';
-          }
-
-          return (
-            <View key={stage.id} style={styles.stageItem}>
-              <View style={[styles.stageCircle, circleStyle]}>
-                {getStageIcon(stage.icon, 20, iconColor)}
-              </View>
-              <Text style={[
-                styles.stageLabel,
-                isCurrent && styles.stageLabelActive
-              ]}>
-                {stage.label}
-              </Text>
-              {isCurrent && <View style={styles.stageUnderline} />}
-            </View>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-};
+// StageIndicator component is now imported
 
 // Helper for currency formatting
 const formatCurrency = (amount) => {
@@ -121,7 +81,11 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals = [], followUps = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask, onUpdateStage, onSelectProperties, openMapView = false }) => {
+const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask, onUpdateStage, onSelectProperties, openMapView = false }) => {
+  // Get followUps and deals directly from Redux for real-time updates
+  const followUps = useSelector((state) => state.followUps.followUps);
+  const activeDeals = useSelector((state) => state.deals.deals);
+  
   const [showPropertyPicker, setShowPropertyPicker] = useState(false);
   const [selectedPropertyIds, setSelectedPropertyIds] = useState(customer.selectedProperties || []);
   const [interestedPropertyIds, setInterestedPropertyIds] = useState(customer.interestedProperties || []);
@@ -143,23 +107,39 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
         const response = await customersAPI.getById(customer.id);
 
         if (response.data.success) {
-          const customerData = response.data.data.profile;
+          const customerData = response.data.data.profile || response.data.data;
 
-          // Update state with fetched data
-          setSelectedPropertyIds(customerData.selectedProperties || []);
-          setInterestedPropertyIds(customerData.interestedProperties || []);
-          setHoldPropertyIds(customerData.holdProperties || []);
+          // Update state with fetched data - handle both array and JSON string formats
+          const parsePropertyArray = (data) => {
+            if (!data) return [];
+            if (Array.isArray(data)) return data;
+            if (typeof data === 'string') {
+              try {
+                return JSON.parse(data);
+              } catch (e) {
+                return [];
+              }
+            }
+            return [];
+          };
+
+          setSelectedPropertyIds(parsePropertyArray(customerData.selected_properties || customerData.selectedProperties));
+          setInterestedPropertyIds(parsePropertyArray(customerData.interested_properties || customerData.interestedProperties));
+          setHoldPropertyIds(parsePropertyArray(customerData.hold_properties || customerData.holdProperties));
         }
       } catch (error) {
         console.error('Error fetching customer details:', error);
         // Keep using props data if fetch fails
+        setSelectedPropertyIds(customer.selectedProperties || []);
+        setInterestedPropertyIds(customer.interestedProperties || []);
+        setHoldPropertyIds(customer.holdProperties || []);
       } finally {
         setLoading(false);
       }
     };
 
     fetchCustomerDetails();
-  }, [customer?.id]);
+  }, [customer?.id, customer.selectedProperties, customer.interestedProperties, customer.holdProperties]);
 
   // Reset search query when property picker opens
   const handleOpenPropertyPicker = () => {
@@ -174,9 +154,18 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
   const showNextStepCard = nextStage && (customer.stage === 'New' || customer.stage === 'Contacted');
 
-  const handleProceedToNextStage = () => {
+  const handleProceedToNextStage = async () => {
     if (nextStage && onUpdateStage) {
-      onUpdateStage(customer.id, nextStage.id);
+      try {
+        setLoading(true);
+        await onUpdateStage(customer.id, nextStage.id);
+        showToast.success(`Moved to ${nextStage.label} stage!`);
+      } catch (error) {
+        console.error('Error updating stage:', error);
+        showToast.error('Failed to update stage');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -229,32 +218,32 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
       setInterestedPropertyIds(newInterestedProperties);
 
-      // Remove from selectedProperties so it doesn't show in Site Visit anymore
-      const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
-      setSelectedPropertyIds(newSelectedProperties);
+      // Only remove property from selectedProperties after feedback, not after adding a task
+      // If feedback is submitted (interested), remove property
+      if (true) { // Feedback context only
+        const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
+        setSelectedPropertyIds(newSelectedProperties);
 
-      // Save to database
-      await customersAPI.updateProperties(customer.id, {
-        selected_properties: newSelectedProperties,
-        interested_properties: newInterestedProperties
-      });
+        // Save to database
+        await customersAPI.updateProperties(customer.id, {
+          selected_properties: newSelectedProperties,
+          interested_properties: newInterestedProperties
+        });
 
-      // Update customer with both arrays
-      if (onSelectProperties) {
-        onSelectProperties(customer.id, newSelectedProperties, newInterestedProperties);
-      }
+        // Update customer with both arrays
+        if (onSelectProperties) {
+          onSelectProperties(customer.id, newSelectedProperties, newInterestedProperties);
+        }
 
-      // DON'T move customer to Interested stage yet - stay in Site Visit
-      // Only move when they click "View Interested" button
-
-      // If no more properties to visit, close map view
-      if (newSelectedProperties.length === 0) {
-        setShowMapView(false);
-        setIsPropertyExpanded(false);
-      } else {
-        // Move to next property if available
-        if (currentPropertyIndex >= newSelectedProperties.length) {
-          setCurrentPropertyIndex(newSelectedProperties.length - 1);
+        // If no more properties to visit, close map view
+        if (newSelectedProperties.length === 0) {
+          setShowMapView(false);
+          setIsPropertyExpanded(false);
+        } else {
+          // Move to next property if available
+          if (currentPropertyIndex >= newSelectedProperties.length) {
+            setCurrentPropertyIndex(newSelectedProperties.length - 1);
+          }
         }
       }
     } catch (error) {
@@ -280,28 +269,31 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
         });
       }
 
-      // Remove property from selectedProperties
-      const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
-      setSelectedPropertyIds(newSelectedProperties);
+      // Only remove property from selectedProperties after feedback, not after adding a task
+      // If feedback is submitted (not interested), remove property
+      if (true) { // Feedback context only
+        const newSelectedProperties = selectedPropertyIds.filter(id => id !== propertyId);
+        setSelectedPropertyIds(newSelectedProperties);
 
-      // Save to database
-      await customersAPI.updateProperties(customer.id, {
-        selected_properties: newSelectedProperties
-      });
+        // Save to database
+        await customersAPI.updateProperties(customer.id, {
+          selected_properties: newSelectedProperties
+        });
 
-      // Update customer with updated selected properties
-      if (onSelectProperties) {
-        onSelectProperties(customer.id, newSelectedProperties, interestedPropertyIds);
-      }
+        // Update customer with updated selected properties
+        if (onSelectProperties) {
+          onSelectProperties(customer.id, newSelectedProperties, interestedPropertyIds);
+        }
 
-      // If no properties left, close map view
-      if (newSelectedProperties.length === 0) {
-        setShowMapView(false);
-        setIsPropertyExpanded(false);
-      } else {
-        // Move to next property if available
-        if (currentPropertyIndex >= newSelectedProperties.length) {
-          setCurrentPropertyIndex(newSelectedProperties.length - 1);
+        // If no properties left, close map view
+        if (newSelectedProperties.length === 0) {
+          setShowMapView(false);
+          setIsPropertyExpanded(false);
+        } else {
+          // Move to next property if available
+          if (currentPropertyIndex >= newSelectedProperties.length) {
+            setCurrentPropertyIndex(newSelectedProperties.length - 1);
+          }
         }
       }
     } catch (error) {
@@ -375,23 +367,10 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
         <View style={styles.sheetContainer}>
 
           {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerContent}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{customer.name.charAt(0)}</Text>
-              </View>
-              <View>
-                <Text style={styles.customerName}>{customer.name}</Text>
-                <Text style={styles.customerPhone}>{customer.phone}</Text>
-              </View>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color="#6b7280" />
-            </TouchableOpacity>
-          </View>
+          <CustomerHeader name={customer.name} phone={customer.phone} onClose={onClose} />
 
           {/* Stage Indicator */}
-          <StageIndicator currentStage={customer.stage || 'New'} />
+          <StageIndicator currentStage={customer.stage || 'New'} loading={loading} />
 
           {/* Main Content */}
           <ScrollView
@@ -412,14 +391,17 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                 <TouchableOpacity
                   style={[
                     styles.proceedButton,
-                    customer.stage === 'Contacted' && selectedPropertyIds.length === 0 && styles.proceedButtonDisabled
+                    (customer.stage === 'Contacted' && selectedPropertyIds.length === 0) && styles.proceedButtonDisabled,
+                    loading && styles.proceedButtonDisabled
                   ]}
                   onPress={handleProceedToNextStage}
                   activeOpacity={0.9}
-                  disabled={customer.stage === 'Contacted' && selectedPropertyIds.length === 0}
+                  disabled={(customer.stage === 'Contacted' && selectedPropertyIds.length === 0) || loading}
                 >
-                  <Text style={styles.proceedButtonText}>Proceed to {nextStage.label}</Text>
-                  <ChevronRight size={16} color="white" />
+                  <Text style={styles.proceedButtonText}>
+                    {loading ? 'Processing...' : `Proceed to ${nextStage.label}`}
+                  </Text>
+                  {!loading && <ChevronRight size={16} color="white" />}
                 </TouchableOpacity>
               </View>
             )}
@@ -482,24 +464,11 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                   </View>
                 ) : selectedPropertyIds.length > 0 ? (
                   <View style={styles.listContainer}>
-                    {selectedPropertyIds.map(propId => {
-                      const prop = properties.find(p => p.id === propId);
-                      if (!prop) return null;
-                      return (
-                        <View key={prop.id} style={styles.selectedPropertyItem}>
-                          <Image source={{ uri: prop.image }} style={styles.compactImg} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.compactTitle} numberOfLines={1}>{prop.title}</Text>
-                            <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
-                          </View>
-                          <TouchableOpacity
-                            onPress={() => handleToggleProperty(prop.id)}
-                            style={styles.removeButton}
-                          >
-                            <X size={16} color="#ef4444" />
-                          </TouchableOpacity>
-                        </View>
-                      );
+                    {selectedPropertyIds.map(id => {
+                      const item = properties.find(p => p.id === id);
+                      return item ? (
+                        <PropertyListItem key={item.id} prop={item} onRemove={handleToggleProperty} />
+                      ) : null;
                     })}
                   </View>
                 ) : null}
@@ -629,7 +598,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     if (!prop) return null;
 
                     // Check if deal already exists for this property
-                    const hasDeal = dealtPropertyIds.includes(prop.id);
+                    // const hasDeal = dealtPropertyIds.includes(prop.id); // Removed unused variable
 
                     return (
                       <View key={prop.id} style={styles.matchCard}>
@@ -645,7 +614,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
                           <View style={styles.matchFooter}>
                             <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
-                            {!hasDeal ? (
+                            {!dealtPropertyIds.includes(prop.id) ? (
                               <TouchableOpacity
                                 onPress={() => {
                                   // Open Google Maps with property location
@@ -681,7 +650,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                     if (!prop) return null;
 
                     // Check if deal already exists for this property
-                    const hasDeal = dealtPropertyIds.includes(prop.id);
+                    // Inline check used above
 
                     return (
                       <View key={prop.id} style={styles.pendingCardWithButtons}>
@@ -929,20 +898,44 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
               </View>
 
               <ScrollView style={styles.pickerContent}>
-                {properties
-                  .filter(p => {
+                {(() => {
+                  const filteredProperties = properties.filter(p => {
                     // Filter by search query
                     const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                       p.location.toLowerCase().includes(searchQuery.toLowerCase());
-                    // For Contacted and Site Visit stages: show all matching properties
-                    // For other stages: show only available properties not in deals
+                    
+                    // Filter by customer requirements (only Category and Type)
+                    const matchesCategory = !customer.category || p.category === customer.category;
+                    const matchesType = !customer.type || p.type === customer.type;
+                    
+                    // For Contacted and Site Visit stages: show matching properties
                     if (customer.stage === 'Contacted' || customer.stage === 'Site Visit') {
-                      return matchesSearch && p.type === customer.type && p.status !== 'Sold';
+                      return matchesSearch && 
+                             matchesCategory && 
+                             matchesType && 
+                             p.status !== 'Sold';
                     } else {
-                      return matchesSearch && p.status === 'Available' && !dealtPropertyIds.includes(p.id);
+                      return matchesSearch && 
+                             matchesCategory && 
+                             matchesType && 
+                             p.status === 'Available' && 
+                             !dealtPropertyIds.includes(p.id);
                     }
-                  })
-                  .map(p => {
+                  });
+
+                  if (filteredProperties.length === 0) {
+                    return (
+                      <View style={styles.noResultsContainer}>
+                        <Text style={styles.noResultsText}>No properties match the requirements</Text>
+                        <Text style={styles.noResultsSubtext}>
+                          {customer.category && `Category: ${customer.category}`}
+                          {customer.type && ` • Type: ${customer.type}`}
+                        </Text>
+                      </View>
+                    );
+                  }
+
+                  return filteredProperties.map(p => {
                     const isSelected = selectedPropertyIds.includes(p.id);
                     const canToggle = customer.stage === 'Contacted' || customer.stage === 'Site Visit';
                     return (
@@ -1003,7 +996,8 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
                         )}
                       </TouchableOpacity>
                     );
-                  })}
+                  });
+                })()}
               </ScrollView>
 
               {/* Done button for Contacted and Site Visit stages */}
@@ -1112,234 +1106,18 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
 
       {/* Map View Modal */}
       {showMapView && (
-        <Modal
-          visible={true}
-          transparent={false}
-          animationType="slide"
-          onRequestClose={() => {
+        <SiteVisitMapModal
+          visible={showMapView}
+          onClose={() => {
             setShowMapView(false);
             setIsPropertyExpanded(false);
           }}
-          statusBarTranslucent
-        >
-          <View style={styles.mapViewContainer}>
-            {/* Background Map Image */}
-            <Image
-              source={require('../../assets/images/Rectangle.png')}
-              style={styles.mapImage}
-              resizeMode="cover"
-              progressiveRenderingEnabled={true}
-              fadeDuration={300}
-            />
-
-            {/* Header with Title and Close Button */}
-            <View style={styles.mapHeader}>
-              <TouchableOpacity
-                style={styles.mapCloseButton}
-                onPress={() => {
-                  setShowMapView(false);
-                  setIsPropertyExpanded(false);
-                }}
-              >
-                <X size={24} color="#111827" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Properties Horizontal Scroll - Small Cards */}
-            {!isPropertyExpanded && (
-              <View style={styles.collapsedModalCard}>
-                {/* Horizontal Line */}
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={() => {
-                    if (selectedPropertyIds.length > 0) {
-                      setCurrentPropertyIndex(0);
-                      setIsPropertyExpanded(true);
-                    }
-                  }}
-                >
-                  <View style={styles.handleBar} />
-
-                  {/* Visit Sites Label */}
-                  <Text style={styles.propertiesToShowLabel}>Visit Sites</Text>
-                </TouchableOpacity>
-
-                {/* Property Horizontal Scroll */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.propertiesScrollContent}
-                  nestedScrollEnabled={true}
-                  removeClippedSubviews={true}
-                  maxToRenderPerBatch={3}
-                  windowSize={5}
-                >
-                  {selectedPropertyIds.map((propId, index) => {
-                    const prop = properties.find(p => p.id === propId);
-                    if (!prop) return null;
-
-                    return (
-                      <TouchableOpacity
-                        key={prop.id}
-                        style={styles.propertyScrollCard}
-                        onPress={() => {
-                          setCurrentPropertyIndex(index);
-                          setIsPropertyExpanded(true);
-                        }}
-                        activeOpacity={0.9}
-                      >
-                        <Image source={{ uri: prop.image }} style={styles.propertyScrollImageSmall} />
-                        <View style={styles.propertyScrollInfo}>
-                          <Text style={styles.propertyScrollTitle} numberOfLines={2}>{prop.title}</Text>
-                          <View style={styles.propertyScrollLocation}>
-                            <MapPin size={14} color="#6b7280" />
-                            <Text style={styles.propertyScrollLocationText} numberOfLines={1}>{prop.location}</Text>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            )}
-
-            {/* Expanded Property Details */}
-            {isPropertyExpanded && selectedPropertyIds.length > 0 && (
-              <View style={styles.expandedModalCard}>
-                {/* Horizontal Line */}
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={() => setIsPropertyExpanded(false)}
-                >
-                  <View style={styles.handleBar} />
-                </TouchableOpacity>
-
-                {/* Visit Sites Label */}
-                <Text style={styles.propertiesToShowLabel}>Visit Sites</Text>
-
-                {/* Property Horizontal Scroll */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.expandedPropertiesScroll}
-                  nestedScrollEnabled={true}
-                  scrollEnabled={true}
-                  snapToInterval={322}
-                  decelerationRate="fast"
-                  onMomentumScrollEnd={(event) => {
-                    const index = Math.round(event.nativeEvent.contentOffset.x / 322);
-                    setCurrentPropertyIndex(index);
-                  }}
-                >
-                  {selectedPropertyIds.map((propId, index) => {
-                    const prop = properties.find(p => p.id === propId);
-                    if (!prop) return null;
-
-                    // Check if property is on hold
-                    const isOnHold = holdPropertyIds.includes(propId);
-
-                    return (
-                      <View
-                        key={prop.id}
-                        style={styles.expandedPropertyCard}
-                      >
-                        <Image source={{ uri: prop.image }} style={styles.expandedPropertyCardImage} />
-                        <View style={styles.expandedPropertyCardInfo}>
-                          <View style={styles.propertyCardHeader}>
-                            <Text style={styles.expandedPropertyCardTitle} numberOfLines={1}>
-                              {prop.title}
-                            </Text>
-                            {isOnHold && (
-                              <View style={styles.holdBadgeSmall}>
-                                <Clock size={10} color="#d97706" />
-                                <Text style={styles.holdBadgeSmallText}>Hold</Text>
-                              </View>
-                            )}
-                          </View>
-                          <View style={styles.expandedPropertyCardLocation}>
-                            <MapPin size={12} color="#9ca3af" />
-                            <Text style={styles.expandedPropertyCardLocationText} numberOfLines={1}>
-                              {prop.location}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </ScrollView>
-
-                {/* Feedback Buttons - Single Row with Partitions */}
-                <View style={styles.feedbackButtonsRow}>
-                  <TouchableOpacity
-                    style={styles.feedbackBtn}
-                    onPress={() => {
-                      const propId = selectedPropertyIds[currentPropertyIndex];
-                      if (propId) {
-                        handlePropertyInterested(propId);
-                      }
-                    }}
-                  >
-                    <ThumbsUp size={20} color="#374151" />
-                    <Text style={styles.feedbackTextHorizontal}>Interested</Text>
-                  </TouchableOpacity>
-                  <View style={styles.verticalDivider} />
-                  <TouchableOpacity
-                    style={styles.feedbackBtn}
-                    onPress={() => {
-                      const propId = selectedPropertyIds[currentPropertyIndex];
-                      if (propId) {
-                        handlePropertyNotInterested(propId);
-                      }
-                    }}
-                  >
-                    <ThumbsDown size={20} color="#374151" />
-                    <Text style={styles.feedbackTextHorizontal}>Not-Interested</Text>
-                  </TouchableOpacity>
-                  <View style={styles.verticalDivider} />
-                  <TouchableOpacity
-                    style={styles.feedbackBtn}
-                    onPress={() => {
-                      const propId = selectedPropertyIds[currentPropertyIndex];
-                      if (propId) {
-                        handlePropertyHold(propId);
-                      }
-                    }}
-                  >
-                    <Clock size={20} color="#374151" />
-                    <Text style={styles.feedbackTextHorizontal}>Hold</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Contact Owner Button */}
-                <TouchableOpacity
-                  style={styles.contactOwnerButton}
-                  onPress={() => {
-                    const prop = properties.find(p => p.id === selectedPropertyIds[currentPropertyIndex]);
-                    if (prop && prop.ownerPhone) {
-                      Linking.openURL(`tel:${prop.ownerPhone}`);
-                    }
-                  }}
-                >
-                  <Phone size={18} color="#374151" />
-                  <Text style={styles.contactOwnerText}>Call Owner</Text>
-                </TouchableOpacity>
-
-                {/* Navigate Button */}
-                <TouchableOpacity
-                  style={styles.navigateButtonExpanded}
-                  onPress={() => {
-                    const prop = properties.find(p => p.id === selectedPropertyIds[currentPropertyIndex]);
-                    if (prop) {
-                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
-                    }
-                  }}
-                >
-                  <Text style={styles.navigateButtonExpandedText}>Navigate to Property</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </Modal>
+          properties={properties.filter(p => selectedPropertyIds.includes(p.id))}
+          customer={customer}
+          onPropertyInterested={handlePropertyInterested}
+          onPropertyNotInterested={handlePropertyNotInterested}
+          onPropertyHold={handlePropertyHold}
+        />
       )}
 
       {/* Add Follow Up Modal */}
@@ -1349,7 +1127,14 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], activeDeals =
         type="FollowUp"
         onSave={(taskData) => {
           if (onAddFollowUp) {
-            onAddFollowUp(taskData);
+            // Generate unique ID for the task
+            const taskWithId = {
+              ...taskData,
+              id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              customerId: customer.id,
+              customerName: customer.name,
+            };
+            onAddFollowUp(taskWithId);
           }
           setShowAddFollowUpModal(false);
         }}
@@ -2495,6 +2280,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: 'white',
+  },
+  noResultsContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noResultsText: {
+    fontSize: 16,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  noResultsSubtext: {
+    fontSize: 13,
+    fontFamily: 'Lato_400Regular',
+    color: '#9ca3af',
+    textAlign: 'center',
   },
 });
 

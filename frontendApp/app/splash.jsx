@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Splash() {
   const router = useRouter();
@@ -11,21 +11,12 @@ export default function Splash() {
       try {
         // 1 second splash screen
         await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // TEMPORARY: Force show onboarding for testing
-        // Comment out these lines after testing
-        router.replace('/onboarding');
-
-        // Uncomment below code after testing
-        // const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
-        // if (hasSeenOnboarding === 'true') {
-        //   router.replace('/login');
-        // } else {
-        //   router.replace('/onboarding');
-        // }
+        
+        // Skip onboarding and go directly to login
+        router.replace('/login');
       } catch (error) {
         console.error('Error checking onboarding:', error);
-        router.replace('/onboarding');
+        router.replace('/login');
       }
     };
 

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { setCustomers } from '../store/slices/customersSlice';
 import { setDeals } from '../store/slices/dealsSlice';
 import { customersAPI, dealsAPI } from '../config/api';
@@ -7,11 +7,18 @@ import { customersAPI, dealsAPI } from '../config/api';
 /**
  * Hook to initialize app data from the backend
  * Fetches customers and deals on mount
+ * Only runs when user is authenticated with a valid token
  */
 export const useInitializeData = () => {
   const dispatch = useDispatch();
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
 
   useEffect(() => {
+    // Only fetch if authenticated and token exists
+    if (!isAuthenticated || !user?.token) {
+      return;
+    }
+
     const fetchInitialData = async () => {
       try {
         // Fetch customers
@@ -33,9 +40,9 @@ export const useInitializeData = () => {
             location: client.preferred_location,
             notes: client.notes,
             createdAt: client.created_at,
-            selectedProperties: client.selectedProperties || [],
-            interestedProperties: client.interestedProperties || [],
-            holdProperties: client.holdProperties || [],
+            selectedProperties: client.selected_properties || client.selectedProperties || [],
+            interestedProperties: client.interested_properties || client.interestedProperties || [],
+            holdProperties: client.hold_properties || client.holdProperties || [],
             activeDealCount: client.active_deal_count || 0,
             nextTask: client.next_task,
           }));
@@ -60,9 +67,15 @@ export const useInitializeData = () => {
         }
       } catch (error) {
         console.error('Error fetching initial data:', error);
+        // Silently fail - the dashboard will handle retries if needed
       }
     };
 
-    fetchInitialData();
-  }, [dispatch]);
+    // Delay to ensure token is properly set in API headers after login
+    const timer = setTimeout(() => {
+      fetchInitialData();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [dispatch, isAuthenticated, user?.token]);
 };

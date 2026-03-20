@@ -67,12 +67,14 @@ export default function Login() {
           token
         };
 
-        // Set auth token for future API calls
+        // CRITICAL: Set auth token BEFORE dispatching login success
+        // This ensures the token is available for immediate API calls
         setAuthToken(token);
 
+        // Dispatch login success - this will trigger navigation to dashboard
         dispatch(loginSuccess(userData));
-        // Don't navigate - let the auth state change handle the navigation automatically
-        // The AppNavigator will switch from Stack to Tabs when isAuthenticated becomes true
+        
+        showToast.success('Login successful!');
       }
     } catch (error) {
       console.error('Login error:', error);

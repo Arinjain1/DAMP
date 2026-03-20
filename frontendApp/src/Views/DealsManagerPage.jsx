@@ -29,13 +29,6 @@ const DealsManagerPage = ({ deals, properties, customers, onOpenDeal, onBack }) 
 
    const filters = ['All', 'New', 'Contacted', 'Site Visit', 'Interested', 'In-Process', 'Completed'];
 
-   // Calculate stats
-   const stats = {
-     total: deals.length,
-     active: deals.filter(d => d.stage !== 'Completed').length,
-     completed: deals.filter(d => d.stage === 'Completed').length,
-   };
-
    return (
       <View style={styles.container}>
          <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />

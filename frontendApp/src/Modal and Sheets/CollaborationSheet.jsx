@@ -1,6 +1,7 @@
-import { Check, ChevronDown, ChevronUp, Phone, Plus, X } from 'lucide-react-native';
-import { useState, useEffect, useCallback } from 'react';
+import { Check, ChevronDown, ChevronUp, Phone, Plus, Search, X } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Linking,
   Modal,
@@ -9,108 +10,106 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  ActivityIndicator
+  View
 } from 'react-native';
 import { showToast } from '../utils/toast';
 import WhatsAppIcon from '../Components/WhatsAppIcon';
 import { collabAPI } from '../config/api';
+import Skeleton from '../Components/Skeleton';
 
 const CollaborationSheet = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState('collab'); // 'collab' or 'requests'
   const [showAddForm, setShowAddForm] = useState(false);
-  const [brokerId, setBrokerId] = useState('');
-  const [brokerNo, setBrokerNo] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [expandedCollaborator, setExpandedCollaborator] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [successData, setSuccessData] = useState({ id: '', number: '' });
+  const [successData, setSuccessData] = useState({ name: '', id: '' });
+  
+  // Network data
+  const [myNetwork, setMyNetwork] = useState([]);
+  const [networkLoading, setNetworkLoading] = useState(false);
+  const [sendingRequest, setSendingRequest] = useState(false);
 
-  // API State
-  const [network, setNetwork] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const fetchNetworkData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [networkRes, requestsRes] = await Promise.all([
-        collabAPI.getNetwork(),
-        collabAPI.getRequests()
-      ]);
-
-      if (networkRes.data.success) {
-        setNetwork(networkRes.data.data);
-      }
-      if (requestsRes.data.success) {
-        setRequests(requestsRes.data.data);
-      }
-    } catch (_err) {
-      console.error('Error fetching collab data:', _err);
-      showToast.error('Failed to load collaboration data');
-    } finally {
-      setLoading(false);
+  // Fetch my network when sheet opens
+  useEffect(() => {
+    if (isOpen && activeTab === 'collab') {
+      fetchMyNetwork();
     }
-  }, []);
+  }, [isOpen, activeTab]);
 
-  const closeSuccessModal = () => {
-    setShowSuccessModal(false);
-    setBrokerId('');
-    setBrokerNo('');
-    setShowAddForm(false);
+  const fetchMyNetwork = async () => {
+    try {
+      setNetworkLoading(true);
+      const response = await collabAPI.getMyNetwork();
+      if (response.data.success) {
+        setMyNetwork(response.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch network:', error);
+      showToast.error('Failed to load collaboration network');
+    } finally {
+      setNetworkLoading(false);
+    }
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchNetworkData();
-    }
-  }, [isOpen, fetchNetworkData]);
-
-  if (!isOpen) return null;
-
-  const handleAddCollaborator = async () => {
-    if (!brokerId.trim() || !brokerNo.trim()) {
-      showToast.info('Please fill in both Broker ID and Broker Number.');
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+    
+    if (query.trim().length < 2) {
+      setSearchResults([]);
       return;
     }
 
     try {
-      const response = await collabAPI.sendRequest({
-        receiver_id: brokerId,
-      });
-
+      setSearchLoading(true);
+      const response = await collabAPI.searchBrokers(query);
       if (response.data.success) {
-        setSuccessData({ id: brokerId, number: brokerNo });
+        setSearchResults(response.data.data);
+      }
+    } catch (error) {
+      console.error('Search failed:', error);
+      showToast.error('Failed to search brokers');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSendRequest = async (broker) => {
+    try {
+      setSendingRequest(true);
+      const response = await collabAPI.sendRequest(broker.id);
+      
+      if (response.data.success) {
+        setSuccessData({ 
+          name: broker.full_name, 
+          id: broker.id 
+        });
         setShowSuccessModal(true);
-        fetchNetworkData(); // Refresh
+        setSearchQuery('');
+        setSearchResults([]);
       }
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to send request';
-      showToast.error(msg);
+    } catch (error) {
+      console.error('Failed to send request:', error);
+      const errorMsg = error.response?.data?.message || 'Failed to send connection request';
+      showToast.error(errorMsg);
+    } finally {
+      setSendingRequest(false);
     }
   };
 
-  const handleAcceptRequest = async (requestId) => {
-    try {
-      const response = await collabAPI.updateStatus(requestId, 'accepted');
-      if (response.data.success) {
-        showToast.success('Collaboration request accepted!');
-        fetchNetworkData(); // Refresh network and requests
-      }
-    } catch (_err) {
-      showToast.error('Failed to accept request');
-    }
+  const closeSuccessModal = () => {
+    setShowSuccessModal(false);
+    setShowAddForm(false);
   };
 
-  const handleRejectRequest = async (requestId) => {
-    try {
-      const response = await collabAPI.updateStatus(requestId, 'rejected');
-      if (response.data.success) {
-        showToast.info('Request declined');
-        fetchNetworkData(); // Refresh requests
-      }
-    } catch (_err) {
-      showToast.error('Failed to decline request');
-    }
+  const handleAcceptRequest = (requestId) => {
+    showToast.success('Collaboration request accepted successfully!');
+  };
+
+  const handleRejectRequest = (requestId) => {
+    showToast.info('The collaboration request has been declined.');
   };
 
   const handleCall = (phone) => {
@@ -124,6 +123,8 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
   const handleCollaboratorClick = (collaboratorId) => {
     setExpandedCollaborator(expandedCollaborator === collaboratorId ? null : collaboratorId);
   };
+
+  if (!isOpen) return null;
 
   return (
     <>
@@ -197,62 +198,103 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                   {/* Add Collaborator Form */}
                   {showAddForm && (
                     <View style={styles.addForm}>
-                      <Text style={styles.formTitle}>Send Connection Request</Text>
+                      <Text style={styles.formTitle}>Search & Connect</Text>
 
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Broker ID</Text>
+                      <View style={styles.searchInputContainer}>
+                        <Search size={18} color="#9ca3af" />
                         <TextInput
-                          style={styles.input}
-                          value={brokerId}
-                          onChangeText={setBrokerId}
-                          placeholder="Enter Broker ID"
+                          style={styles.searchInput}
+                          value={searchQuery}
+                          onChangeText={handleSearch}
+                          placeholder="Search by name or area..."
                           placeholderTextColor="#9ca3af"
                         />
                       </View>
 
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Broker Number</Text>
-                        <TextInput
-                          style={styles.input}
-                          value={brokerNo}
-                          onChangeText={setBrokerNo}
-                          placeholder="Enter Broker Number"
-                          placeholderTextColor="#9ca3af"
-                          keyboardType="phone-pad"
-                        />
-                      </View>
-
-                      <TouchableOpacity
-                        style={styles.continueButton}
-                        onPress={handleAddCollaborator}
-                      >
-                        <Text style={styles.continueButtonText}>Send Request</Text>
-                      </TouchableOpacity>
+                      {/* Search Results */}
+                      {searchLoading ? (
+                        <View style={styles.searchResults}>
+                          {[1, 2, 3].map((item) => (
+                            <View key={item} style={styles.searchResultItem}>
+                              <Skeleton circle width={40} height={40} />
+                              <View style={{ flex: 1, marginLeft: 12 }}>
+                                <Skeleton width="60%" height={16} borderRadius={6} style={{ marginBottom: 6 }} />
+                                <Skeleton width="40%" height={14} borderRadius={6} />
+                              </View>
+                              <Skeleton width={80} height={32} borderRadius={8} />
+                            </View>
+                          ))}
+                        </View>
+                      ) : searchResults.length > 0 ? (
+                        <ScrollView style={styles.searchResults} nestedScrollEnabled>
+                          {searchResults.map((broker) => (
+                            <View key={broker.id} style={styles.searchResultItem}>
+                              <View style={styles.brokerAvatar}>
+                                <Text style={styles.brokerAvatarText}>
+                                  {broker.full_name?.charAt(0).toUpperCase()}
+                                </Text>
+                              </View>
+                              <View style={styles.brokerInfo}>
+                                <Text style={styles.brokerName}>{broker.full_name}</Text>
+                                <Text style={styles.brokerArea}>{broker.operating_area || 'N/A'}</Text>
+                              </View>
+                              <TouchableOpacity
+                                style={styles.connectButton}
+                                onPress={() => handleSendRequest(broker)}
+                                disabled={sendingRequest}
+                              >
+                                {sendingRequest ? (
+                                  <ActivityIndicator size="small" color="#111827" />
+                                ) : (
+                                  <Text style={styles.connectButtonText}>Connect</Text>
+                                )}
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                        </ScrollView>
+                      ) : searchQuery.trim().length >= 2 ? (
+                        <View style={styles.noResults}>
+                          <Text style={styles.noResultsText}>No brokers found</Text>
+                        </View>
+                      ) : null}
                     </View>
                   )}
 
                   {/* My Collaboration Network Section */}
                   <Text style={styles.sectionTitle}>My Collaboration Network</Text>
 
-                  {loading ? (
-                    <ActivityIndicator size="large" color="#C4B5FD" style={{ marginVertical: 20 }} />
+                  {networkLoading ? (
+                    <View style={styles.collaboratorList}>
+                      {[1, 2, 3].map((item) => (
+                        <View key={item} style={styles.collaboratorCard}>
+                          <View style={styles.collaboratorHeader}>
+                            <Skeleton circle width={48} height={48} />
+                            <View style={{ flex: 1, marginLeft: 12 }}>
+                              <Skeleton width="60%" height={16} borderRadius={6} style={{ marginBottom: 6 }} />
+                              <Skeleton width="40%" height={14} borderRadius={6} />
+                            </View>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
                   ) : (
                     <View style={styles.collaboratorList}>
-                      {network && network.length > 0 ? (
-                        network.map(collaborator => (
+                      {myNetwork && myNetwork.length > 0 ? (
+                        myNetwork.map(collaborator => (
                           <TouchableOpacity
                             key={collaborator.id}
                             style={styles.collaboratorCard}
                             onPress={() => handleCollaboratorClick(collaborator.id)}
                           >
                             <View style={styles.collaboratorHeader}>
-                              <Image
-                                source={{ uri: collaborator.avatar_url || 'https://via.placeholder.com/150' }}
-                                style={styles.avatar}
-                              />
+                              <View style={styles.avatar}>
+                                <Text style={styles.avatarText}>
+                                  {collaborator.full_name?.charAt(0).toUpperCase()}
+                                </Text>
+                              </View>
                               <View style={styles.collaboratorInfo}>
                                 <Text style={styles.collaboratorName}>{collaborator.full_name}</Text>
-                                <Text style={styles.collaboratorLocation}>{collaborator.operating_area}</Text>
+                                <Text style={styles.collaboratorLocation}>{collaborator.operating_area || 'N/A'}</Text>
                               </View>
                               <View style={styles.expandIcon}>
                                 {expandedCollaborator === collaborator.id ? (
@@ -263,18 +305,16 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                               </View>
                             </View>
 
-                            {/* Expanded Stats Section */}
+                            {/* Expanded Contact Section */}
                             {expandedCollaborator === collaborator.id && (
                               <View style={styles.statsContainer}>
-                                <View style={styles.statsGrid}>
-                                  <View style={styles.statBox}>
-                                    <Text style={styles.statText}>Phone <Text style={styles.statValue}>{collaborator.phone_number}</Text></Text>
-                                  </View>
+                                <View style={styles.contactInfo}>
+                                  <Text style={styles.contactLabel}>Email:</Text>
+                                  <Text style={styles.contactValue}>{collaborator.email}</Text>
                                 </View>
-                                <View style={styles.statsGrid}>
-                                  <View style={styles.statBox}>
-                                    <Text style={styles.statText}>Email <Text style={styles.statValue}>{collaborator.email}</Text></Text>
-                                  </View>
+                                <View style={styles.contactInfo}>
+                                  <Text style={styles.contactLabel}>Phone:</Text>
+                                  <Text style={styles.contactValue}>{collaborator.phone_number}</Text>
                                 </View>
 
                                 {/* Action Buttons */}
@@ -313,53 +353,12 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                 <>
                   <Text style={styles.sectionTitle}>Pending Requests</Text>
 
-                  {loading ? (
-                    <ActivityIndicator size="large" color="#C4B5FD" style={{ marginVertical: 20 }} />
-                  ) : (
-                    <View style={styles.collaboratorList}>
-                      {requests && requests.length > 0 ? (
-                        requests.map(request => (
-                          <View
-                            key={request.request_id}
-                            style={styles.requestCard}
-                          >
-                            <View style={styles.requestInfo}>
-                              <Image
-                                source={{ uri: request.avatar_url || 'https://via.placeholder.com/150' }}
-                                style={styles.avatar}
-                              />
-                              <View style={styles.collaboratorInfo}>
-                                <Text style={styles.collaboratorName}>{request.full_name}</Text>
-                                <Text style={styles.collaboratorLocation}>{request.operating_area}</Text>
-                                <Text style={styles.brokerId}>ID: {request.user_id}</Text>
-                              </View>
-                            </View>
-
-                            <View style={styles.requestActions}>
-                              <TouchableOpacity
-                                style={styles.rejectButton}
-                                onPress={() => handleRejectRequest(request.request_id)}
-                              >
-                                <X size={16} color="#ef4444" />
-                                <Text style={styles.rejectButtonText}>Reject</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.acceptButton}
-                                onPress={() => handleAcceptRequest(request.request_id)}
-                              >
-                                <Check size={16} color="#22c55e" />
-                                <Text style={styles.acceptButtonText}>Accept</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        ))
-                      ) : (
-                        <View style={styles.emptyState}>
-                          <Text style={styles.emptyStateText}>No pending requests</Text>
-                        </View>
-                      )}
+                  <View style={styles.collaboratorList}>
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyStateText}>No pending requests</Text>
+                      <Text style={styles.emptyStateSubtext}>Coming soon...</Text>
                     </View>
-                  )}
+                  </View>
                 </>
               )}
 
@@ -395,12 +394,12 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
             {/* Broker Details */}
             <View style={styles.brokerDetailsBox}>
               <View style={styles.brokerDetailRow}>
-                <Text style={styles.brokerDetailLabel}>Broker ID:</Text>
-                <Text style={styles.brokerDetailValue}>{successData.id}</Text>
+                <Text style={styles.brokerDetailLabel}>Broker Name:</Text>
+                <Text style={styles.brokerDetailValue}>{successData.name}</Text>
               </View>
               <View style={styles.brokerDetailRow}>
-                <Text style={styles.brokerDetailLabel}>Broker Number:</Text>
-                <Text style={styles.brokerDetailValue}>{successData.number}</Text>
+                <Text style={styles.brokerDetailLabel}>Broker ID:</Text>
+                <Text style={styles.brokerDetailValue}>{successData.id}</Text>
               </View>
             </View>
 
@@ -553,6 +552,91 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontFamily: 'Montserrat_700Bold',
   },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#111827',
+    fontFamily: 'Lato_400Regular',
+  },
+  searchResults: {
+    maxHeight: 250,
+    marginTop: 8,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  brokerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#C4B5FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  brokerAvatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    fontFamily: 'Montserrat_700Bold',
+  },
+  brokerInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  brokerName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  brokerArea: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontFamily: 'Lato_400Regular',
+  },
+  connectButton: {
+    backgroundColor: '#C4B5FD',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  connectButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111827',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  noResults: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  noResultsText: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontFamily: 'Lato_400Regular',
+  },
   inputGroup: {
     marginBottom: 16,
   },
@@ -621,7 +705,15 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#C4B5FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    fontFamily: 'Montserrat_700Bold',
   },
   collaboratorInfo: {
     flex: 1,

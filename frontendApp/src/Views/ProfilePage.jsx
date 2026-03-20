@@ -11,7 +11,7 @@ import {
 } from 'lucide-react-native';
 import {
   Alert,
-  Image,
+  Dimensions,
   Platform,
   ScrollView,
   StatusBar,
@@ -21,10 +21,11 @@ import {
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { SUBSCRIPTION_PLANS } from '../Constants/Constants';
+import { Image } from 'react-native';
 import { logout } from '../store/slices/authSlice';
 import { clearAuthToken } from '../config/api';
 
-
+const { width } = Dimensions.get('window');
 
 export default function ProfilePage({ onRenew, onLogout }) {
   const router = useRouter();

@@ -31,8 +31,20 @@ export default function DealPage() {
     return null;
   }
 
-  const property = properties.find(p => p.id === selectedDeal.propertyId);
-  const customer = customers.find(c => c.id === selectedDeal.customerId);
+  // Use embedded data from deal first, fallback to finding in arrays
+  const property = selectedDeal.property_title ? {
+    id: selectedDeal.propertyId,
+    title: selectedDeal.property_title,
+    location: selectedDeal.property_address || selectedDeal.city,
+    image: selectedDeal.cover_image_url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
+    price: selectedDeal.listing_price || selectedDeal.finalPrice
+  } : properties.find(p => p.id === selectedDeal.propertyId);
+
+  const customer = selectedDeal.client_name ? {
+    id: selectedDeal.customerId,
+    name: selectedDeal.client_name,
+    phone: selectedDeal.client_phone
+  } : customers.find(c => c.id === selectedDeal.customerId);
 
   // Get meetings from deal
   const meetings = selectedDeal.meetings || [];
@@ -43,6 +55,13 @@ export default function DealPage() {
       setReminderEnabled(selectedDeal.reminderEnabled);
     }
   }, [selectedDeal]);
+
+  // Auto-open Payment tab if deal status is Token or beyond
+  useEffect(() => {
+    if (selectedDeal.stage === 'Token' || selectedDeal.stage === 'Completed') {
+      setActiveTab('Payment');
+    }
+  }, [selectedDeal.stage]);
 
   // Check for upcoming meetings and show reminder with alarm sound
   useEffect(() => {

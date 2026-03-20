@@ -1,16 +1,47 @@
 import { query } from '../config/db.js';
 
-export const updateNegotiation = async (req, res, next) => {
+export const getNegotiation = async (req, res, next) => {
   const dealId = req.params.dealId;
-  const { expected_price, customer_offer, owner_counter_offer, final_price } = req.body;
   try {
     const result = await query(
-      `UPDATE deals 
-       SET expected_price = $1, customer_offer = $2, owner_counter_offer = $3, final_price = $4, status = 'Negotiation'
-       WHERE id = $5 RETURNING *`,
-      [expected_price, customer_offer, owner_counter_offer, final_price, dealId]
+      `SELECT id, expected_price, customer_offer, owner_counter_offer, final_price, status 
+       FROM deals WHERE id = $1`,
+      [dealId]
     );
-    res.json({ success: true, message: "Negotiation saved!", data: result.rows[0] });
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Deal not found" });
+    }
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateNegotiation = async (req, res, next) => {
+  const dealId = req.params.dealId;
+  const { expected_price, customer_offer, owner_counter_offer, final_price, complete } = req.body;
+  try {
+    // Check current deal status to preserve Token status if already set
+    const currentDeal = await query(`SELECT status FROM deals WHERE id = $1`, [dealId]);
+    const currentStatus = currentDeal.rows[0]?.status;
+    
+    // If complete flag is true, set status to 'Token', otherwise preserve or set to 'Negotiation'
+    let newStatus;
+    if (complete) {
+      newStatus = 'Token';
+    } else {
+      newStatus = (currentStatus === 'Token' || currentStatus === 'Completed') ? currentStatus : 'Negotiation';
+    }
+    
+    const result = await query(
+      `UPDATE deals 
+       SET expected_price = $1, customer_offer = $2, owner_counter_offer = $3, final_price = $4, status = $5
+       WHERE id = $6 RETURNING *`,
+      [expected_price, customer_offer, owner_counter_offer, final_price, newStatus, dealId]
+    );
+    res.json({ success: true, message: complete ? "Negotiation completed!" : "Negotiation saved!", data: result.rows[0] });
   } catch (err) {
     next(err);
   }
