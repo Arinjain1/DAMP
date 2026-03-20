@@ -13,10 +13,10 @@ export const getDashboardOverview = async (req, res, next) => {
       todayTasksData,
       networkCount
     ] = await Promise.all([
-      query('SELECT COUNT(*) FROM contacts WHERE broker_id = $1', [brokerId]),
-      query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status = 'Closed'", [brokerId]),
-      query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status NOT IN ('Closed', 'Lost')", [brokerId]),
-      query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status = 'Lost'", [brokerId]),
+      query('SELECT COUNT(*) FROM contacts WHERE broker_id = $1 AND is_deleted = false', [brokerId]),
+      query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status = 'Closed' AND is_deleted = false", [brokerId]),
+      query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status NOT IN ('Closed', 'Lost') AND is_deleted = false", [brokerId]),
+      query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status = 'Lost' AND is_deleted = false", [brokerId]),
       query(
         `SELECT d.id, d.status, d.final_price, d.client_id, d.property_id,
                 p.title as property_title, p.cover_image_url, p.price as listing_price,
@@ -24,7 +24,11 @@ export const getDashboardOverview = async (req, res, next) => {
          FROM deals d
          JOIN properties p ON d.property_id = p.id
          JOIN contacts c ON d.client_id = c.id
-         WHERE d.broker_id = $1 AND d.status NOT IN ('Closed', 'Lost')
+         WHERE d.broker_id = $1 
+         AND d.status NOT IN ('Closed', 'Lost')
+         AND d.is_deleted = false 
+         AND p.is_deleted = false 
+         AND c.is_deleted = false
          ORDER BY d.updated_at DESC
          LIMIT 5`,
         [brokerId]
@@ -36,6 +40,8 @@ export const getDashboardOverview = async (req, res, next) => {
          WHERE t.broker_id = $1 
          AND t.status = 'pending'
          AND t.due_date::date = CURRENT_DATE 
+         AND t.is_deleted = false
+         AND (c.id IS NULL OR c.is_deleted = false) 
          ORDER BY t.due_date ASC`,
         [brokerId]
       ),
@@ -55,7 +61,6 @@ export const getDashboardOverview = async (req, res, next) => {
         todays_focus: todayTasksData.rows
       }
     });
-
   } catch (err) {
     console.error("Dashboard Error:", err);
     next(err);

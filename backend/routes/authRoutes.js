@@ -5,5 +5,5 @@ import { registerValidation, loginValidation } from '../middleware/validateReque
 const router = express.Router();
 router.post('/register', registerValidation, registerUser);
 router.post('/login', loginValidation, loginUser);
-
+router.delete('/delete-account', verifyToken, deleteAccount);
 export default router;

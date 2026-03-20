@@ -1,15 +1,23 @@
 import { query } from '../config/db.js';
 
 export const updateNegotiation = async (req, res, next) => {
+  const brokerId = req.user.id; // SECURITY FIX: Always grab the logged-in user
   const dealId = req.params.dealId;
   const { expected_price, customer_offer, owner_counter_offer, final_price } = req.body;
+  
   try {
     const result = await query(
       `UPDATE deals 
        SET expected_price = $1, customer_offer = $2, owner_counter_offer = $3, final_price = $4, status = 'Negotiation'
-       WHERE id = $5 RETURNING *`,
-      [expected_price, customer_offer, owner_counter_offer, final_price, dealId]
+       WHERE id = $5 AND broker_id = $6 AND is_deleted = false 
+       RETURNING *`,
+      [expected_price, customer_offer, owner_counter_offer, final_price, dealId, brokerId]
     );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: "Deal not found or deleted" });
+    }
+
     res.json({ success: true, message: "Negotiation saved!", data: result.rows[0] });
   } catch (err) {
     next(err);
@@ -17,20 +25,29 @@ export const updateNegotiation = async (req, res, next) => {
 };
 
 export const addTransaction = async (req, res, next) => {
+  const brokerId = req.user.id;
   const dealId = req.params.dealId;
   const { transaction_type, amount, payment_mode, transaction_ref, status, due_date, remark } = req.body;
+  
   try {
+    // SECURITY FIX: Make sure the broker actually owns this deal before letting them add a transaction
+    const dealCheck = await query(`SELECT id FROM deals WHERE id = $1 AND broker_id = $2 AND is_deleted = false`, [dealId, brokerId]);
+    if (dealCheck.rowCount === 0) return res.status(404).json({ success: false, message: "Deal not found or deleted" });
+
     const isCompleted = status === 'Completed';
     const completedOn = isCompleted ? new Date() : null;
+    
     const result = await query(
       `INSERT INTO deal_transactions 
        (deal_id, transaction_type, amount, payment_mode, transaction_ref, status, due_date, completed_on, remark) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [dealId, transaction_type, amount, payment_mode, transaction_ref, status, due_date, completedOn, remark]
     );
+    
     if (transaction_type === 'Token' && isCompleted) {
       await query(`UPDATE deals SET token_amount = $1, status = 'Token' WHERE id = $2`, [amount, dealId]);
     }
+    
     res.status(201).json({ success: true, message: "Transaction added!", data: result.rows[0] });
   } catch (err) {
     next(err);
@@ -38,29 +55,70 @@ export const addTransaction = async (req, res, next) => {
 };
 
 export const completeTransaction = async (req, res, next) => {
+  const brokerId = req.user.id;
   const transactionId = req.params.transactionId;
   const { transaction_ref } = req.body; 
+  
   try {
+    // SECURITY FIX: Ensure the transaction belongs to a deal that belongs to this broker
     const result = await query(
-      `UPDATE deal_transactions 
+      `UPDATE deal_transactions dt
        SET status = 'Completed', completed_on = NOW(), transaction_ref = COALESCE($1, transaction_ref)
-       WHERE id = $2 RETURNING *`,
-      [transaction_ref, transactionId]
+       FROM deals d
+       WHERE dt.id = $2 AND dt.deal_id = d.id AND d.broker_id = $3
+       RETURNING dt.*`,
+      [transaction_ref, transactionId, brokerId]
     );
+
+    if (result.rowCount === 0) return res.status(404).json({ success: false, message: "Transaction not found or unauthorized" });
+
     res.json({ success: true, message: "Transaction marked as complete!", data: result.rows[0] });
   } catch (err) {
     next(err);
   }
 };
 
-export const getDealHistory = async (req, res, next) => {
-  const dealId = req.params.dealId;
+// ---------------------------------------------------------
+// NEW: Cancel a Transaction (Instead of Deleting)
+// ---------------------------------------------------------
+export const cancelTransaction = async (req, res, next) => {
+  const brokerId = req.user.id;
+  const transactionId = req.params.transactionId;
+
   try {
-    const dealRes = await query(`SELECT final_price FROM deals WHERE id = $1`, [dealId]);
+    const result = await query(
+      `UPDATE deal_transactions dt
+       SET status = 'Cancelled'
+       FROM deals d
+       WHERE dt.id = $1 AND dt.deal_id = d.id AND d.broker_id = $2
+       RETURNING dt.*`,
+      [transactionId, brokerId]
+    );
+
+    if (result.rowCount === 0) return res.status(404).json({ success: false, message: "Transaction not found" });
+
+    res.json({ success: true, message: "Transaction cancelled successfully" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getDealHistory = async (req, res, next) => {
+  const brokerId = req.user.id;
+  const dealId = req.params.dealId;
+  
+  try {
+    // SECURITY FIX & GET FIX: Check broker_id and is_deleted
+    const dealRes = await query(`SELECT final_price FROM deals WHERE id = $1 AND broker_id = $2 AND is_deleted = false`, [dealId, brokerId]);
+    
+    if (dealRes.rowCount === 0) return res.status(404).json({ success: false, message: "Deal not found" });
+
+    // Fetch the history (We return Cancelled ones too, so the history timeline is accurate)
     const historyRes = await query(
       `SELECT * FROM deal_transactions WHERE deal_id = $1 ORDER BY created_at ASC`, 
       [dealId]
     );
+    
     res.json({
       success: true,
       data: {

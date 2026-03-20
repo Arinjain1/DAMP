@@ -24,16 +24,14 @@ export const getClients = async (req, res, next) => {
     let sql = `
       SELECT 
         c.*,
-        -- Check for Active Deals (To determine if 'ACTIVE' or 'NEW LEAD' tag shows)
-        (SELECT COUNT(*) FROM deals d WHERE d.client_id = c.id AND d.status NOT IN ('Closed', 'Lost')) as active_deal_count,
-        -- Fetch the Next Pending Task (To show 'Today 2:30 PM' preview)
+        (SELECT COUNT(*) FROM deals d WHERE d.client_id = c.id AND d.status NOT IN ('Closed', 'Lost') AND d.is_deleted = false) as active_deal_count,
         (SELECT row_to_json(t) FROM (
            SELECT title, due_date FROM tasks 
            WHERE client_id = c.id AND status = 'pending' 
            ORDER BY due_date ASC LIMIT 1
          ) t) as next_task
       FROM contacts c 
-      WHERE c.broker_id = $1
+      WHERE c.broker_id = $1 AND c.is_deleted = false
     `;
     let params = [brokerId];
     if (search) {
@@ -141,14 +139,14 @@ export const getClientDetails = async (req, res, next) => {
   const brokerId = req.user.id;
   const clientId = req.params.id;
   try {
-    const clientResult = await query('SELECT * FROM contacts WHERE id = $1 AND broker_id = $2', [clientId, brokerId]);
+    const clientResult = await query('SELECT * FROM contacts WHERE id = $1 AND broker_id = $2 AND is_deleted = false', [clientId, brokerId]);
     if (clientResult.rows.length === 0) return res.status(404).json({ message: "Client not found" });
     const client = clientResult.rows[0];
     const activeDealsResult = await query(
       `SELECT d.id, d.status, p.title, p.address, p.price, p.cover_image_url 
        FROM deals d
        JOIN properties p ON d.property_id = p.id
-       WHERE d.client_id = $1 AND d.status NOT IN ('Closed', 'Lost')`,
+       WHERE d.client_id = $1 AND d.status NOT IN ('Closed', 'Lost') AND d.is_deleted = false`,
       [clientId]
     );
     const tasksResult = await query(
@@ -291,7 +289,7 @@ export const getDeals = async (req, res, next) => {
       FROM deals d
       JOIN properties p ON d.property_id = p.id
       JOIN contacts c ON d.client_id = c.id
-      WHERE d.broker_id = $1
+      WHERE d.broker_id = $1 AND d.is_deleted = false AND c.is_deleted = false
     `;
     const params = [brokerId];
     if (status && status !== 'All') {
@@ -324,12 +322,12 @@ export const getDealDetails = async (req, res, next) => {
   const brokerId = req.user.id;
   const dealId = req.params.id;
   try {
-    const result = await query(
+   const result = await query(
       `SELECT d.id as deal_id, d.status, d.created_at, d.final_price, d.token_amount,
         p.id as property_id, p.title, p.address, p.city, p.price, p.cover_image_url, p.owner_name, p.owner_phone,
         c.id as client_id, c.name as client_name, c.phone as client_phone
        FROM deals d JOIN properties p ON d.property_id = p.id JOIN contacts c ON d.client_id = c.id
-       WHERE d.id = $1 AND d.broker_id = $2`, [dealId, brokerId]);
+       WHERE d.id = $1 AND d.broker_id = $2 AND d.is_deleted = false`, [dealId, brokerId]);
     if (result.rows.length === 0) return res.status(404).json({ message: "Deal not found" });
     res.json({ success: true, data: result.rows[0] });
   } catch (err) { next(err); }
@@ -380,4 +378,42 @@ export const submitTokenPayment = async (req, res, next) => {
     const receiptData = await query(`SELECT d.id as deal_id, d.token_amount, d.final_price, d.updated_at, c.name as client_name, p.title as property_title FROM deals d JOIN contacts c ON d.client_id = c.id JOIN properties p ON d.property_id = p.id WHERE d.id = $1`, [dealId]);
     res.json({ success: true, message: "Deal Closed!", data: receiptData.rows[0] });
   } catch (err) { next(err); }
+};
+
+export const deleteClient = async (req, res, next) => {
+  const brokerId = req.user.id;
+  const clientId = req.params.id;
+  try {
+    const result = await query(
+      `UPDATE contacts SET is_deleted = true WHERE id = $1 AND broker_id = $2 RETURNING id`,
+      [clientId, brokerId]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: "Client not found" });
+    }
+    await query(
+      `UPDATE deals SET is_deleted = true WHERE client_id = $1 AND broker_id = $2`, 
+      [clientId, brokerId]
+    );
+    res.json({ success: true, message: "Client deleted successfully" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteDeal = async (req, res, next) => {
+  const brokerId = req.user.id;
+  const dealId = req.params.id;
+  try {
+    const result = await query(
+      `UPDATE deals SET is_deleted = true WHERE id = $1 AND broker_id = $2 RETURNING id`,
+      [dealId, brokerId]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: "Deal not found" });
+    }
+    res.json({ success: true, message: "Deal deleted successfully" });
+  } catch (err) {
+    next(err);
+  }
 };

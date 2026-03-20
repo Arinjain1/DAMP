@@ -142,3 +142,26 @@ export const updateConnectionStatus = async (req, res, next) => {
     next(err);
   }
 };
+export const removeConnection = async (req, res, next) => {
+  const myId = req.user.id;
+  const targetUserId = req.params.targetUserId; 
+  try {
+    const result = await query(
+      `DELETE FROM collaborations 
+       WHERE (sender_id = $1 AND receiver_id = $2) 
+       OR (sender_id = $2 AND receiver_id = $1)
+       RETURNING id`,
+      [myId, targetUserId]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: "Connection not found" });
+    }
+    res.json({ 
+      success: true, 
+      message: "Connection removed successfully." 
+    });
+  } catch (err) {
+    console.error("Remove Connection Error:", err);
+    next(err);
+  }
+};
