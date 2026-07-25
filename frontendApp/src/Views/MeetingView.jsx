@@ -1,13 +1,23 @@
 import { Calendar, CheckCircle, CirclePlus } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { ScrollView, Switch, Text, TouchableOpacity, View, Linking } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateDeal } from '../store/slices/dealsSlice';
-import { setFollowUps, setLoading, setError } from '../store/slices/followUpsSlice';
+import { setFollowUps, updateFollowUpStatus, setLoading, setError } from '../store/slices/followUpsSlice';
 import AddModal from '../Modal and Sheets/AddModal';
 import WhatsAppIcon from '../Components/WhatsAppIcon';
 import { tasksAPI } from '../config/api';
 import { showToast } from '../utils/toast';
+
+const formatPrice = (amount) => {
+  if (!amount) return '';
+  const num = Number(amount);
+  if (isNaN(num)) return String(amount);
+  if (num >= 10000000) return `₹${(num / 10000000).toFixed(1)}Cr`;
+  if (num >= 100000) return `₹${(num / 100000).toFixed(1)}L`;
+  if (num >= 1000) return `₹${(num / 1000).toFixed(0)}K`;
+  return `₹${num.toLocaleString()}`;
+};
 
 export default function MeetingView({ selectedDeal, reminderEnabled, setReminderEnabled, setShowReminderSetAlert }) {
   const dispatch = useDispatch();
@@ -16,7 +26,62 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
   const { followUps, loading } = useSelector(state => state.followUps);
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [localMeetings, setLocalMeetings] = useState([]);
+
+  const localMeetings = useMemo(() => {
+    if (!selectedDeal?.customerId) return [];
+
+    // Filter tasks for this deal's client AND only Meeting/FollowUp tasks (exclude Site Visit)
+    const dealTasks = (followUps || []).filter(t =>
+      t.customerId === selectedDeal.customerId &&
+      t.type !== 'Site Visit' &&
+      t.type !== 'Visit'
+    );
+
+    return dealTasks.map(task => {
+      // Get property name(s)
+      let propertyTitle = null;
+      let propertyPrice = task.propertyPrice;
+
+      if (task.siteVisitProperties && Array.isArray(task.siteVisitProperties) && task.siteVisitProperties.length > 0) {
+        propertyTitle = task.siteVisitProperties.map(p => p.title || p.property_title).filter(Boolean).join(', ');
+        if (task.siteVisitProperties[0]?.price) {
+          propertyPrice = task.siteVisitProperties[0].price;
+        }
+      }
+      if (!propertyTitle && task.propertyIds && task.propertyIds.length > 0) {
+        const property = properties.find(p => p.id === task.propertyIds[0]);
+        propertyTitle = property?.title;
+        if (!propertyPrice) {
+          propertyPrice = property?.price;
+        }
+      }
+
+      // Get customer name
+      let clientName = task.clientNameFallback;
+      if (!clientName) {
+        const customer = customers.find(c => c.id === task.customerId);
+        clientName = customer?.name || 'Unknown Client';
+      }
+
+      // Generate title if not present or if it's generic
+      let taskTitle = task.title;
+      if (!taskTitle || taskTitle === 'Meeting' || taskTitle === 'Site Visit') {
+        taskTitle = `${task.type || 'Meeting'}: ${clientName}`;
+      }
+
+      return {
+        id: task.id,
+        title: taskTitle,
+        date: task.date,
+        status: task.status === 'Done' ? 'completed' : 'upcoming',
+        type: task.type,
+        note: task.note,
+        client_name: clientName,
+        property_title: propertyTitle,
+        property_price: propertyPrice
+      };
+    });
+  }, [followUps, selectedDeal, properties, customers]);
 
   // Fetch tasks from backend
   useEffect(() => {
@@ -27,66 +92,35 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
     try {
       dispatch(setLoading(true));
       const response = await tasksAPI.getAll({
-        status: 'All',
-        task_type: 'Meeting'
+        status: 'All'
       });
 
       if (response.data.success) {
         const tasks = response.data.data;
-        dispatch(setFollowUps(tasks));
+        const transformedTasks = tasks.map(task => {
+          let propertyIds = [];
+          if (task.site_visit_properties && Array.isArray(task.site_visit_properties)) {
+            propertyIds = task.site_visit_properties.map(p => p.property_id);
+          } else if (task.property_id) {
+            propertyIds = [task.property_id];
+          }
 
-        // Filter tasks for this deal's client AND only Meeting/FollowUp tasks (exclude Site Visit)
-        if (selectedDeal?.customerId) {
-          const dealTasks = tasks.filter(t =>
-            t.client_id === selectedDeal.customerId &&
-            t.task_type !== 'Site Visit' &&
-            t.task_type !== 'Visit'
-          );
-          const formattedMeetings = dealTasks.map(task => {
-            // Get property name(s)
-            let propertyTitle = task.property_title;
-
-            // For Site Visit tasks with multiple properties
-            if (task.site_visit_properties && Array.isArray(task.site_visit_properties)) {
-              const propertyNames = task.site_visit_properties.map(p => p.title).filter(Boolean);
-              if (propertyNames.length > 0) {
-                propertyTitle = propertyNames.join(', ');
-              }
-            }
-
-            // Fallback: Get from properties array if not in task
-            if (!propertyTitle && task.property_id) {
-              const property = properties.find(p => p.id === task.property_id);
-              propertyTitle = property?.title;
-            }
-
-            // Get customer name
-            let clientName = task.client_name;
-            if (!clientName) {
-              const customer = customers.find(c => c.id === task.client_id);
-              clientName = customer?.name || 'Unknown Client';
-            }
-
-            // Generate title if not present or if it's generic
-            let taskTitle = task.title;
-            if (!taskTitle || taskTitle === 'Meeting' || taskTitle === 'Site Visit') {
-              const taskType = task.task_type || 'Meeting';
-              taskTitle = `${taskType}: ${clientName}`;
-            }
-
-            return {
-              id: task.id,
-              title: taskTitle,
-              date: task.due_date,
-              status: task.status === 'completed' ? 'completed' : 'upcoming',
-              type: task.task_type,
-              note: task.description,
-              client_name: clientName,
-              property_title: propertyTitle
-            };
-          });
-          setLocalMeetings(formattedMeetings);
-        }
+          return {
+            id: task.id,
+            customerId: task.client_id,
+            clientNameFallback: task.client_name,
+            propertyIds: propertyIds,
+            type: task.task_type || 'Meeting',
+            date: task.due_date,
+            note: task.description || '',
+            status: task.status === 'completed' ? 'Done' : 'Pending',
+            siteVisitId: task.site_visit_id,
+            propertyCount: task.site_visit_property_count || 0,
+            siteVisitProperties: task.site_visit_properties || [],
+            propertyPrice: task.property_price
+          };
+        });
+        dispatch(setFollowUps(transformedTasks));
       }
     } catch (error) {
       console.error('Error fetching tasks:', error);
@@ -142,12 +176,8 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
       const response = await tasksAPI.toggleStatus(meetingId);
 
       if (response.data.success) {
-        // Update local state
-        setLocalMeetings(prev =>
-          prev.map(m =>
-            m.id === meetingId ? { ...m, status: 'completed' } : m
-          )
-        );
+        // Update Redux state
+        dispatch(updateFollowUpStatus({ id: meetingId, status: 'Done' }));
         showToast.success('Task marked as done!');
       }
     } catch (error) {
@@ -333,7 +363,7 @@ export default function MeetingView({ selectedDeal, reminderEnabled, setReminder
       </ScrollView>
 
       {/* Fixed Reminder Toggle at Bottom */}
-      <View className="fixed top-24 bg-white pb-0">
+      <View className="absolute bottom-4 left-[10px] right-[10px] bg-white pb-0">
         <View className="bg-white rounded-xl p-4 border border-[#e5e7eb] flex-row justify-between items-center">
           <View>
             <Text className="text-lg font-semibold text-[#1f2937] mb-1">Send me a reminder</Text>

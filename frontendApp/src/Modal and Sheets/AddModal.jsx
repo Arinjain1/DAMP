@@ -290,27 +290,36 @@ const AddModal = ({
                 setBudgetRange({ min: editItem.budgetMin, max: editItem.budgetMax });
             }
             if (type === 'Property') {
+                const configVal = editItem.configuration || editItem.bhk || '';
                 const bhkValues = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
-                const hasBHK = editItem.bhk && bhkValues.includes(editItem.bhk);
+                const hasBHK = configVal && bhkValues.includes(configVal);
                 if (editItem.category === 'Residential' && hasBHK) {
-                    updatedEditItem.bhk = editItem.bhk;
+                    updatedEditItem.bhk = configVal;
                     updatedEditItem.commercialConfig = '';
                 } else if (editItem.category === 'Commercial') {
                     updatedEditItem.bhk = '';
-                    updatedEditItem.commercialConfig = editItem.bhk || editItem.commercialConfig || '';
+                    updatedEditItem.commercialConfig = configVal;
                 } else {
                     updatedEditItem.bhk = '';
                     updatedEditItem.commercialConfig = '';
                 }
+
+                // Map furnishingStatus (from Redux/DB) to furnishing (form state)
+                updatedEditItem.furnishing = editItem.furnishing || editItem.furnishingStatus || 'Semi';
+
+                // Map address (from Redux/DB) to owner (form state)
+                updatedEditItem.owner = editItem.owner || editItem.address || '';
+
                 if (editItem.price) {
                     const price = parseFloat(editItem.price);
                     if (price >= 10000000) { updatedEditItem.priceValue = (price / 10000000).toString(); updatedEditItem.priceUnit = 'Crore'; }
                     else if (price >= 100000) { updatedEditItem.priceValue = (price / 100000).toString(); updatedEditItem.priceUnit = 'Lakh'; }
                     else { updatedEditItem.priceValue = (price / 1000).toString(); updatedEditItem.priceUnit = 'Thousands'; }
                 }
-                if (editItem.size && typeof editItem.size === 'string') {
-                    const sizeMatch = editItem.size.match(/^(\d+\.?\d*)\s*(.*)$/);
-                    if (sizeMatch) { updatedEditItem.sizeValue = sizeMatch[1]; updatedEditItem.sizeUnit = sizeMatch[2] || 'Sq. Ft.'; }
+                
+                if (editItem.size !== undefined && editItem.size !== null) {
+                    updatedEditItem.sizeValue = String(editItem.size);
+                    updatedEditItem.sizeUnit = editItem.sizeUnit || 'Sq. Ft.';
                 } else {
                     updatedEditItem.sizeValue = ''; updatedEditItem.sizeUnit = 'Sq. Ft.';
                 }

@@ -73,6 +73,7 @@ export default function Properties() {
   };
 
   const handleAdd = async (data) => {
+    if (modalType !== 'Property') return;
     try {
       await dispatch(createProperty({
         listingType: data.listingType || 'Sell',
@@ -114,6 +115,7 @@ export default function Properties() {
   };
 
   const handleUpdate = async (data) => {
+    if (modalType !== 'Property') return;
     try {
       await dispatch(updatePropertyAPI({
         id: data.id,
@@ -183,7 +185,7 @@ export default function Properties() {
       {/* Action Components */}
 
       <AddModal
-        isOpen={modalOpen}
+        isOpen={modalOpen && modalType === 'Property'}
         type={modalType}
         onClose={() => dispatch(setModalOpen(false))}
         onSave={handleAdd}

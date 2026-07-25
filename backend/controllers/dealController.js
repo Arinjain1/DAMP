@@ -22,7 +22,7 @@ export const getNegotiation = async (req, res, next) => {
 export const updateNegotiation = async (req, res, next) => {
   const brokerId = req.user.id; // SECURITY FIX: Always grab the logged-in user
   const dealId = req.params.dealId;
-  const { expected_price, customer_offer, owner_counter_offer, final_price } = req.body;
+  const { expected_price, customer_offer, owner_counter_offer, final_price, complete } = req.body;
   
   try {
     // Check current deal status to preserve Token status if already set
@@ -40,7 +40,7 @@ export const updateNegotiation = async (req, res, next) => {
     const result = await query(
       `UPDATE deals 
        SET expected_price = $1, customer_offer = $2, owner_counter_offer = $3, final_price = $4, status = $5
-       WHERE id = $6 AND broker_id = $6 AND is_deleted = false 
+       WHERE id = $6 AND broker_id = $7 AND is_deleted = false 
        RETURNING *`,
       [expected_price, customer_offer, owner_counter_offer, final_price, newStatus, dealId, brokerId]
     );

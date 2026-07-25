@@ -115,6 +115,11 @@ export default function DashboardPage() {
     return () => clearTimeout(timer);
   }, [dispatch]);
 
+  // Fetch tasks on component mount
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
   // Fetch tasks function
   const fetchTasks = useCallback(async () => {
     try {

@@ -124,7 +124,15 @@ const TaskCard = memo(({ task, customers }) => {
 });
 TaskCard.displayName = 'TaskCard';
 
-const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
+const Dashboard = ({ 
+  properties = INITIAL_PROPERTIES, 
+  customers = INITIAL_CUSTOMERS, 
+  followUps = INITIAL_FOLLOWUPS, 
+  onOpenCollab, 
+  onOpenDeal, 
+  onNavigate, 
+  onOpenModal 
+}) => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -133,9 +141,6 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
   const { user, isAuthenticated } = useSelector(state => state.auth);
   const hasValidSession = isAuthenticated && !!user?.token;
 
-  const properties = INITIAL_PROPERTIES;
-  const customers = INITIAL_CUSTOMERS;
-  const followUps = INITIAL_FOLLOWUPS;
   const activeDeals = dashboardData?.active_deals || INITIAL_DEALS;
   const unreadCount = 2;
 

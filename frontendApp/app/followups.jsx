@@ -576,6 +576,7 @@ export default function FollowUps() {
   }, [dispatch]);
 
   const handleAdd = async (data) => {
+    if (modalType !== 'FollowUp') return;
     try {
       dispatch(setLoading(true));
 
@@ -620,6 +621,7 @@ export default function FollowUps() {
   };
 
   const handleUpdate = async (updatedItem) => {
+    if (modalType !== 'FollowUp') return;
     try {
       dispatch(setLoading(true));
 
@@ -772,7 +774,7 @@ export default function FollowUps() {
 
       {/* Add/Edit Modal */}
       <AddModal
-        isOpen={modalOpen}
+        isOpen={modalOpen && modalType === 'FollowUp'}
         type={modalType}
         onClose={() => dispatch(setModalOpen(false))}
         onSave={handleAdd}

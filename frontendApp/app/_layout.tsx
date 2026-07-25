@@ -9,11 +9,12 @@ import { Stack, Tabs } from 'expo-router'; // Removed unused 'router'
 import { Briefcase, Calendar, Home, User, Users } from 'lucide-react-native';
 import "../global.css";
 import { store } from '../src/store/store';
-import { loginSuccess } from '../src/store/slices/authSlice';
+import { loginSuccess, logout } from '../src/store/slices/authSlice';
+import { deactivateSubscription } from '../src/store/slices/subscriptionSlice';
 import { loadPersistedData } from '../src/store/middleware/persistenceMiddleware';
-import { setAuthToken } from '../src/config/api';
+import { setAuthToken, setNavigationRef, setUnauthorizedCallback, setSubscriptionErrorCallback } from '../src/config/api';
 import { useInitializeData } from '../src/hooks/useInitializeData';
-import { setNavigationRef } from '../src/config/api';
+import { showToast } from '../src/utils/toast';
 
 // 🔤 FONT LOADING
 import {
@@ -196,6 +197,21 @@ export default function RootLayout() {
     };
 
     rehydrate();
+  }, []);
+
+  // 🔒 Handle 401/403 session expiration & subscription errors
+  useEffect(() => {
+    setUnauthorizedCallback(() => {
+      const state = store.getState();
+      if (state.auth.isAuthenticated) {
+        store.dispatch(logout());
+        showToast.error('Session expired. Please log in again.');
+      }
+    });
+
+    setSubscriptionErrorCallback(() => {
+      store.dispatch(deactivateSubscription());
+    });
   }, []);
 
   // FIX: Wait for BOTH fonts and auth to finish loading before hiding splash screen

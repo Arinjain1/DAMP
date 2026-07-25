@@ -38,19 +38,55 @@ export default function Customers() {
   const { followUps } = useSelector(state => state.followUps);
   const { modalOpen, modalType, editItem } = useSelector(state => state.ui);
 
-  // Fetch customers on component mount and when screen comes into focus
+  // Fetch tasks from backend
+  const fetchTasks = useCallback(async () => {
+    try {
+      const response = await tasksAPI.getAll({ status: 'All' });
+      if (response.data.success) {
+        const transformedTasks = response.data.data.map(task => {
+          let propertyIds = [];
+          if (task.site_visit_properties && Array.isArray(task.site_visit_properties)) {
+            propertyIds = task.site_visit_properties.map(p => p.property_id);
+          } else if (task.property_id) {
+            propertyIds = [task.property_id];
+          }
+
+          return {
+            id: task.id,
+            customerId: task.client_id,
+            clientNameFallback: task.client?.name || task.client?.full_name || task.client_name,
+            propertyIds: propertyIds,
+            type: task.task_type || 'Meeting',
+            date: task.due_date,
+            note: task.description || '',
+            status: task.status === 'completed' ? 'Done' : 'Pending',
+            siteVisitId: task.site_visit_id,
+            propertyCount: task.site_visit_property_count || 0,
+            siteVisitProperties: task.site_visit_properties || []
+          };
+        });
+        dispatch({ type: 'followUps/setFollowUps', payload: transformedTasks });
+      }
+    } catch (error) {
+      console.error('Error fetching tasks in customers:', error);
+    }
+  }, [dispatch]);
+
+  // Fetch customers and tasks on component mount and when screen comes into focus
   useEffect(() => {
     dispatch(fetchCustomers()); // Use Redux thunk
     dispatch(fetchDeals()); // Using Redux thunk
+    fetchTasks();
     
     // Add focus listener to refresh data when returning to this screen
     const unsubscribe = router.addListener?.('focus', () => {
       dispatch(fetchCustomers()); // Use Redux thunk
       dispatch(fetchDeals()); // Using Redux thunk
+      fetchTasks();
     });
     
     return unsubscribe;
-  }, []);
+  }, [fetchTasks]);
 
   // 🚀 Memoized Handlers for List (Prevents List Re-renders)
   const handleAddCustomer = useCallback(() => {
@@ -139,10 +175,10 @@ export default function Customers() {
 
         const response = await tasksAPI.update(updatedItem.id, updateData);
         if (response.data.success) {
-          dispatch(updateFollowUp(response.data.data));
+          showToast.success('Task updated successfully!');
+          await fetchTasks(); // Refresh tasks
           dispatch(clearEditItem());
           dispatch(setModalOpen(false));
-          showToast.success('Task updated successfully!');
         }
       } catch (error) {
         showToast.error(error.response?.data?.message || 'Failed to update task');
@@ -177,7 +213,7 @@ export default function Customers() {
         showToast.error(error || 'Failed to update customer.');
       }
     }
-  }, [modalType, dispatch]);
+  }, [modalType, dispatch, fetchTasks]);
 
   // 🚀 Memoized Detail Sheet Handlers
   const handleAddFollowUpFromCustomer = useCallback(async (taskData) => {
@@ -341,7 +377,7 @@ export default function Customers() {
       />
 
       <AddModal
-        isOpen={modalOpen}
+        isOpen={modalOpen && (modalType === 'FollowUp' || modalType === 'Customer')}
         type={modalType}
         onClose={handleCloseModal}
         onSave={handleAdd}

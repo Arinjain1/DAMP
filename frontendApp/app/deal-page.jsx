@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Image, Modal, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
-import { updateDeal } from '../src/store/slices/dealsSlice';
+import { updateDeal, updateDealStageAPI } from '../src/store/slices/dealsSlice';
 import { completeAgreement } from '../src/store/slices/customersSlice';
 import * as Haptics from 'expo-haptics';
 import MeetingView from '../src/Views/MeetingView';
@@ -33,18 +33,29 @@ export default function DealPage() {
 
   // Use embedded data from deal first, fallback to finding in arrays
   const property = selectedDeal.property_title ? {
-    id: selectedDeal.propertyId,
+    id: selectedDeal.propertyId || selectedDeal.property_id,
     title: selectedDeal.property_title,
     location: selectedDeal.property_address || selectedDeal.city,
     image: selectedDeal.cover_image_url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
-    price: selectedDeal.listing_price || selectedDeal.finalPrice
-  } : properties.find(p => p.id === selectedDeal.propertyId);
+    price: selectedDeal.listing_price || selectedDeal.listingPrice || selectedDeal.finalPrice || selectedDeal.final_price
+  } : properties.find(p => p.id === (selectedDeal.propertyId || selectedDeal.property_id));
+
+  // Fallback check to enrich property object from store if price is missing
+  if (property && !property.price) {
+    const storeProperty = properties.find(p => p.id === property.id);
+    if (storeProperty) {
+      property.price = storeProperty.price;
+      if (!property.location) {
+        property.location = storeProperty.locality || storeProperty.address;
+      }
+    }
+  }
 
   const customer = selectedDeal.client_name ? {
-    id: selectedDeal.customerId,
+    id: selectedDeal.customerId || selectedDeal.client_id,
     name: selectedDeal.client_name,
     phone: selectedDeal.client_phone
-  } : customers.find(c => c.id === selectedDeal.customerId);
+  } : customers.find(c => c.id === (selectedDeal.customerId || selectedDeal.client_id));
 
   // Get meetings from deal
   const meetings = selectedDeal.meetings || [];
@@ -62,6 +73,28 @@ export default function DealPage() {
       setActiveTab('Payment');
     }
   }, [selectedDeal.stage]);
+
+  // Sync Deal Stage in database when active tab changes
+  useEffect(() => {
+    if (!selectedDeal?.id) return;
+
+    let outcome;
+    if (activeTab === 'Meeting') {
+      outcome = 'meeting';
+    } else if (activeTab === 'Payment') {
+      // Only sync if the deal is not already closed or at token stage
+      const currentStatus = selectedDeal.status || selectedDeal.stage;
+      if (currentStatus !== 'Token' && currentStatus !== 'Closed') {
+        outcome = 'negotiation';
+      }
+    } else if (activeTab === 'Agreement') {
+      outcome = 'agreement';
+    }
+
+    if (outcome) {
+      dispatch(updateDealStageAPI({ dealId: selectedDeal.id, outcome }));
+    }
+  }, [activeTab, selectedDeal?.id, dispatch]);
 
   // Check for upcoming meetings and show reminder with alarm sound
   useEffect(() => {

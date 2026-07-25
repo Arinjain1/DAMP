@@ -176,9 +176,21 @@ const CustomerCard = memo(({
           </Text>
         </View>
         
-        <View className={`px-2.5 py-1.5 rounded-lg ${customer.status === 'Hot' ? 'bg-red-100' : 'bg-gray-100'}`}>
-          <Text className={`text-[10px] font-semibold uppercase tracking-wider ${customer.status === 'Hot' ? 'text-red-500' : 'text-gray-600'}`}>
-            {customer.status || 'New'}
+        <View className={`px-2.5 py-1.5 rounded-lg ${
+          customer.stage === 'Completed' ? 'bg-green-50 border border-green-200' :
+          customer.stage === 'New' ? 'bg-blue-50 border border-blue-200' :
+          customer.stage === 'Site Visit' ? 'bg-amber-50 border border-amber-200' :
+          customer.stage === 'Interested' ? 'bg-teal-50 border border-teal-200' :
+          'bg-gray-50 border border-gray-200'
+        }`}>
+          <Text className={`text-[10px] font-semibold uppercase tracking-wider ${
+            customer.stage === 'Completed' ? 'text-green-700' :
+            customer.stage === 'New' ? 'text-blue-700' :
+            customer.stage === 'Site Visit' ? 'text-amber-700' :
+            customer.stage === 'Interested' ? 'text-teal-700' :
+            'text-gray-600'
+          }`}>
+            {customer.stage || 'New'}
           </Text>
         </View>
 

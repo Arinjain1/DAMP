@@ -311,7 +311,7 @@ export const createDeal = async (req, res, next) => {
   const { client_id, property_id } = req.body;
   try {
     if (!client_id || !property_id) return res.status(400).json({ success: false, message: "Required fields missing" });
-    const existingDeal = await query(`SELECT * FROM deals WHERE client_id = $1 AND property_id = $2`, [client_id, property_id]);
+    const existingDeal = await query(`SELECT * FROM deals WHERE client_id = $1 AND property_id = $2 AND is_deleted = false`, [client_id, property_id]);
     if (existingDeal.rows.length > 0) return res.status(400).json({ success: false, message: "Deal already exists for this client and property" });
     const result = await query(`INSERT INTO deals (broker_id, client_id, property_id, status) VALUES ($1, $2, $3, 'In-Process') RETURNING *`, [brokerId, client_id, property_id]);
     res.status(201).json({ success: true, message: "Deal started!", data: result.rows[0] });
@@ -355,9 +355,11 @@ export const updateDealStage = async (req, res, next) => {
   try {
     let newStatus;
     if (outcome === 'interested') newStatus = 'Interested';
+    else if (outcome === 'meeting') newStatus = 'Meeting';
     else if (outcome === 'site_visit') newStatus = 'Site Visit';
     else if (outcome === 'negotiation') newStatus = 'Negotiation';
     else if (outcome === 'token') newStatus = 'Token';
+    else if (outcome === 'agreement') newStatus = 'Agreement';
     else if (outcome === 'not_interested' || outcome === 'lost') newStatus = 'Lost';
     else return res.status(400).json({ message: "Invalid outcome" });
     const result = await query(`UPDATE deals SET status = $1, updated_at = NOW() WHERE id = $2 AND broker_id = $3 RETURNING *`, [newStatus, dealId, brokerId]);

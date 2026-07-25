@@ -40,9 +40,19 @@ api.interceptors.request.use(
 
 // Store navigation reference for redirects
 let navigationRef = null;
+let unauthorizedCallback = null;
+let subscriptionErrorCallback = null;
 
 export const setNavigationRef = (ref) => {
   navigationRef = ref;
+};
+
+export const setUnauthorizedCallback = (callback) => {
+  unauthorizedCallback = callback;
+};
+
+export const setSubscriptionErrorCallback = (callback) => {
+  subscriptionErrorCallback = callback;
 };
 
 // Response interceptor for error handling
@@ -52,11 +62,29 @@ api.interceptors.response.use(
     if (error.response) {
       // Check for authentication errors (401 Unauthorized or 403 Forbidden)
       if (error.response.status === 401 || error.response.status === 403) {
-        // Clear auth token
-        clearAuthToken();
-        // Directly redirect to login page, no error shown for smooth UX
-        if (navigationRef && navigationRef.replace) {
-          navigationRef.replace('/login');
+        // Distinguish subscription errors from auth token expiration errors
+        const isSubscriptionError = error.response.data && (
+          error.response.data.code === 'SUBSCRIPTION_EXPIRED' ||
+          error.response.data.code === 'SUBSCRIPTION_MISSING'
+        );
+
+        if (isSubscriptionError) {
+          if (subscriptionErrorCallback) {
+            subscriptionErrorCallback();
+          }
+        } else {
+          // Clear auth token
+          clearAuthToken();
+
+          // Invoke unauthorized callback if registered (e.g. to clear redux state)
+          if (unauthorizedCallback) {
+            unauthorizedCallback();
+          }
+
+          // Directly redirect to login page, no error shown for smooth UX
+          if (navigationRef && navigationRef.replace) {
+            navigationRef.replace('/login');
+          }
         }
       } else {
         // Server responded with other error
@@ -119,6 +147,7 @@ export const dealsAPI = {
   create: (data) => api.post('/clients/deal', data),
   update: (id, data) => api.put(`/deals/${id}`, data),
   delete: (id) => api.delete(`/deals/${id}`),
+  updateStage: (id, outcome) => api.put(`/clients/deal/${id}/stage`, { outcome }),
   
   // Payment/Transaction endpoints
   getNegotiation: (dealId) => api.get(`/deals/${dealId}/negotiation`),

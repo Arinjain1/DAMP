@@ -111,6 +111,21 @@ export const updateNegotiation = createAsyncThunk(
   }
 );
 
+// Update deal stage in DB
+export const updateDealStageAPI = createAsyncThunk(
+  'deals/updateStage',
+  async ({ dealId, outcome }, { rejectWithValue }) => {
+    try {
+      const response = await dealsAPI.updateStage(dealId, outcome);
+      if (response.data.success) {
+        return { id: dealId, stage: response.data.data.status };
+      }
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update deal stage');
+    }
+  }
+);
+
 // Note: Transaction operations moved to transactionSlice for better separation of concerns
 
 const dealsSlice = createSlice({
@@ -275,6 +290,29 @@ const dealsSlice = createSlice({
         state.loading = false;
       })
       .addCase(updateNegotiation.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+
+    // Update Deal Stage
+    builder
+      .addCase(updateDealStageAPI.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(updateDealStageAPI.fulfilled, (state, action) => {
+        const { id, stage } = action.payload;
+        const index = state.deals.findIndex(d => d.id === id);
+        if (index !== -1) {
+          state.deals[index].stage = stage;
+          state.deals[index].status = stage;
+        }
+        if (state.selectedDeal?.id === id) {
+          state.selectedDeal.stage = stage;
+          state.selectedDeal.status = stage;
+        }
+        state.loading = false;
+      })
+      .addCase(updateDealStageAPI.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
