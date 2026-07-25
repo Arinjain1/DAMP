@@ -303,7 +303,7 @@ const propertiesSlice = createSlice({
     // Delete Property
     builder
       .addCase(deleteProperty.pending, (state) => {
-        state.loading = true;
+        // Don't set global loading for delete — avoids full list re-render
         state.error = null;
       })
       .addCase(deleteProperty.fulfilled, (state, action) => {
@@ -311,10 +311,8 @@ const propertiesSlice = createSlice({
         if (state.selectedProperty?.id === action.payload) {
           state.selectedProperty = null;
         }
-        state.loading = false;
       })
       .addCase(deleteProperty.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload;
       });
   },

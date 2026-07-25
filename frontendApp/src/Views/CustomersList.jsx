@@ -1,7 +1,7 @@
-import { ChevronDown, ChevronRight, ChevronUp, CirclePlus, MessageCircle, Phone, Search, Edit2 } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, ChevronUp, CirclePlus, MessageCircle, Phone, Search, Edit2, Trash2 } from 'lucide-react-native';
 import React, { useState, useMemo, useCallback, memo } from 'react';
 import {
-  ImageBackground, Linking, Platform, FlatList, ScrollView, StatusBar, Text,
+  Alert, ImageBackground, Linking, Platform, FlatList, ScrollView, StatusBar, Text,
   TextInput,
   TouchableOpacity,
   View
@@ -109,7 +109,7 @@ StageIndicator.displayName = 'StageIndicator';
 
 // --- CUSTOMER CARD COMPONENT ---
 const CustomerCard = memo(({ 
-  customer, isExpanded, onToggleExpand, onEditCustomer, onOpenDeal, onSelect, handleCall 
+  customer, isExpanded, onToggleExpand, onEditCustomer, onDeleteCustomer, onOpenDeal, onSelect, handleCall 
 }) => {
   const colorTheme = useMemo(() => getRandomColor(customer.name?.charAt(0)), [customer.name]);
   const currentTask = useMemo(() => getMockTask(customer.id), [customer.id]);
@@ -122,6 +122,18 @@ const CustomerCard = memo(({
     e.stopPropagation();
     if (onEditCustomer) onEditCustomer(customer);
   }, [onEditCustomer, customer]);
+
+  const handleDeletePress = useCallback((e) => {
+    e.stopPropagation();
+    Alert.alert(
+      'Delete Client',
+      `Are you sure you want to delete "${customer.name}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => onDeleteCustomer && onDeleteCustomer(customer.id) },
+      ]
+    );
+  }, [onDeleteCustomer, customer]);
 
   const handleDetailsPress = useCallback(() => {
     if (isBeyondInterested(customer.stage) && onOpenDeal) {
@@ -172,6 +184,10 @@ const CustomerCard = memo(({
 
         <TouchableOpacity className="p-0 ml-0" onPress={handleEditPress}>
           <Edit2 size={18} color="#6b7280" />
+        </TouchableOpacity>
+
+        <TouchableOpacity className="p-0 ml-0" onPress={handleDeletePress}>
+          <Trash2 size={18} color="#ef4444" />
         </TouchableOpacity>
 
         <View className="p-0 ml-0">
@@ -259,7 +275,7 @@ const SkeletonList = memo(() => (
 SkeletonList.displayName = 'SkeletonList';
 
 // --- MAIN COMPONENT ---
-const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal, onEditCustomer, loading = false }) => {
+const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal, onEditCustomer, onDeleteCustomer, loading = false }) => {
   const [query, setQuery] = useState('');
   const [expandedCards, setExpandedCards] = useState(new Set());
   const [typeFilter, setTypeFilter] = useState('All');
@@ -297,11 +313,12 @@ const CustomersList = ({ customers = [], onSelect, onAddCustomer, onOpenDeal, on
       isExpanded={expandedCards.has(item.id)}
       onToggleExpand={toggleCardExpansion}
       onEditCustomer={onEditCustomer}
+      onDeleteCustomer={onDeleteCustomer}
       onOpenDeal={onOpenDeal}
       onSelect={onSelect}
       handleCall={handleCall}
     />
-  ), [expandedCards, toggleCardExpansion, onEditCustomer, onOpenDeal, onSelect, handleCall]);
+  ), [expandedCards, toggleCardExpansion, onEditCustomer, onDeleteCustomer, onOpenDeal, onSelect, handleCall]);
 
   const keyExtractor = useCallback((item) => item.id?.toString() || Math.random().toString(), []);
 

@@ -152,10 +152,18 @@ export default function Properties() {
     }
   };
 
+  const handleDelete = async (id) => {
+    try {
+      await dispatch(deleteProperty(id)).unwrap();
+      showToast.success('Property deleted successfully');
+    } catch (error) {
+      showToast.error(error || 'Failed to delete property');
+    }
+  };
+
   // Handle deal creation from property detail sheet
   const handleCreateDeal = (dealData) => {
     dispatch(addDeal(dealData));
-
   };
 
   return (
@@ -168,6 +176,7 @@ export default function Properties() {
         properties={properties}
         onSelect={(property) => dispatch(setSelectedProperty(property))}
         onEdit={handleEdit}
+        onDelete={handleDelete}
         onAddProperty={handleFABClick}
       />
 

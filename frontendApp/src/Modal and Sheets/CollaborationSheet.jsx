@@ -1,8 +1,6 @@
-import { Check, ChevronDown, ChevronUp, Phone, Plus, Search, X } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronUp, Phone, Plus, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Image,
   Linking,
   Modal,
   ScrollView,
@@ -12,25 +10,37 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSelector } from 'react-redux';
 import { showToast } from '../utils/toast';
 import WhatsAppIcon from '../Components/WhatsAppIcon';
-import { collabAPI } from '../config/api';
 import Skeleton from '../Components/Skeleton';
 
 const CollaborationSheet = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState('collab'); // 'collab' or 'requests'
+  const myProperties = useSelector(state => state.properties.properties);
+
+  const [activeTab, setActiveTab] = useState('collab');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
+  const [formName, setFormName] = useState('');
+  const [formPhone, setFormPhone] = useState('');
   const [expandedCollaborator, setExpandedCollaborator] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [successData, setSuccessData] = useState({ name: '', id: '' });
-  
+  const [successData, setSuccessData] = useState({ name: '', phone: '' });
+
   // Network data
   const [myNetwork, setMyNetwork] = useState([]);
   const [networkLoading, setNetworkLoading] = useState(false);
-  const [sendingRequest, setSendingRequest] = useState(false);
+
+  // Collab property modal state
+  const [showCollabPropertyModal, setShowCollabPropertyModal] = useState(false);
+  const [collabTargetBroker, setCollabTargetBroker] = useState(null);
+  // { collaboratorId -> [propertyId, ...] }
+  const [collaboratedProperties, setCollaboratedProperties] = useState({});
+
+  // Mock pending requests
+  const [pendingRequests] = useState([
+    { id: 101, full_name: 'Suresh Patel', phone_number: '9765432100', operating_area: 'Ujjain, MP' },
+    { id: 102, full_name: 'Neha Joshi', phone_number: '9654321009', operating_area: 'Indore, MP' },
+  ]);
 
   // Fetch my network when sheet opens
   useEffect(() => {
@@ -40,63 +50,56 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
   }, [isOpen, activeTab]);
 
   const fetchMyNetwork = async () => {
-    try {
-      setNetworkLoading(true);
-      const response = await collabAPI.getMyNetwork();
-      if (response.data.success) {
-        setMyNetwork(response.data.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch network:', error);
-      showToast.error('Failed to load collaboration network');
-    } finally {
+    setNetworkLoading(true);
+    setTimeout(() => {
+      setMyNetwork([
+        { id: 1, full_name: 'Rahul Sharma', phone_number: '9876543210', operating_area: 'Indore, MP' },
+        { id: 2, full_name: 'Priya Mehta', phone_number: '9812345678', operating_area: 'Bhopal, MP' },
+        { id: 3, full_name: 'Amit Verma', phone_number: '9988776655', operating_area: 'Indore, MP' },
+      ]);
       setNetworkLoading(false);
-    }
+    }, 500);
   };
 
-  const handleSearch = async (query) => {
-    setSearchQuery(query);
-    
-    if (query.trim().length < 2) {
-      setSearchResults([]);
+  const openCollabPropertyModal = (collaborator) => {
+    setCollabTargetBroker(collaborator);
+    setShowCollabPropertyModal(true);
+  };
+
+  const handleCollabProperty = (property) => {
+    const brokerId = collabTargetBroker.id;
+    const already = (collaboratedProperties[brokerId] || []).find(p => p.id === property.id);
+    if (already) {
+      showToast.info('Property already collaborated with this broker');
       return;
     }
-
-    try {
-      setSearchLoading(true);
-      const response = await collabAPI.searchBrokers(query);
-      if (response.data.success) {
-        setSearchResults(response.data.data);
-      }
-    } catch (error) {
-      console.error('Search failed:', error);
-      showToast.error('Failed to search brokers');
-    } finally {
-      setSearchLoading(false);
-    }
+    setCollaboratedProperties(prev => ({
+      ...prev,
+      [brokerId]: [...(prev[brokerId] || []), property],
+    }));
+    setShowCollabPropertyModal(false);
+    showToast.success(`"${property.title}" collaborated with ${collabTargetBroker.full_name}`);
   };
 
-  const handleSendRequest = async (broker) => {
-    try {
-      setSendingRequest(true);
-      const response = await collabAPI.sendRequest(broker.id);
-      
-      if (response.data.success) {
-        setSuccessData({ 
-          name: broker.full_name, 
-          id: broker.id 
-        });
-        setShowSuccessModal(true);
-        setSearchQuery('');
-        setSearchResults([]);
-      }
-    } catch (error) {
-      console.error('Failed to send request:', error);
-      const errorMsg = error.response?.data?.message || 'Failed to send connection request';
-      showToast.error(errorMsg);
-    } finally {
-      setSendingRequest(false);
+  const handleRemoveCollab = (brokerId, propertyId) => {
+    setCollaboratedProperties(prev => ({
+      ...prev,
+      [brokerId]: (prev[brokerId] || []).filter(p => p.id !== propertyId),
+    }));
+    showToast.info('Collaboration removed');
+  };
+
+
+  const handleSendRequest = () => {
+    if (!formName.trim() || !formPhone.trim()) {
+      showToast.error('Please fill in both name and phone number');
+      return;
     }
+    // TODO: re-enable backend integration
+    setSuccessData({ name: formName.trim(), phone: formPhone.trim() });
+    setShowSuccessModal(true);
+    setFormName('');
+    setFormPhone('');
   };
 
   const closeSuccessModal = () => {
@@ -104,11 +107,11 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
     setShowAddForm(false);
   };
 
-  const handleAcceptRequest = (requestId) => {
+  const handleAcceptRequest = (_requestId) => {
     showToast.success('Collaboration request accepted successfully!');
   };
 
-  const handleRejectRequest = (requestId) => {
+  const handleRejectRequest = (_requestId) => {
     showToast.info('The collaboration request has been declined.');
   };
 
@@ -198,65 +201,37 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                   {/* Add Collaborator Form */}
                   {showAddForm && (
                     <View style={styles.addForm}>
-                      <Text style={styles.formTitle}>Search & Connect</Text>
+                      <Text style={styles.formTitle}>Send Connection Request</Text>
 
-                      <View style={styles.searchInputContainer}>
-                        <Search size={18} color="#9ca3af" />
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>Name</Text>
                         <TextInput
-                          style={styles.searchInput}
-                          value={searchQuery}
-                          onChangeText={handleSearch}
-                          placeholder="Search by name or area..."
+                          style={styles.input}
+                          value={formName}
+                          onChangeText={setFormName}
+                          placeholder="Enter broker name"
                           placeholderTextColor="#9ca3af"
                         />
                       </View>
 
-                      {/* Search Results */}
-                      {searchLoading ? (
-                        <View style={styles.searchResults}>
-                          {[1, 2, 3].map((item) => (
-                            <View key={item} style={styles.searchResultItem}>
-                              <Skeleton circle width={40} height={40} />
-                              <View style={{ flex: 1, marginLeft: 12 }}>
-                                <Skeleton width="60%" height={16} borderRadius={6} style={{ marginBottom: 6 }} />
-                                <Skeleton width="40%" height={14} borderRadius={6} />
-                              </View>
-                              <Skeleton width={80} height={32} borderRadius={8} />
-                            </View>
-                          ))}
-                        </View>
-                      ) : searchResults.length > 0 ? (
-                        <ScrollView style={styles.searchResults} nestedScrollEnabled>
-                          {searchResults.map((broker) => (
-                            <View key={broker.id} style={styles.searchResultItem}>
-                              <View style={styles.brokerAvatar}>
-                                <Text style={styles.brokerAvatarText}>
-                                  {broker.full_name?.charAt(0).toUpperCase()}
-                                </Text>
-                              </View>
-                              <View style={styles.brokerInfo}>
-                                <Text style={styles.brokerName}>{broker.full_name}</Text>
-                                <Text style={styles.brokerArea}>{broker.operating_area || 'N/A'}</Text>
-                              </View>
-                              <TouchableOpacity
-                                style={styles.connectButton}
-                                onPress={() => handleSendRequest(broker)}
-                                disabled={sendingRequest}
-                              >
-                                {sendingRequest ? (
-                                  <ActivityIndicator size="small" color="#111827" />
-                                ) : (
-                                  <Text style={styles.connectButtonText}>Connect</Text>
-                                )}
-                              </TouchableOpacity>
-                            </View>
-                          ))}
-                        </ScrollView>
-                      ) : searchQuery.trim().length >= 2 ? (
-                        <View style={styles.noResults}>
-                          <Text style={styles.noResultsText}>No brokers found</Text>
-                        </View>
-                      ) : null}
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>Phone Number</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={formPhone}
+                          onChangeText={setFormPhone}
+                          placeholder="Enter phone number"
+                          placeholderTextColor="#9ca3af"
+                          keyboardType="phone-pad"
+                        />
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.continueButton}
+                        onPress={handleSendRequest}
+                      >
+                        <Text style={styles.continueButtonText}>Send Connection Request</Text>
+                      </TouchableOpacity>
                     </View>
                   )}
 
@@ -309,15 +284,11 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                             {expandedCollaborator === collaborator.id && (
                               <View style={styles.statsContainer}>
                                 <View style={styles.contactInfo}>
-                                  <Text style={styles.contactLabel}>Email:</Text>
-                                  <Text style={styles.contactValue}>{collaborator.email}</Text>
-                                </View>
-                                <View style={styles.contactInfo}>
                                   <Text style={styles.contactLabel}>Phone:</Text>
                                   <Text style={styles.contactValue}>{collaborator.phone_number}</Text>
                                 </View>
 
-                                {/* Action Buttons */}
+                                {/* Call / Message */}
                                 <View style={styles.actionButtons}>
                                   <TouchableOpacity
                                     style={styles.callButton}
@@ -334,6 +305,37 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                                     <Text style={styles.messageButtonText}>Message</Text>
                                   </TouchableOpacity>
                                 </View>
+
+                                {/* Collab a Property Button */}
+                                <TouchableOpacity
+                                  style={styles.collabPropertyBtn}
+                                  onPress={() => openCollabPropertyModal(collaborator)}
+                                >
+                                  <Plus size={14} color="#6d28d9" />
+                                  <Text style={styles.collabPropertyBtnText}>Collab a Property</Text>
+                                </TouchableOpacity>
+
+                                {/* Collaborated Properties */}
+                                {(collaboratedProperties[collaborator.id] || []).length > 0 && (
+                                  <View style={styles.collabedSection}>
+                                    <Text style={styles.collabedTitle}>Collaborated Properties</Text>
+                                    {(collaboratedProperties[collaborator.id] || []).map(prop => (
+                                      <View key={prop.id} style={styles.collabedCard}>
+                                        <View style={styles.collabedInfo}>
+                                          <Text style={styles.collabedPropTitle}>{prop.title}</Text>
+                                          <Text style={styles.collabedPropAddress}>{prop.address}</Text>
+                                        </View>
+                                        <TouchableOpacity
+                                          style={styles.removeCollabBtn}
+                                          onPress={() => handleRemoveCollab(collaborator.id, prop.id)}
+                                        >
+                                          <X size={12} color="#ef4444" />
+                                          <Text style={styles.removeCollabText}>Remove</Text>
+                                        </TouchableOpacity>
+                                      </View>
+                                    ))}
+                                  </View>
+                                )}
                               </View>
                             )}
                           </TouchableOpacity>
@@ -354,14 +356,113 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
                   <Text style={styles.sectionTitle}>Pending Requests</Text>
 
                   <View style={styles.collaboratorList}>
-                    <View style={styles.emptyState}>
-                      <Text style={styles.emptyStateText}>No pending requests</Text>
-                      <Text style={styles.emptyStateSubtext}>Coming soon...</Text>
-                    </View>
+                    {pendingRequests.length > 0 ? (
+                      pendingRequests.map(req => (
+                        <View key={req.id} style={styles.requestCard}>
+                          <View style={styles.requestInfo}>
+                            <View style={styles.avatar}>
+                              <Text style={styles.avatarText}>
+                                {req.full_name?.charAt(0).toUpperCase()}
+                              </Text>
+                            </View>
+                            <View style={styles.collaboratorInfo}>
+                              <Text style={styles.collaboratorName}>{req.full_name}</Text>
+                              <Text style={styles.collaboratorLocation}>{req.operating_area || 'N/A'}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.requestActions}>
+                            <TouchableOpacity
+                              style={styles.rejectButton}
+                              onPress={() => handleRejectRequest(req.id)}
+                            >
+                              <X size={14} color="#ef4444" />
+                              <Text style={styles.rejectButtonText}>Decline</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.acceptButton}
+                              onPress={() => handleAcceptRequest(req.id)}
+                            >
+                              <Check size={14} color="#22c55e" />
+                              <Text style={styles.acceptButtonText}>Accept</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))
+                    ) : (
+                      <View style={styles.emptyState}>
+                        <Text style={styles.emptyStateText}>No pending requests</Text>
+                      </View>
+                    )}
                   </View>
                 </>
               )}
 
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Collab Property Picker Modal */}
+      <Modal
+        visible={showCollabPropertyModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCollabPropertyModal(false)}
+        statusBarTranslucent
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => setShowCollabPropertyModal(false)}
+            style={styles.backdrop}
+          />
+          <View style={[styles.sheetContainer, { height: '60%' }]}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => setShowCollabPropertyModal(false)} style={styles.backButton}>
+                <X size={20} color="#111827" />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Select Property</Text>
+              <View style={{ width: 32 }} />
+            </View>
+            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+              <Text style={styles.collabPickerSubtitle}>
+                Collaborating with {collabTargetBroker?.full_name}
+              </Text>
+              {myProperties.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>No properties found</Text>
+                </View>
+              ) : (
+                myProperties.map(prop => {
+                  const alreadyCollabed = (collaboratedProperties[collabTargetBroker?.id] || []).find(p => p.id === prop.id);
+                  return (
+                    <TouchableOpacity
+                      key={prop.id}
+                      style={[styles.propPickerCard, alreadyCollabed && styles.propPickerCardDisabled]}
+                      onPress={() => !alreadyCollabed && handleCollabProperty(prop)}
+                      activeOpacity={alreadyCollabed ? 1 : 0.7}
+                    >
+                      <View style={styles.propPickerInfo}>
+                        <Text style={styles.propPickerTitle}>{prop.title}</Text>
+                        <Text style={styles.propPickerAddress}>{prop.address || prop.locality || prop.city}</Text>
+                        <Text style={styles.propPickerPrice}>
+                          ₹{prop.price >= 100000 ? `${(prop.price / 100000).toFixed(1)}L` : prop.price?.toLocaleString()}
+                        </Text>
+                      </View>
+                      {alreadyCollabed ? (
+                        <View style={styles.alreadyCollabBadge}>
+                          <Check size={12} color="#6d28d9" />
+                          <Text style={styles.alreadyCollabText}>Added</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.addCollabBadge}>
+                          <Plus size={12} color="#6d28d9" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })
+              )}
             </ScrollView>
           </View>
         </View>
@@ -394,12 +495,12 @@ const CollaborationSheet = ({ isOpen, onClose }) => {
             {/* Broker Details */}
             <View style={styles.brokerDetailsBox}>
               <View style={styles.brokerDetailRow}>
-                <Text style={styles.brokerDetailLabel}>Broker Name:</Text>
+                <Text style={styles.brokerDetailLabel}>Name:</Text>
                 <Text style={styles.brokerDetailValue}>{successData.name}</Text>
               </View>
               <View style={styles.brokerDetailRow}>
-                <Text style={styles.brokerDetailLabel}>Broker ID:</Text>
-                <Text style={styles.brokerDetailValue}>{successData.id}</Text>
+                <Text style={styles.brokerDetailLabel}>Phone:</Text>
+                <Text style={styles.brokerDetailValue}>{successData.phone}</Text>
               </View>
             </View>
 
@@ -738,6 +839,22 @@ const styles = StyleSheet.create({
   statsContainer: {
     marginTop: 12,
   },
+  contactInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  contactLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontFamily: 'Lato_400Regular',
+  },
+  contactValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111827',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
   statsGrid: {
     flexDirection: 'row',
     gap: 12,
@@ -764,6 +881,155 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 12,
   },
+
+  // Collab a Property button
+  collabPropertyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ede9fe',
+    borderWidth: 1,
+    borderColor: '#c4b5fd',
+    borderRadius: 8,
+    paddingVertical: 10,
+    marginTop: 8,
+    gap: 6,
+  },
+  collabPropertyBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6d28d9',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+
+  // Collaborated properties section
+  collabedSection: {
+    marginTop: 14,
+    backgroundColor: '#faf5ff',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
+  },
+  collabedTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6d28d9',
+    marginBottom: 10,
+    fontFamily: 'Montserrat_700Bold',
+  },
+  collabedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
+  },
+  collabedInfo: {
+    flex: 1,
+  },
+  collabedPropTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111827',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  collabedPropAddress: {
+    fontSize: 11,
+    color: '#6b7280',
+    fontFamily: 'Lato_400Regular',
+    marginTop: 2,
+  },
+  removeCollabBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    gap: 3,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  removeCollabText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#ef4444',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+
+  // Property picker modal
+  collabPickerSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+    fontFamily: 'Lato_400Regular',
+    marginBottom: 16,
+  },
+  propPickerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  propPickerCardDisabled: {
+    opacity: 0.6,
+    backgroundColor: '#f9fafb',
+  },
+  propPickerInfo: {
+    flex: 1,
+  },
+  propPickerTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+    fontFamily: 'Montserrat_600SemiBold',
+    marginBottom: 2,
+  },
+  propPickerAddress: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontFamily: 'Lato_400Regular',
+  },
+  propPickerPrice: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6d28d9',
+    fontFamily: 'Montserrat_700Bold',
+    marginTop: 4,
+  },
+  addCollabBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#ede9fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#c4b5fd',
+  },
+  alreadyCollabBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ede9fe',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    gap: 3,
+  },
+  alreadyCollabText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6d28d9',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+
   callButton: {
     flex: 1,
     flexDirection: 'row',
@@ -810,6 +1076,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     fontFamily: 'Lato_400Regular',
+  },
+  emptyStateSubtext: {
+    fontSize: 12,
+    color: '#9ca3af',
+    fontFamily: 'Lato_400Regular',
+    marginTop: 4,
   },
 
   // Request Card

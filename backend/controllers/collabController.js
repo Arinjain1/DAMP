@@ -82,3 +82,43 @@ export const getMyNetwork = async (req, res, next) => {
     next(err);
   }
 };
+
+export const getPendingRequests = async (req, res, next) => {
+  const myId = req.user.id;
+  try {
+    const result = await query(
+      `SELECT c.id, c.sender_id, c.status, c.created_at,
+              u.full_name, u.email, u.phone_number, u.operating_area
+       FROM collaborations c
+       JOIN users u ON u.id = c.sender_id
+       WHERE c.receiver_id = $1 AND c.status = 'pending'
+       ORDER BY c.created_at DESC`,
+      [myId]
+    );
+    res.json({ success: true, count: result.rowCount, data: result.rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateConnectionStatus = async (req, res, next) => {
+  const myId = req.user.id;
+  const { requestId } = req.params;
+  const { status } = req.body; // 'accepted' or 'rejected'
+
+  try {
+    const newStatus = req.method === 'DELETE' ? 'rejected' : status;
+    const result = await query(
+      `UPDATE collaborations SET status = $1
+       WHERE id = $2 AND receiver_id = $3
+       RETURNING *`,
+      [newStatus, requestId, myId]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: "Request not found" });
+    }
+    res.json({ success: true, message: `Request ${newStatus}`, data: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};

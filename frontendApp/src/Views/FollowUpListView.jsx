@@ -1,8 +1,8 @@
-import { Calendar, CheckCircle, MapPin, Phone, User } from 'lucide-react-native';
+import { Calendar, CheckCircle, MapPin, Phone, Trash2, User } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View, RefreshControl } from 'react-native';
+import { Alert, ScrollView, Text, TouchableOpacity, View, RefreshControl } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { setFollowUps, setLoading, updateFollowUpStatus } from '../store/slices/followUpsSlice';
+import { setFollowUps, setLoading, updateFollowUpStatus, deleteFollowUp } from '../store/slices/followUpsSlice';
 import { tasksAPI } from '../config/api';
 import { showToast } from '../utils/toast';
 import Skeleton from '../Components/Skeleton';
@@ -62,6 +62,27 @@ export default function FollowUpListView() {
       console.error('Error toggling task:', error);
       showToast.error('Failed to update task');
     }
+  };
+
+  const handleDeleteTask = (taskId, taskTitle) => {
+    Alert.alert(
+      'Delete Task',
+      `Delete "${taskTitle}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive', onPress: async () => {
+            try {
+              await tasksAPI.delete(taskId);
+              dispatch(deleteFollowUp(taskId));
+              showToast.success('Task deleted');
+            } catch (error) {
+              showToast.error('Failed to delete task');
+            }
+          }
+        },
+      ]
+    );
   };
 
   const formatDate = (dateString) => {
@@ -240,12 +261,14 @@ export default function FollowUpListView() {
                             </View>
                           </View>
 
-                          <TouchableOpacity
-                            onPress={() => handleToggleStatus(task.id)}
-                            className="mt-1"
-                          >
-                            <View className="w-6 h-6 rounded-full border-2 border-[#d1d5db]" />
-                          </TouchableOpacity>
+                          <View className="flex-row items-center gap-2 mt-1">
+                            <TouchableOpacity onPress={() => handleDeleteTask(task.id, task.title)}>
+                              <Trash2 size={16} color="#ef4444" />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleToggleStatus(task.id)}>
+                              <View className="w-6 h-6 rounded-full border-2 border-[#d1d5db]" />
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       </View>
                     ))}
@@ -297,12 +320,14 @@ export default function FollowUpListView() {
                             </View>
                           </View>
 
-                          <TouchableOpacity
-                            onPress={() => handleToggleStatus(task.id)}
-                            className="mt-1"
-                          >
-                            <CheckCircle size={24} color="#10b981" />
-                          </TouchableOpacity>
+                          <View className="flex-row items-center gap-2 mt-1">
+                            <TouchableOpacity onPress={() => handleDeleteTask(task.id, task.title)}>
+                              <Trash2 size={16} color="#ef4444" />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleToggleStatus(task.id)}>
+                              <CheckCircle size={24} color="#10b981" />
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       </View>
                     ))}

@@ -51,6 +51,7 @@ LogBox.ignoreLogs([
 
 function AppNavigator() {
   const { isAuthenticated, user } = useSelector((state: any) => state.auth);
+  const hasValidSession = isAuthenticated && !!user?.token;
 
   // Set token when user is authenticated (for app rehydration)
   useEffect(() => {
@@ -59,7 +60,7 @@ function AppNavigator() {
     }
   }, [user?.token]);
 
-  if (!isAuthenticated) {
+  if (!hasValidSession) {
     return (
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="splash" />

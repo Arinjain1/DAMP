@@ -6,10 +6,12 @@ import {
   MapPin,
   Plus,
   Search,
+  Trash2,
   X
 } from 'lucide-react-native';
 import { useMemo, useState, memo, useCallback, useEffect } from 'react';
 import {
+  Alert,
   Image,
   Modal,
   Platform,
@@ -44,10 +46,22 @@ const formatCurrency = (amount) => {
 // ==========================================
 // 🚀 MEMOIZED PROPERTY CARD
 // ==========================================
-const PropertyCard = memo(({ property, onSelect, onEdit }) => {
+const PropertyCard = memo(({ property, onSelect, onEdit, onDelete }) => {
   const getStatusBadgeStyle = (status) => {
     if (status?.toLowerCase() === 'sold') return styles.statusBadgeSold;
     return styles.statusBadge;
+  };
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    Alert.alert(
+      'Delete Property',
+      `Are you sure you want to delete "${property.title}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => onDelete && onDelete(property.id) },
+      ]
+    );
   };
 
   return (
@@ -70,15 +84,20 @@ const PropertyCard = memo(({ property, onSelect, onEdit }) => {
                 </View>
               )}
             </View>
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                onEdit && onEdit(property, 'Property');
-              }}
-              style={styles.editButton}
-            >
-              <Edit3 size={16} color="white" />
-            </TouchableOpacity>
+            <View style={styles.cardActions}>
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onEdit && onEdit(property, 'Property');
+                }}
+                style={styles.editButton}
+              >
+                <Edit3 size={16} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+                <Trash2 size={16} color="white" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
@@ -334,7 +353,7 @@ FilterModal.displayName = 'FilterModal';
 // ==========================================
 // 🚀 MAIN INVENTORY PAGE
 // ==========================================
-const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => {
+const InventoryPage = ({ properties = [], onSelect, onEdit, onDelete, onAddProperty }) => {
   const [listingFilter, setListingFilter] = useState('Sell');
   const [activeCategory, setActiveCategory] = useState('Residential');
   const [activeType, setActiveType] = useState('All');
@@ -371,8 +390,8 @@ const InventoryPage = ({ properties = [], onSelect, onEdit, onAddProperty }) => 
   }, [properties, listingFilter, activeCategory, activeType, activeBHK, activeCommercialConfig, activeFurnishing, searchQuery]);
 
   const renderPropertyCard = useCallback(({ item }) => (
-    <PropertyCard property={item} onSelect={onSelect} onEdit={onEdit} />
-  ), [onSelect, onEdit]);
+    <PropertyCard property={item} onSelect={onSelect} onEdit={onEdit} onDelete={onDelete} />
+  ), [onSelect, onEdit, onDelete]);
 
   const keyExtractor = useCallback((item) => item.id.toString(), []);
 
@@ -597,6 +616,8 @@ const styles = StyleSheet.create({
   bhkBadge: { backgroundColor: 'rgba(59, 130, 246, 0.95)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   bhkBadgeText: { color: 'white', fontSize: 10, fontWeight: '700', fontFamily: 'Montserrat_700Bold' },
   editButton: { backgroundColor: 'rgba(0, 0, 0, 0.6)', padding: 8, borderRadius: 8 },
+  deleteButton: { backgroundColor: 'rgba(239, 68, 68, 0.75)', padding: 8, borderRadius: 8 },
+  cardActions: { flexDirection: 'row', gap: 8 },
   propertyInfo: { padding: 16 },
   propertyTitle: { fontSize: 18, fontWeight: '700', fontFamily: 'Montserrat_700Bold', color: '#111827', marginBottom: 8 },
   propertyLocation: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },

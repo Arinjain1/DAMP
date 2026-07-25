@@ -13,6 +13,7 @@ import {
   updateCustomer,
   updateCustomerStageAPI,
   updateCustomerProperties,
+  deleteCustomer,
   clearSelectedCustomer, 
   setSelectedCustomer, 
   updateCustomerStatus,
@@ -318,6 +319,15 @@ export default function Customers() {
     dispatch(setModalOpen(false));
   }, [dispatch]);
 
+  const handleDeleteCustomer = useCallback(async (id) => {
+    try {
+      await dispatch(deleteCustomer(id)).unwrap();
+      showToast.success('Client deleted successfully');
+    } catch (error) {
+      showToast.error(error || 'Failed to delete client');
+    }
+  }, [dispatch]);
+
   return (
     <View className="flex-1 bg-gray-50">
       <CustomersList
@@ -326,6 +336,7 @@ export default function Customers() {
         onSelect={handleSelectCustomer}
         onAddCustomer={handleAddCustomer}
         onEditCustomer={handleEditCustomer}
+        onDeleteCustomer={handleDeleteCustomer}
         onOpenDeal={handleOpenDealFromList}
       />
 

@@ -421,7 +421,7 @@ const customersSlice = createSlice({
     // Delete Customer
     builder
       .addCase(deleteCustomer.pending, (state) => {
-        state.loading = true;
+        // Don't set global loading for delete — avoids full list re-render
         state.error = null;
       })
       .addCase(deleteCustomer.fulfilled, (state, action) => {
@@ -429,10 +429,8 @@ const customersSlice = createSlice({
         if (state.selectedCustomer?.id === action.payload) {
           state.selectedCustomer = null;
         }
-        state.loading = false;
       })
       .addCase(deleteCustomer.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload;
       });
   },

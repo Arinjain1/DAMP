@@ -130,7 +130,8 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   
-  const { user } = useSelector(state => state.auth);
+  const { user, isAuthenticated } = useSelector(state => state.auth);
+  const hasValidSession = isAuthenticated && !!user?.token;
 
   const properties = INITIAL_PROPERTIES;
   const customers = INITIAL_CUSTOMERS;
@@ -140,6 +141,13 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
 
   // FIX: isBackground add kiya taaki skeleton bar bar na aaye
   const fetchDashboardData = useCallback(async (isBackground = false) => {
+    if (!hasValidSession) {
+      if (!isBackground) {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       if (!isBackground) {
         setLoading(true); // Sirf tabhi loading lagao jab initial load ho
@@ -158,21 +166,29 @@ const Dashboard = ({ onOpenCollab, onOpenDeal, onNavigate, onOpenModal }) => {
         setLoading(false);
       }
     }
-  }, []);
+  }, [hasValidSession]);
 
   // Sirf pehli baar pura load hoga (with skeleton)
   useEffect(() => {
+    if (!hasValidSession) {
+      return;
+    }
+
     fetchDashboardData(false);
-  }, [fetchDashboardData]);
+  }, [fetchDashboardData, hasValidSession]);
 
   // Tab focus hone par "Silent Refresh" hoga (no skeleton)
   useFocusEffect(
     useCallback(() => {
+      if (!hasValidSession) {
+        return;
+      }
+
       // Agar data pehle se hai, toh background refresh karo
       if (dashboardData !== null) {
         fetchDashboardData(true);
       }
-    }, [fetchDashboardData, dashboardData])
+    }, [fetchDashboardData, dashboardData, hasValidSession])
   );
 
   const onRefresh = async () => {

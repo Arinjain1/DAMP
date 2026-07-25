@@ -1,5 +1,5 @@
 import express from 'express';
-import { searchBrokers, sendConnectionRequest, getMyNetwork } from '../controllers/collabController.js';
+import { searchBrokers, sendConnectionRequest, getMyNetwork, getPendingRequests, updateConnectionStatus } from '../controllers/collabController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
