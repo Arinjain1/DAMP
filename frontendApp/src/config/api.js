@@ -1,7 +1,32 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// Get API URL from environment variable
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
+// Resolve the API URL dynamically
+const getApiUrl = () => {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  
+  // If the env variable is present and is NOT using localhost, use it
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl;
+  }
+  
+  // Try to get host IP from Metro bundler (works for both emulator & physical devices on the same Wi-Fi)
+  const hostUri = Constants.expoConfig?.hostUri; // e.g. "192.168.1.2:8081"
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    return `http://${ip}:5000/api`;
+  }
+  
+  // Fallback depending on whether we are on emulator or desktop browser
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:5000/api';
+  }
+  return 'http://localhost:5000/api';
+};
+
+const API_URL = getApiUrl();
+
 
 // Create axios instance with default config
 const api = axios.create({
