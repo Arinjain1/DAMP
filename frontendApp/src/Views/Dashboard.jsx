@@ -17,7 +17,10 @@ import {
   TouchableOpacity,
   View,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
+
+const { width: screenWidth } = Dimensions.get('window');
 import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -135,6 +138,10 @@ const Dashboard = ({
 }) => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const currentDate = useMemo(() => {
+    const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+    return new Date().toLocaleDateString('en-US', options);
+  }, []);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -253,8 +260,9 @@ const Dashboard = ({
             <View style={styles.profileRow}>
               <View style={styles.profileLeft}>
                 <Skeleton width={48} height={48} borderRadius={16} />
-                <View style={{ gap: 6 }}>
+                <View style={styles.nameColumn}>
                   <Skeleton width={120} height={16} borderRadius={4} />
+                  <Skeleton width={80} height={12} borderRadius={4} />
                 </View>
               </View>
               <Skeleton width={40} height={40} circle />
@@ -269,26 +277,29 @@ const Dashboard = ({
                 </View>
               ))}
             </View>
+
+            <Image
+              source={require('../../assets/images/ChatGPT Image Jul 28, 2026, 11_18_12 PM 1.png')}
+              style={styles.bannerImage}
+            />
           </View>
 
           {/* Body Skeleton */}
           <View style={styles.body}>
             <Skeleton width={120} height={16} borderRadius={4} style={{ marginBottom: 15 }} />
             
-            {/* Quick Actions Skeleton */}
-            <View style={styles.billPaymentsWrapper}>
-              <View style={styles.iconsGroup}>
-                {[1, 2, 3, 4].map((i) => (
-                  <View key={i} style={styles.navItem}>
-                    <Skeleton width={54} height={54} borderRadius={14} style={{ marginBottom: 2 }} />
-                    <Skeleton width={40} height={11} borderRadius={4} />
-                  </View>
-                ))}
-              </View>
-              <View style={styles.brokerBlock}>
-                <Skeleton width={50} height={12} borderRadius={4} style={{ marginBottom: 4 }} />
-                <Skeleton width={30} height={12} borderRadius={4} />
-              </View>
+            {/* Quick Features Skeleton */}
+            <View style={styles.quickFeaturesContainer}>
+              {[1, 2, 3].map((i) => (
+                <View key={i} style={styles.navItem}>
+                  <Skeleton width={54} height={54} borderRadius={14} style={{ marginBottom: 2 }} />
+                  <Skeleton width={40} height={11} borderRadius={4} />
+                </View>
+              ))}
+            </View>
+
+            <View style={{ marginTop: 12 }}>
+              <Skeleton width={screenWidth - 40} height={((screenWidth - 40) / 2.122) - 110} borderRadius={18} />
             </View>
 
             {/* Active Deals Skeleton */}
@@ -346,12 +357,15 @@ const Dashboard = ({
           <View style={styles.profileRow}>
             <View style={styles.profileLeft}>
               <Image source={{ uri: INITIAL_PROFILE.avatar }} style={styles.avatar} />
-              <View style={styles.nameRow}>
-                <Text style={styles.userName}>{user?.name || 'User'}</Text>
-                <Image 
-                  source={require('../../assets/images/pajamas_partner-verified.png')} 
-                  style={styles.verificationBadge}
-                />
+              <View style={styles.nameColumn}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.userName}>{user?.name || 'User'}</Text>
+                  <Image 
+                    source={require('../../assets/images/pajamas_partner-verified.png')} 
+                    style={styles.verificationBadge}
+                  />
+                </View>
+                <Text style={styles.dateText}>{currentDate}</Text>
               </View>
             </View>
 
@@ -371,28 +385,34 @@ const Dashboard = ({
             <StatBlock label="Pending" count={stats.pending} />
             <StatBlock label="Rejected" count={stats.rejected} />
           </View>
+
+          <Image
+            source={require('../../assets/images/ChatGPT Image Jul 28, 2026, 11_18_12 PM 1.png')}
+            style={styles.bannerImage}
+          />
         </View>
 
         {/* ================= BODY ================= */}
         <View style={styles.body}>
           
-          <Text style={styles.sectionTitle} className=''>Quick Actions</Text>
+          <Text style={styles.sectionTitle}>Quick Features</Text>
           
-          <View style={styles.billPaymentsWrapper}>
-            
-            <View style={styles.iconsGroup}>
-              <NavItem icon={UserPlus} label="New Lead" onPress={() => onOpenModal?.('Customer')} />
-              <NavItem icon={Plus} label="Add Prop" onPress={() => onOpenModal?.('Property')} />
-              <NavItem icon={Briefcase} label="Deal" onPress={() => onNavigate?.('/deals')} />
-              <NavItem icon={Handshake} label="Collab" onPress={onOpenCollab} />
-            </View>
-
-            <TouchableOpacity style={styles.brokerBlock}>
-              <Text style={styles.brokerLabel}>Broker</Text>
-              <Text style={styles.brokerNumber}>99</Text>
-            </TouchableOpacity>
-
+          <View style={styles.quickFeaturesContainer}>
+            <NavItem icon={UserPlus} label="New Lead" onPress={() => onOpenModal?.('Customer')} />
+            <NavItem icon={Plus} label="Add Prop" onPress={() => onOpenModal?.('Property')} />
+            <NavItem icon={Briefcase} label="Deal" onPress={() => onNavigate?.('/deals')} />
           </View>
+
+          <TouchableOpacity 
+            style={styles.collabBannerButton}
+            onPress={onOpenCollab}
+            activeOpacity={0.8}
+          >
+            <Image
+              source={require('../../assets/images/Group 1597884459.png')}
+              style={styles.collabBannerImage}
+            />
+          </TouchableOpacity>
 
           {/* Active Deals */}
           {activeDeals.length > 0 && (
@@ -463,8 +483,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#BFB7FD',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 25 : 60,
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    //paddingBottom: 16,
     overflow: 'hidden',
+  },
+  bannerImage: {
+    width: screenWidth - 20,
+    height: (screenWidth - 20) / 2.258,
+    alignSelf: 'flex-end',
+    marginRight: -20,
+    resizeMode: 'contain',
+    marginTop: -6,
+    zIndex: -1,
   },
   headerDecoration: {
     position: 'absolute',
@@ -476,9 +505,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 52,
+    marginBottom: 20,
   },
   profileLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  nameColumn: { flexDirection: 'column', justifyContent: 'center', gap: 2 },
   avatar: {
     width: 48,
     height: 48,
@@ -487,7 +517,8 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  userName: { fontSize: 18, fontWeight: '700', color: '#313131' },
+  userName: { fontSize: 18, color: '#000000' , fontFamily:'Lato_700Bold' },
+  dateText: { fontSize: 11, fontWeight: '500', color: '#5B5B5B', fontFamily: 'MONTSERRAT_500' },
   verificationBadge: { width: 16, height: 16, resizeMode: 'contain' },
   bellButton: { padding: 12, borderRadius: 16, position: 'relative' },
   notificationIcon: { width: 24, height: 24, resizeMode: 'contain' },
@@ -508,6 +539,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 12,
     gap: 8,
+    zIndex: 1,
   },
   statInnerBox: {
     flex: 1,
@@ -526,29 +558,24 @@ const styles = StyleSheet.create({
 
   /* --- MODIFIED BILL PAYMENTS STYLES --- */
   
-  billPaymentsWrapper: {
+  quickFeaturesContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: -20, 
-    marginBottom: 4,
-  },
-
-  iconsGroup: {
-    flex: 1, 
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingRight: 22, 
+    justifyContent: 'flex-start',
+    gap: 24,
+    marginBottom: 16,
+    zIndex: 10,
   },
 
   navItem: { 
     alignItems: 'center',
-    minWidth: 50, 
+    minWidth: 48, 
   },
 
   navIconContainer: {
     width: 54, 
     height: 54,
-    borderRadius: 14,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F8',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
@@ -561,33 +588,18 @@ const styles = StyleSheet.create({
     textAlign: 'center' 
   },
 
-  brokerBlock: {
-    backgroundColor: '#E9e6f7',
-    width: 80, 
-    height: 80, 
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
-    
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  brokerLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#111827',
+  collabBannerButton: {
+    borderRadius: 14,
+    overflow: 'cover',
     marginBottom: 0,
-    fontFamily: 'MONTSERRAT_600',
+    marginTop: -100,
+    zIndex: 1,
   },
 
-  brokerNumber: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 1,
-    fontFamily: 'MONTSERRAT_600',
+  collabBannerImage: {
+    width: screenWidth - 40,
+    height: (screenWidth - 40) / 2.122,
+    resizeMode: 'contain',
   },
   
   errorBanner: {
