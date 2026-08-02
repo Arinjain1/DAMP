@@ -15,6 +15,7 @@ const stageSyncMiddleware = (store) => (next) => (action) => {
   // Handle customer stage updates - sync to deal
   if (
     action.type === 'customers/updateCustomerStage' ||
+    action.type === 'customers/updateStage/fulfilled' ||
     action.type === 'customers/transitionToInProcess' ||
     action.type === 'customers/completeAgreement'
   ) {

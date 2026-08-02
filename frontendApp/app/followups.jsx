@@ -19,7 +19,8 @@ import {
   Text,
   TouchableOpacity,
   View,
-  RefreshControl
+  RefreshControl,
+  InteractionManager
 } from 'react-native';
 import { showToast } from '@/src/utils/toast';
 import { useDispatch, useSelector } from 'react-redux';
@@ -346,7 +347,10 @@ export default function FollowUps() {
   // Refresh tasks when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      fetchTasks();
+      const task = InteractionManager.runAfterInteractions(() => {
+        fetchTasks();
+      });
+      return () => task.cancel();
     }, [fetchTasks])
   );
 

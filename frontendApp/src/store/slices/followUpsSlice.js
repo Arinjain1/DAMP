@@ -1,10 +1,9 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { INITIAL_FOLLOWUPS } from '../../MockData/Mockdata';
 
 const followUpsSlice = createSlice({
   name: 'followUps',
   initialState: {
-    followUps: INITIAL_FOLLOWUPS,
+    followUps: [],
     activeSiteVisit: null,
     showFeedback: null,
     loading: false,

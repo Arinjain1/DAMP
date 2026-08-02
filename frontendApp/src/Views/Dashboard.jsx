@@ -17,16 +17,13 @@ import {
   View,
   RefreshControl,
   Dimensions,
+  InteractionManager,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 import { dashboardAPI } from '../config/api';
 import {
-  INITIAL_CUSTOMERS,
-  INITIAL_DEALS,
-  INITIAL_FOLLOWUPS,
   INITIAL_PROFILE,
-  INITIAL_PROPERTIES,
 } from '../MockData/Mockdata';
 import Skeleton from '../Components/Skeleton';
 
@@ -126,9 +123,9 @@ const TaskCard = memo(({ task, customers }) => {
 TaskCard.displayName = 'TaskCard';
 
 const Dashboard = ({ 
-  properties = INITIAL_PROPERTIES, 
-  customers = INITIAL_CUSTOMERS, 
-  followUps = INITIAL_FOLLOWUPS, 
+  properties = [], 
+  customers = [], 
+  followUps = [], 
   onOpenCollab, 
   onOpenDeal, 
   onNavigate, 
@@ -146,7 +143,7 @@ const Dashboard = ({
   const { user, isAuthenticated } = useSelector(state => state.auth);
   const hasValidSession = isAuthenticated && !!user?.token;
 
-  const activeDeals = dashboardData?.active_deals || INITIAL_DEALS;
+  const activeDeals = dashboardData?.active_deals || [];
   const unreadCount = 2;
 
   // FIX: isBackground add kiya taaki skeleton bar bar na aaye
@@ -196,7 +193,10 @@ const Dashboard = ({
 
       // Agar data pehle se hai, toh background refresh karo
       if (dashboardData !== null) {
-        fetchDashboardData(true);
+        const task = InteractionManager.runAfterInteractions(() => {
+          fetchDashboardData(true);
+        });
+        return () => task.cancel();
       }
     }, [fetchDashboardData, dashboardData, hasValidSession])
   );
@@ -209,8 +209,8 @@ const Dashboard = ({
 
   const stats = dashboardData?.stats || {
     total_visitor: customers.length,
-    total_sale: INITIAL_DEALS.filter(d => d.stage === 'Completed').length,
-    pending: INITIAL_DEALS.filter(d => d.stage !== 'Completed').length,
+    total_sale: 0,
+    pending: 0,
     rejected: 0,
   };
 

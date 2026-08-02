@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { View } from 'react-native';
+import { View, InteractionManager } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
 import AddModal from '../src/Modal and Sheets/AddModal';
@@ -12,6 +12,7 @@ import {
   createCustomer,
   updateCustomer,
   updateCustomerStageAPI,
+  updateCustomerStage,
   updateCustomerProperties,
   deleteCustomer,
   clearSelectedCustomer, 
@@ -80,9 +81,11 @@ export default function Customers() {
     
     // Add focus listener to refresh data when returning to this screen
     const unsubscribe = router.addListener?.('focus', () => {
-      dispatch(fetchCustomers()); // Use Redux thunk
-      dispatch(fetchDeals()); // Using Redux thunk
-      fetchTasks();
+      InteractionManager.runAfterInteractions(() => {
+        dispatch(fetchCustomers()); // Use Redux thunk
+        dispatch(fetchDeals()); // Using Redux thunk
+        fetchTasks();
+      });
     });
     
     return unsubscribe;
@@ -321,13 +324,19 @@ export default function Customers() {
   }, [dispatch]);
 
   const handleUpdateStage = useCallback(async (id, stage) => {
+    const previousStage = selectedCustomer?.stage || 'New';
+    // 1. Optimistic Update (Immediate UI response)
+    dispatch(updateCustomerStage({ id, stage }));
+
     try {
+      // 2. Call API silently in background
       await dispatch(updateCustomerStageAPI({ id, stage })).unwrap();
-      dispatch(fetchCustomers()); // Refresh to sync with backend
     } catch (error) {
+      // 3. Rollback on failure
+      dispatch(updateCustomerStage({ id, stage: previousStage }));
       showToast.error(error || 'Failed to update stage');
     }
-  }, [dispatch]);
+  }, [dispatch, selectedCustomer]);
 
   const handleSelectProperties = useCallback(async (id, selectedProperties, interestedProperties, holdProperties) => {
     try {

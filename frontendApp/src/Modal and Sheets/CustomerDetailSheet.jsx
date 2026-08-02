@@ -70,6 +70,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
   const [isPropertyExpanded, setIsPropertyExpanded] = useState(openMapView);
   const [showAddFollowUpModal, setShowAddFollowUpModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [stageUpdating, setStageUpdating] = useState(false);
 
   // Fetch customer details on mount to get latest property selections
   useEffect(() => {
@@ -131,14 +132,14 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
   const handleProceedToNextStage = useCallback(async () => {
     if (nextStage && onUpdateStage) {
       try {
-        setLoading(true);
+        setStageUpdating(true);
         await onUpdateStage(customer.id, nextStage.id);
         showToast.success(`Moved to ${nextStage.label} stage!`);
       } catch (error) {
         console.error('Error updating stage:', error);
         showToast.error('Failed to update stage');
       } finally {
-        setLoading(false);
+        setStageUpdating(false);
       }
     }
   }, [customer.id, nextStage, onUpdateStage]);
@@ -370,7 +371,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
                 customer={customer}
                 selectedPropertyIds={selectedPropertyIds}
                 onProceed={handleProceedToNextStage}
-                loading={loading}
+                loading={stageUpdating}
                 styles={styles}
               />
             )}

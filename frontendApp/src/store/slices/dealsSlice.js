@@ -1,5 +1,4 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { INITIAL_DEALS } from '../../MockData/Mockdata';
 import { dealsAPI } from '../../config/api';
 
 // Async Thunks for API calls
@@ -131,7 +130,7 @@ export const updateDealStageAPI = createAsyncThunk(
 const dealsSlice = createSlice({
   name: 'deals',
   initialState: {
-    deals: INITIAL_DEALS,
+    deals: [],
     selectedDeal: null,
     loading: false,
     error: null,

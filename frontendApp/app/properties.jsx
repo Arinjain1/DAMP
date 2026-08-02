@@ -1,5 +1,5 @@
 import { useEffect, lazy, Suspense, useCallback } from 'react';
-import { StatusBar, View, ActivityIndicator } from 'react-native';
+import { StatusBar, View, ActivityIndicator, InteractionManager } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -44,7 +44,10 @@ export default function Properties() {
   // Refresh properties when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      dispatch(fetchProperties());
+      const task = InteractionManager.runAfterInteractions(() => {
+        dispatch(fetchProperties());
+      });
+      return () => task.cancel();
     }, [])
   );
 

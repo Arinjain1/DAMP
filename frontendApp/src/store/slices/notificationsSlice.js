@@ -1,11 +1,10 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { INITIAL_NOTIFICATIONS } from '../../MockData/Mockdata';
 
 const notificationsSlice = createSlice({
   name: 'notifications',
   initialState: {
-    notifications: INITIAL_NOTIFICATIONS,
-    unreadCount: INITIAL_NOTIFICATIONS.filter(n => !n.read).length,
+    notifications: [],
+    unreadCount: 0,
     loading: false,
     error: null,
   },

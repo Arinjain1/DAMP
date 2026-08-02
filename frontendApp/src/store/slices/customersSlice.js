@@ -1,5 +1,4 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { INITIAL_CUSTOMERS } from '../../MockData/Mockdata';
 import { customersAPI } from '../../config/api';
 
 // Async Thunks for API calls
@@ -193,7 +192,7 @@ export const deleteCustomer = createAsyncThunk(
 const customersSlice = createSlice({
   name: 'customers',
   initialState: {
-    customers: INITIAL_CUSTOMERS,
+    customers: [],
     selectedCustomer: null,
     loading: false,
     error: null,

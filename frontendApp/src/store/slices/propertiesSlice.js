@@ -1,5 +1,4 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { INITIAL_PROPERTIES } from '../../MockData/Mockdata';
 import { propertiesAPI } from '../../config/api';
 
 // Async Thunks for API calls
@@ -198,7 +197,7 @@ export const deleteProperty = createAsyncThunk(
 const propertiesSlice = createSlice({
   name: 'properties',
   initialState: {
-    properties: INITIAL_PROPERTIES,
+    properties: [],
     selectedProperty: null,
     loading: false,
     error: null,
