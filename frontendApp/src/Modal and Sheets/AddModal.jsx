@@ -1,25 +1,22 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import { Calendar, Check, ChevronDown, Clock, CloudUpload, X } from 'lucide-react-native';
-import * as LucideIcons from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Dimensions,
-    Image,
     KeyboardAvoidingView,
     Modal,
-    PanResponder,
     Platform,
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
 
 import Skeleton from '../Components/Skeleton';
-import { getAmenitiesForType } from '../MockData/Mockdata';
+import PropertyForm from './PropertyForm';
+import CustomerForm from './CustomerForm';
+import FollowUpForm from './FollowUpForm';
 
 const PROPERTY_STRUCTURE = {
     Residential: { types: ['Apartment/Flats', 'Builder Floor', 'House/Villa', 'Plot', 'Farmhouse', 'Other'] },
@@ -36,197 +33,7 @@ const INDIAN_STATES = [
     'Dadra and Nagar Haveli and Daman and Diu', 'Lakshadweep', 'Puducherry', 'Andaman and Nicobar Islands'
 ];
 
-// --- HELPER FUNCTION OUTSIDE COMPONENT ---
-const renderIcon = (iconName, size = 12, color = '#6b7280') => {
-    // eslint-disable-next-line import/namespace
-    const IconComponent = LucideIcons[iconName] || LucideIcons.Star;
-    return <IconComponent size={size} color={color} />;
-};
 
-const formatBudget = (amount) => {
-    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(1)}Cr`;
-    if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
-    if (amount >= 1000) return `₹${(amount / 1000).toFixed(0)}K`;
-    return `₹${amount.toLocaleString()}`;
-};
-
-// ==========================================
-// 🚀 MEMOIZED SUB-COMPONENTS (NO RE-RENDERS)
-// ==========================================
-
-const MemoizedTextInput = memo(function MemoizedTextInput({ label, name, value, onChange, placeholder, keyboardType, multiline, numberOfLines }) {
-    return (
-        <View style={styles.section}>
-            <Text style={styles.inputLabel}>{label}</Text>
-            <TextInput
-                value={value || ''}
-                onChangeText={(text) => onChange(name, text)}
-                placeholder={placeholder}
-                keyboardType={keyboardType || 'default'}
-                style={[styles.textInputStyled, multiline && styles.textAreaInput]}
-                multiline={multiline}
-                numberOfLines={numberOfLines}
-            />
-        </View>
-    );
-});
-
-const MemoizedRadioGroup = memo(function MemoizedRadioGroup({ label, name, options, selectedValue, onChange, isSmall }) {
-    return (
-        <View style={styles.section}>
-            <Text style={styles.inputLabel}>{label}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={isSmall ? styles.bhkScrollContainer : styles.listingTypeScrollContainer}>
-                {options.map((option) => {
-                    const isSelected = selectedValue === option;
-                    return (
-                        <TouchableOpacity key={option} onPress={() => onChange(name, option)} style={[styles.radioOption, isSelected && styles.radioOptionSelected]}>
-                            <View style={[isSmall ? styles.radioButtonSmall : styles.radioButton, isSelected ? styles.radioButtonSelected : styles.radioButtonUnselected]}>
-                                {isSelected && <View style={styles.radioButtonInner} />}
-                            </View>
-                            <Text style={[isSmall ? styles.radioTextSmall : styles.radioText, isSelected ? styles.radioTextSelected : styles.radioTextUnselected]}>{option}</Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </ScrollView>
-        </View>
-    );
-});
-
-const MemoizedPropertyTypeGroup = memo(function MemoizedPropertyTypeGroup({ category, selectedValue, onChange }) {
-    const types = PROPERTY_STRUCTURE[category]?.types || [];
-    return (
-        <View style={styles.section}>
-            <Text style={styles.inputLabel}>Property Type</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.propertyTypeScrollContainer}>
-                {types.map((propertyType) => {
-                    const isSelected = selectedValue === propertyType;
-                    const iconMap = { 'Apartment/Flats': 'Building', 'Builder Floor': 'Building2', 'House/Villa': 'Home', 'Plot/Land': 'MapPin', 'Farmhouse': 'TreePine', 'Office': 'Briefcase', 'Shop/Showroom': 'Store', 'Storage': 'Warehouse', 'Industry': 'Factory', 'Hospitality': 'Hotel', 'Farm Land': 'Wheat', 'Farm House': 'Barn', 'Other': 'MoreHorizontal' };
-                    const iconName = iconMap[propertyType] || 'Building';
-                    return (
-                        <TouchableOpacity key={propertyType} onPress={() => onChange('type', propertyType)} style={[styles.propertyTypeCardScroll, isSelected ? styles.propertyTypeCardSelected : styles.propertyTypeCardUnselected]}>
-                            <View style={styles.propertyTypeIconTop}>{renderIcon(iconName, 20, isSelected ? '#bfb7fd' : '#9ca3af')}</View>
-                            <Text style={[styles.propertyTypeTextBottom, isSelected ? styles.propertyTypeTextSelected : styles.propertyTypeTextUnselected]} numberOfLines={2}>{propertyType}</Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </ScrollView>
-        </View>
-    );
-});
-
-const MemoizedAmenities = memo(function MemoizedAmenities({ type, selectedAmenities, onChange }) {
-    const typeAmenities = getAmenitiesForType(type);
-    if (typeAmenities.length === 0) return <View style={styles.noAmenitiesContainer}><Text style={styles.noAmenitiesText}>No amenities available.</Text></View>;
-    
-    return (
-        <View style={styles.section}>
-            <Text style={styles.inputLabel}>Amenities</Text>
-            <View style={styles.amenityGrid}>
-                {typeAmenities.map((amenity) => {
-                    const isSelected = selectedAmenities?.includes(amenity.id);
-                    return (
-                        <TouchableOpacity key={amenity.id} onPress={() => {
-                            const current = selectedAmenities || [];
-                            onChange('amenities', isSelected ? current.filter(id => id !== amenity.id) : [...current, amenity.id]);
-                        }} style={[styles.amenityChipCompact, isSelected ? styles.amenityChipSelected : styles.amenityChipUnselected]}>
-                            {renderIcon(amenity.icon, 12, isSelected ? 'white' : '#6b7280')}
-                            <Text style={[styles.amenityTextCompact, isSelected ? styles.amenityTextSelected : styles.amenityTextUnselected]}>{amenity.name}</Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </View>
-        </View>
-    );
-});
-
-// ==========================================
-// 🚀 SMOOTH MEMOIZED SLIDER COMPONENT
-// ==========================================
-const MemoizedBudgetSlider = memo(function MemoizedBudgetSlider({ minLimit, maxLimit, initialMin, initialMax, onSlidingComplete }) {
-    const sliderWidth = Dimensions.get('window').width - 80;
-    const [localRange, setLocalRange] = useState({ min: initialMin, max: initialMax });
-    
-    const localRangeRef = useRef({ min: initialMin, max: initialMax });
-
-    useEffect(() => {
-        localRangeRef.current = { min: initialMin, max: initialMax };
-        setLocalRange({ min: initialMin, max: initialMax });
-    }, [initialMin, initialMax]);
-
-    const positionToBudget = useCallback((position) => {
-        const percentage = Math.max(0, Math.min(1, position / sliderWidth));
-        return minLimit + (percentage * (maxLimit - minLimit));
-    }, [sliderWidth, minLimit, maxLimit]);
-
-    const budgetToPosition = useCallback((budget) => {
-        const percentage = (budget - minLimit) / (maxLimit - minLimit);
-        return percentage * sliderWidth;
-    }, [minLimit, maxLimit, sliderWidth]);
-
-    const minPosRef = useRef(0);
-    const maxPosRef = useRef(0);
-
-    const updateRange = (type, value) => {
-        localRangeRef.current[type] = value;
-        setLocalRange({ ...localRangeRef.current });
-    };
-
-    const minPanResponder = useRef(PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => {
-            minPosRef.current = budgetToPosition(localRangeRef.current.min);
-        },
-        onPanResponderMove: (evt, gestureState) => {
-            const newPos = minPosRef.current + gestureState.dx;
-            const newBudget = Math.max(minLimit, Math.min(localRangeRef.current.max - 10000, positionToBudget(newPos)));
-            updateRange('min', newBudget);
-        },
-        onPanResponderRelease: () => {
-            onSlidingComplete(localRangeRef.current.min, localRangeRef.current.max);
-        }
-    })).current;
-
-    const maxPanResponder = useRef(PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => {
-            maxPosRef.current = budgetToPosition(localRangeRef.current.max);
-        },
-        onPanResponderMove: (evt, gestureState) => {
-            const newPos = maxPosRef.current + gestureState.dx;
-            const newBudget = Math.min(maxLimit, Math.max(localRangeRef.current.min + 10000, positionToBudget(newPos)));
-            updateRange('max', newBudget);
-        },
-        onPanResponderRelease: () => {
-            onSlidingComplete(localRangeRef.current.min, localRangeRef.current.max);
-        }
-    })).current;
-
-    const minPos = budgetToPosition(localRange.min);
-    const maxPos = budgetToPosition(localRange.max);
-    const trackWidth = Math.max(0, maxPos - minPos);
-
-    return (
-        <View style={styles.budgetContainer}>
-            <Text style={styles.budgetLabel}>{formatBudget(localRange.min)} - {formatBudget(localRange.max)}</Text>
-            <View style={styles.budgetSliderContainer}>
-                <View style={styles.budgetSlider}>
-                    <View style={styles.budgetSliderTrack} />
-                    <View style={[styles.budgetTrack, { left: minPos, width: trackWidth }]} />
-                    <View style={[styles.budgetThumbTouchArea, { left: minPos - 20 }]} {...minPanResponder.panHandlers}>
-                        <View style={styles.budgetThumb} />
-                    </View>
-                    <View style={[styles.budgetThumbTouchArea, { left: maxPos - 20 }]} {...maxPanResponder.panHandlers}>
-                        <View style={styles.budgetThumb} />
-                    </View>
-                </View>
-            </View>
-            <View style={styles.budgetRangeLabels}>
-                <Text style={styles.budgetRangeText}>{formatBudget(minLimit)}</Text>
-                <Text style={styles.budgetRangeText}>{formatBudget(maxLimit)}+</Text>
-            </View>
-        </View>
-    );
-});
 
 // ==========================================
 // MAIN COMPONENT
@@ -480,333 +287,52 @@ const AddModal = ({
 
                                 <ScrollView ref={scrollViewRef} className="flex-1 px-6 pt-4" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                                     {type === 'Property' && (
-                                        <View style={styles.formContainer}>
-                                            <MemoizedRadioGroup label="Listing Type" name="listingType" options={['Sell', 'Rent']} selectedValue={formData.listingType} onChange={handleChange} />
-                                            <MemoizedRadioGroup label="Property Category" name="category" options={Object.keys(PROPERTY_STRUCTURE)} selectedValue={formData.category} onChange={handleChange} />
-                                            <MemoizedPropertyTypeGroup category={formData.category} selectedValue={formData.type} onChange={handleChange} />
-                                            
-                                            {formData.category === 'Residential' && ['Apartment/Flats', 'Builder Floor', 'House/Villa'].includes(formData.type) && (
-                                                <MemoizedRadioGroup label="Configuration" name="bhk" options={['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK']} selectedValue={formData.bhk} onChange={handleChange} isSmall />
-                                            )}
-
-                                            {formData.category === 'Commercial' && (
-                                                <MemoizedRadioGroup label="Configuration" name="commercialConfig" selectedValue={formData.commercialConfig} onChange={handleChange} isSmall
-                                                    options={
-                                                        formData.type === 'Office' ? ['Co-working Space', 'Bareshell Office', 'Ready to Move Office'] :
-                                                        formData.type === 'Shop/Showroom' ? ['Shop', 'Showroom', 'Retail Space'] :
-                                                        formData.type === 'Storage' ? ['Cold Storage', 'Warehouse', 'Godown'] :
-                                                        formData.type === 'Industry' ? ['Manufacturing', 'Factory', 'Industrial Unit'] :
-                                                        formData.type === 'Hospitality' ? ['Guesthouse', 'Banquet Halls', 'Hotels/Resorts'] : []
-                                                    }
-                                                />
-                                            )}
-
-                                            {((formData.category === 'Residential' && !['Plot', 'Farmhouse'].includes(formData.type)) || 
-                                              (formData.category === 'Commercial' && ['Office', 'Shop/Showroom'].includes(formData.type) && formData.commercialConfig !== 'Bareshell Office')) && (
-                                                <MemoizedRadioGroup label="Furnishing" name="furnishing" options={['Unfurnished', 'Semi', 'Furnished']} selectedValue={formData.furnishing} onChange={handleChange} isSmall />
-                                            )}
-
-                                            {/* State Dropdown */}
-                                            <View style={styles.section}>
-                                                <Text style={styles.inputLabel}>State*</Text>
-                                                <TouchableOpacity style={styles.dropdownButton} onPress={() => setShowStateDropdown(!showStateDropdown)}>
-                                                    <Text style={[styles.dropdownPlaceholder, formData.state && styles.dropdownSelected]}>{formData.state || 'Select state'}</Text>
-                                                    <ChevronDown size={16} color="#9ca3af" />
-                                                </TouchableOpacity>
-                                                {showStateDropdown && (
-                                                    <View style={styles.stateDropdown}>
-                                                        <ScrollView style={styles.stateScrollView} nestedScrollEnabled={true} keyboardShouldPersistTaps="handled">
-                                                            {INDIAN_STATES.map((state) => (
-                                                                <TouchableOpacity key={state} style={styles.stateItem} onPress={() => { handleChange('state', state); setShowStateDropdown(false); }}>
-                                                                    <Text style={styles.stateText}>{state}</Text>
-                                                                </TouchableOpacity>
-                                                            ))}
-                                                        </ScrollView>
-                                                    </View>
-                                                )}
-                                            </View>
-
-                                            <MemoizedTextInput label="City*" name="city" value={formData.city} onChange={handleChange} placeholder="Enter city" />
-
-                                            {/* Location Search */}
-                                            <View style={[styles.section, { zIndex: 2000 }]}>
-                                                <Text style={styles.inputLabel}>Property Location*</Text>
-                                                <View style={styles.locationContainer}>
-                                                    <TextInput value={formData.location || ''} onChangeText={(text) => handleChange('location', text)} placeholder="Enter property location" style={styles.textInputStyled} />
-                                                    
-                                                    {locationLoading && (
-                                                        <View style={styles.locationDropdown}>
-                                                            <Text style={{ padding: 12, color: '#6b7280', fontSize: 14 }}>Searching...</Text>
-                                                        </View>
-                                                    )}
-
-                                                    {showLocationDropdown && locationSuggestions.length > 0 && !locationLoading && (
-                                                        <View style={styles.locationDropdown}>
-                                                            {locationSuggestions.map((loc) => (
-                                                                <TouchableOpacity key={loc.id} onPress={() => selectLocation(loc)} style={styles.locationItem}>
-                                                                    <View style={styles.locationIcon}><LucideIcons.MapPin size={16} color="#6b7280" /></View>
-                                                                    <View style={styles.locationDetails}>
-                                                                        <Text style={styles.locationMainText}>{loc.main_text}</Text>
-                                                                        {loc.secondary_text && <Text style={styles.locationSecondaryText}>{loc.secondary_text}</Text>}
-                                                                    </View>
-                                                                </TouchableOpacity>
-                                                            ))}
-                                                        </View>
-                                                    )}
-                                                </View>
-                                            </View>
-
-                                            <MemoizedTextInput label="Project or Society Name" name="title" value={formData.title} onChange={handleChange} placeholder="Name of project/society" />
-                                            <MemoizedTextInput label="Address*" name="owner" value={formData.owner} onChange={handleChange} placeholder="Complete address" />
-
-                                            {/* Price Input */}
-                                            <View style={styles.section}>
-                                                <Text style={styles.inputLabel}>Price</Text>
-                                                <View style={styles.rowInputs}>
-                                                    <View style={styles.priceInputContainer}>
-                                                        <TextInput keyboardType="numeric" value={String(formData.priceValue || '')} onChangeText={(t) => handleChange('priceValue', t)} placeholder="Enter price" style={styles.textInputStyled} />
-                                                    </View>
-                                                    <View style={styles.priceUnitContainer}>
-                                                        <TouchableOpacity style={styles.dropdownStyled} onPress={() => setShowPriceUnitPicker(!showPriceUnitPicker)}>
-                                                            <Text style={formData.priceUnit ? styles.dropdownSelected : styles.dropdownPlaceholder}>{formData.priceUnit || 'Unit'}</Text>
-                                                            <ChevronDown size={18} color="#9ca3af" />
-                                                        </TouchableOpacity>
-                                                        {showPriceUnitPicker && (
-                                                            <View style={styles.dropdownOptions}>
-                                                                {['Thousands', 'Lakh', 'Crore'].map((unit) => (
-                                                                    <TouchableOpacity key={unit} style={styles.dropdownOption} onPress={() => { handleChange('priceUnit', unit); setShowPriceUnitPicker(false); }}>
-                                                                        <Text style={styles.dropdownOptionText}>{unit}</Text>
-                                                                    </TouchableOpacity>
-                                                                ))}
-                                                            </View>
-                                                        )}
-                                                    </View>
-                                                </View>
-                                            </View>
-
-                                            {formData.listingType === 'Rent' && <MemoizedTextInput label="Bond" name="bond" value={String(formData.bond || '')} onChange={handleChange} placeholder="Enter bond" keyboardType="numeric" />}
-
-                                            {/* Size Input */}
-                                            <View style={styles.section}>
-                                                <Text style={styles.inputLabel}>Size</Text>
-                                                <View style={styles.rowInputs}>
-                                                    <View style={styles.priceInputContainer}>
-                                                        <TextInput keyboardType="numeric" value={String(formData.sizeValue || '')} onChangeText={(t) => handleChange('sizeValue', t)} placeholder="Enter size" style={styles.textInputStyled} />
-                                                    </View>
-                                                    <View style={styles.priceUnitContainer}>
-                                                        <TouchableOpacity style={styles.dropdownStyled} onPress={() => setShowSizeUnitPicker(!showSizeUnitPicker)}>
-                                                            <Text style={formData.sizeUnit ? styles.dropdownSelected : styles.dropdownPlaceholder}>{formData.sizeUnit || 'Unit'}</Text>
-                                                            <ChevronDown size={18} color="#9ca3af" />
-                                                        </TouchableOpacity>
-                                                        {showSizeUnitPicker && (
-                                                            <View style={styles.dropdownOptions}>
-                                                                <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
-                                                                    {['Sq. Ft.', 'Sq. M.', 'Sq. Yd.', 'Acre', 'Hectare'].map((unit) => (
-                                                                        <TouchableOpacity key={unit} style={styles.dropdownOption} onPress={() => { handleChange('sizeUnit', unit); setShowSizeUnitPicker(false); }}>
-                                                                            <Text style={styles.dropdownOptionText}>{unit}</Text>
-                                                                        </TouchableOpacity>
-                                                                    ))}
-                                                                </ScrollView>
-                                                            </View>
-                                                        )}
-                                                    </View>
-                                                </View>
-                                            </View>
-
-                                            <MemoizedTextInput label="Owner Name" name="ownerName" value={formData.ownerName} onChange={handleChange} placeholder="Property Owner Name" />
-                                            <MemoizedTextInput label="Owner Phone" name="ownerPhone" value={formData.ownerPhone} onChange={handleChange} placeholder="Owner Phone Number" keyboardType="phone-pad" />
-
-                                            {/* Image Upload */}
-                                            <View style={styles.section}>
-                                                <Text style={styles.inputLabel}>Property Image</Text>
-                                                <TouchableOpacity onPress={pickImage} style={[styles.imageUpload, formData.image ? styles.imageUploaded : styles.imageEmpty]}>
-                                                    {formData.image ? <Image source={{ uri: formData.image }} style={styles.uploadedImage} /> : (
-                                                        <View style={styles.uploadPlaceholder}>
-                                                            <View style={styles.uploadIconContainer}><CloudUpload size={24} color="#9ca3af" /></View>
-                                                            <Text style={styles.uploadText}>Upload Image</Text>
-                                                        </View>
-                                                    )}
-                                                </TouchableOpacity>
-                                            </View>
-
-                                            <MemoizedAmenities type={formData.type} selectedAmenities={formData.amenities} onChange={handleChange} />
-                                            <MemoizedTextInput label="Details" name="details" value={formData.details} onChange={handleChange} placeholder="Add property detail here..." multiline numberOfLines={4} />
-                                        </View>
+                                        <PropertyForm
+                                            formData={formData}
+                                            handleChange={handleChange}
+                                            styles={styles}
+                                            PROPERTY_STRUCTURE={PROPERTY_STRUCTURE}
+                                            INDIAN_STATES={INDIAN_STATES}
+                                            showStateDropdown={showStateDropdown}
+                                            setShowStateDropdown={setShowStateDropdown}
+                                            showPriceUnitPicker={showPriceUnitPicker}
+                                            setShowPriceUnitPicker={setShowPriceUnitPicker}
+                                            showSizeUnitPicker={showSizeUnitPicker}
+                                            setShowSizeUnitPicker={setShowSizeUnitPicker}
+                                            pickImage={pickImage}
+                                            locationSuggestions={locationSuggestions}
+                                            locationLoading={locationLoading}
+                                            showLocationDropdown={showLocationDropdown}
+                                            selectLocation={selectLocation}
+                                        />
                                     )}
 
                                     {type === 'Customer' && (
-                                        <View style={styles.formContainer}>
-                                            <MemoizedRadioGroup label="Property Requirements" name="listingType" options={['Buy', 'Rent/Lease']} selectedValue={formData.listingType} onChange={handleChange} />
-                                            <MemoizedRadioGroup label="What Kind of Property?" name="category" options={Object.keys(PROPERTY_STRUCTURE)} selectedValue={formData.category} onChange={handleChange} />
-                                            <MemoizedPropertyTypeGroup category={formData.category} selectedValue={formData.type} onChange={handleChange} />
-
-                                            {formData.category === 'Residential' && ['Apartment/Flats', 'Builder Floor', 'House/Villa'].includes(formData.type) && (
-                                                <MemoizedRadioGroup label="Configuration" name="bhk" options={['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK']} selectedValue={formData.bhk} onChange={handleChange} isSmall />
-                                            )}
-
-                                            {formData.category === 'Commercial' && (
-                                                <MemoizedRadioGroup label="Configuration" name="commercialConfig" selectedValue={formData.commercialConfig} onChange={handleChange} isSmall
-                                                    options={
-                                                        formData.type === 'Office' ? ['Co-working Space', 'Bareshell Office', 'Ready to Move Office'] :
-                                                        formData.type === 'Shop/Showroom' ? ['Shop', 'Showroom', 'Retail Space'] :
-                                                        formData.type === 'Storage' ? ['Cold Storage', 'Warehouse', 'Godown'] :
-                                                        formData.type === 'Industry' ? ['Manufacturing', 'Factory', 'Industrial Unit'] :
-                                                        formData.type === 'Hospitality' ? ['Guesthouse', 'Banquet Halls', 'Hotels/Resorts'] : []
-                                                    }
-                                                />
-                                            )}
-
-                                            {((formData.category === 'Residential' && !['Plot', 'Farmhouse'].includes(formData.type)) || 
-                                              (formData.category === 'Commercial' && ['Office', 'Shop/Showroom'].includes(formData.type) && formData.commercialConfig !== 'Bareshell Office')) && (
-                                                <MemoizedRadioGroup label="Furnishing" name="furnishing" options={['Unfurnished', 'Semi', 'Furnished']} selectedValue={formData.furnishing} onChange={handleChange} isSmall />
-                                            )}
-
-                                            <MemoizedTextInput label="Customer Name" name="name" value={formData.name} onChange={handleChange} placeholder="Enter customer name" />
-                                            <MemoizedTextInput label="Contact Number" name="phone" value={formData.phone} onChange={handleChange} placeholder="Enter contact number" keyboardType="phone-pad" />
-                                            <MemoizedTextInput label="Preferred Location" name="preferredLocation" value={formData.preferredLocation} onChange={handleChange} placeholder="Select preferred location" />
-
-                                            {/* Budget Range - Optimized */}
-                                            <View style={styles.section}>
-                                                <Text style={styles.inputLabel}>Budget Range</Text>
-                                                <MemoizedBudgetSlider
-                                                    minLimit={10000}
-                                                    maxLimit={100000000}
-                                                    initialMin={budgetRange.min}
-                                                    initialMax={budgetRange.max}
-                                                    onSlidingComplete={(min, max) => setBudgetRange({ min, max })}
-                                                />
-                                            </View>
-
-                                            <MemoizedTextInput label="Notes" name="note" value={formData.note} onChange={handleChange} placeholder="Add task details..." multiline numberOfLines={4} />
-                                        </View>
+                                        <CustomerForm
+                                            formData={formData}
+                                            handleChange={handleChange}
+                                            styles={styles}
+                                            PROPERTY_STRUCTURE={PROPERTY_STRUCTURE}
+                                            budgetRange={budgetRange}
+                                            setBudgetRange={setBudgetRange}
+                                        />
                                     )}
 
                                     {type === 'FollowUp' && (
-                                        <View style={styles.formContainer}>
-                                            {/* Customer Selection */}
-                                            <View style={styles.section}>
-                                                <Text style={styles.inputLabel}>Customer</Text>
-                                                <TouchableOpacity
-                                                    style={[styles.dropdownButton, initialCustomer && { backgroundColor: '#f9fafb' }]}
-                                                    onPress={() => !initialCustomer && setShowCustomerDropdown(!showCustomerDropdown)}
-                                                >
-                                                    <Text style={formData.customerId ? styles.dropdownSelected : styles.dropdownPlaceholder}>
-                                                        {customers.find(c => c.id === formData.customerId)?.name || 'Select Customer'}
-                                                    </Text>
-                                                    {!initialCustomer && <ChevronDown size={18} color="#9ca3af" />}
-                                                </TouchableOpacity>
-
-                                                {showCustomerDropdown && (
-                                                    <View style={styles.customerDropdown}>
-                                                        <ScrollView style={styles.customerScrollView} nestedScrollEnabled={true} keyboardShouldPersistTaps="handled">
-                                                            {customers.map((customer) => (
-                                                                <TouchableOpacity
-                                                                    key={customer.id}
-                                                                    style={styles.customerItem}
-                                                                    onPress={() => {
-                                                                        handleChange('customerId', customer.id);
-                                                                        setShowCustomerDropdown(false);
-                                                                    }}
-                                                                >
-                                                                    <View style={styles.customerItemContent}>
-                                                                        <Text style={styles.customerText}>{customer.name}</Text>
-                                                                        {customer.phone && (
-                                                                            <Text style={styles.customerSubText}>{customer.phone}</Text>
-                                                                        )}
-                                                                    </View>
-                                                                </TouchableOpacity>
-                                                            ))}
-                                                        </ScrollView>
-                                                    </View>
-                                                )}
-                                            </View>
-
-                                            {/* Task Type */}
-                                            <MemoizedRadioGroup label="Task Type" name="type" options={['Call', 'Meeting', 'Site Visit', 'Follow-up']} selectedValue={formData.type} onChange={handleChange} />
-
-                                            {/* Date and Time */}
-                                            <View style={styles.section}>
-                                                <Text style={styles.inputLabel}>Schedule</Text>
-                                                <View style={styles.rowContainer}>
-                                                    <TouchableOpacity style={[styles.halfWidth, styles.dropdownButton]} onPress={() => setShowDatePicker(true)}>
-                                                        <Text style={styles.dropdownSelected}>
-                                                            {new Date(formData.date || Date.now()).toLocaleDateString()}
-                                                        </Text>
-                                                        <Calendar size={16} color="#bfb7fd" />
-                                                    </TouchableOpacity>
-
-                                                    <TouchableOpacity style={[styles.halfWidth, styles.dropdownButton]} onPress={() => setShowTimePicker(true)}>
-                                                        <Text style={styles.dropdownSelected}>
-                                                            {new Date(formData.date || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </Text>
-                                                        <Clock size={16} color="#bfb7fd" />
-                                                    </TouchableOpacity>
-                                                </View>
-                                            </View>
-
-                                            {/* Properties (Optional) */}
-                                            <View style={styles.section}>
-                                                <Text style={styles.inputLabel}>Related Properties (Optional)</Text>
-                                                <TouchableOpacity style={styles.dropdownButton} onPress={() => setShowPropertyDropdown(!showPropertyDropdown)}>
-                                                    <Text style={formData.propertyIds?.length > 0 ? styles.dropdownSelected : styles.dropdownPlaceholder}>
-                                                        {formData.propertyIds?.length > 0
-                                                            ? `${formData.propertyIds.length} ${formData.propertyIds.length === 1 ? 'property' : 'properties'} selected`
-                                                            : 'Select properties'}
-                                                    </Text>
-                                                    <ChevronDown size={18} color="#9ca3af" />
-                                                </TouchableOpacity>
-
-                                                {showPropertyDropdown && (
-                                                    <View style={styles.propertyDropdown}>
-                                                        <ScrollView style={styles.propertyScrollView} nestedScrollEnabled={true} keyboardShouldPersistTaps="handled">
-                                                            {properties.map((property) => {
-                                                                const isSelected = formData.propertyIds?.includes(property.id);
-                                                                return (
-                                                                    <TouchableOpacity
-                                                                        key={property.id}
-                                                                        style={styles.propertyItem}
-                                                                        onPress={() => {
-                                                                            const currentIds = formData.propertyIds || [];
-                                                                            const newIds = isSelected
-                                                                                ? currentIds.filter(id => id !== property.id)
-                                                                                : [...currentIds, property.id];
-                                                                            handleChange('propertyIds', newIds);
-                                                                        }}
-                                                                    >
-                                                                        <View style={styles.propertyItemContent}>
-                                                                            <Text style={styles.propertyText}>{property.title}</Text>
-                                                                            {isSelected && <Check size={16} color="#bfb7fd" />}
-                                                                        </View>
-                                                                    </TouchableOpacity>
-                                                                );
-                                                            })}
-                                                        </ScrollView>
-                                                    </View>
-                                                )}
-
-                                                {/* Selected Properties Grid */}
-                                                {formData.propertyIds?.length > 0 && (
-                                                    <View style={{ marginTop: 12, gap: 8 }}>
-                                                        {properties.filter(p => formData.propertyIds.includes(p.id)).map((property) => (
-                                                            <View key={property.id} style={{ backgroundColor: '#f9fafb', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#e5e7eb', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                                <View style={{ flex: 1 }}>
-                                                                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 2 }}>{property.title}</Text>
-                                                                    <Text style={{ fontSize: 12, color: '#6b7280' }}>{property.location}</Text>
-                                                                </View>
-                                                                <TouchableOpacity onPress={() => {
-                                                                    const newIds = formData.propertyIds.filter(id => id !== property.id);
-                                                                    handleChange('propertyIds', newIds);
-                                                                }} style={{ backgroundColor: '#fee2e2', borderRadius: 8, padding: 6 }}>
-                                                                    <X size={16} color="#dc2626" />
-                                                                </TouchableOpacity>
-                                                            </View>
-                                                        ))}
-                                                    </View>
-                                                )}
-                                            </View>
-
-                                            <MemoizedTextInput label="Notes" name="note" value={formData.note} onChange={handleChange} placeholder="Add task details..." multiline numberOfLines={4} />
-                                        </View>
+                                        <FollowUpForm
+                                            formData={formData}
+                                            handleChange={handleChange}
+                                            styles={styles}
+                                            customers={customers}
+                                            properties={properties}
+                                            showCustomerDropdown={showCustomerDropdown}
+                                            setShowCustomerDropdown={setShowCustomerDropdown}
+                                            showPropertyDropdown={showPropertyDropdown}
+                                            setShowPropertyDropdown={setShowPropertyDropdown}
+                                            setShowDatePicker={setShowDatePicker}
+                                            setShowTimePicker={setShowTimePicker}
+                                            initialCustomer={initialCustomer}
+                                        />
                                     )}
 
                                     {/* Date Time Pickers */}

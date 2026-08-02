@@ -1,37 +1,28 @@
 import {
-  BadgeIndianRupee,
-  Check,
-  ChevronRight,
-  CircleCheckBig,
   Clock,
-  Edit3,
-  FileText,
-  Handshake,
-  MapPin,
-  MessageCircle,
-  Phone,
   Plus,
-  Search,
-  ThumbsDown,
-  ThumbsUp,
-  Trash2,
-  Users,
-  X
+  MapPin,
+  ChevronRight,
+  CircleCheckBig
 } from 'lucide-react-native';
 import CustomerHeader from '../Components/CustomerHeader';
 import StageIndicator from '../Components/CustomerDetailComponents/StageIndicator';
 import PropertyListItem from '../Components/CustomerDetailComponents/PropertyListItem';
-import { useState, useEffect } from 'react';
+import PropertyCard from '../Components/PropertyCard';
+import PropertyPickerModal from '../Components/PropertyPickerModal';
+import NextStepCard from '../Components/NextStepCard';
+import ContactCard from '../Components/ContactCard';
+import TaskCard from '../Components/CustomerDetailComponents/TaskCard';
+import { useState, useEffect, memo, useMemo, useCallback } from 'react';
 import { useSelector } from 'react-redux';
+import { Image } from 'expo-image';
 import {
-  Image,
   Linking,
   Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
   Alert
@@ -54,22 +45,6 @@ const SALES_STAGES = [
   { id: 'Completed', label: 'Completed', icon: 'CircleCheckBig' },
 ];
 
-// Icon mapping
-const getStageIcon = (iconName, size, color) => {
-  const icons = {
-    Check: <Check size={size} color={color} />,
-    Phone: <Phone size={size} color={color} />,
-    ThumbsUp: <ThumbsUp size={size} color={color} />,
-    MapPin: <MapPin size={size} color={color} />,
-    Users: <Users size={size} color={color} />,
-    Handshake: <Handshake size={size} color={color} />,
-    BadgeIndianRupee: <BadgeIndianRupee size={size} color={color} />,
-    FileText: <FileText size={size} color={color} />,
-    CircleCheckBig: <CircleCheckBig size={size} color={color} />,
-  };
-  return icons[iconName] || <Check size={size} color={color} />;
-};
-
 // StageIndicator component is now imported
 
 // Helper for currency formatting
@@ -90,7 +65,6 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
   const [selectedPropertyIds, setSelectedPropertyIds] = useState(customer.selectedProperties || []);
   const [interestedPropertyIds, setInterestedPropertyIds] = useState(customer.interestedProperties || []);
   const [holdPropertyIds, setHoldPropertyIds] = useState(customer.holdProperties || []);
-  const [searchQuery, setSearchQuery] = useState('');
   const [showMapView, setShowMapView] = useState(openMapView);
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
   const [isPropertyExpanded, setIsPropertyExpanded] = useState(openMapView);
@@ -141,20 +115,20 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
     fetchCustomerDetails();
   }, [customer?.id, customer.selectedProperties, customer.interestedProperties, customer.holdProperties]);
 
-  // Reset search query when property picker opens
-  const handleOpenPropertyPicker = () => {
-    setSearchQuery('');
+  const handleOpenPropertyPicker = useCallback(() => {
     setShowPropertyPicker(true);
-  };
+  }, []);
 
-  if (!customer) return null;
+  const handleTaskNavigateMultiple = useCallback((task) => {
+    setShowMapView(true);
+  }, []);
 
   const currentStageIndex = SALES_STAGES.findIndex(s => s.id === (customer.stage || 'New'));
   const nextStage = currentStageIndex < SALES_STAGES.length - 1 ? SALES_STAGES[currentStageIndex + 1] : null;
 
   const showNextStepCard = nextStage && (customer.stage === 'New' || customer.stage === 'Contacted');
 
-  const handleProceedToNextStage = async () => {
+  const handleProceedToNextStage = useCallback(async () => {
     if (nextStage && onUpdateStage) {
       try {
         setLoading(true);
@@ -167,9 +141,9 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
         setLoading(false);
       }
     }
-  };
+  }, [customer.id, nextStage, onUpdateStage]);
 
-  const handleToggleProperty = async (propertyId) => {
+  const handleToggleProperty = useCallback(async (propertyId) => {
     const newSelection = selectedPropertyIds.includes(propertyId)
       ? selectedPropertyIds.filter(id => id !== propertyId)
       : [...selectedPropertyIds, propertyId];
@@ -192,9 +166,27 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
       // Revert on error
       setSelectedPropertyIds(selectedPropertyIds);
     }
-  };
+  }, [customer.id, selectedPropertyIds, onSelectProperties]);
 
-  const handlePropertyInterested = async (propertyId) => {
+  const customerTasks = useMemo(() => {
+    return followUps.filter(f => f.customerId === customer.id);
+  }, [followUps, customer.id]);
+
+  const customerDeals = useMemo(() => {
+    return activeDeals.filter(d => d.customerId === customer.id);
+  }, [activeDeals, customer.id]);
+
+  const dealtPropertyIds = useMemo(() => {
+    return customerDeals.map(d => d.propertyId);
+  }, [customerDeals]);
+
+  const propertiesToShow = useMemo(() => {
+    return customer.stage === 'Interested'
+      ? interestedPropertyIds.filter(id => !holdPropertyIds.includes(id))
+      : selectedPropertyIds.filter(id => !holdPropertyIds.includes(id));
+  }, [customer.stage, interestedPropertyIds, selectedPropertyIds, holdPropertyIds]);
+
+  const handlePropertyInterested = useCallback(async (propertyId) => {
     try {
       // Get the current site visit task for this customer
       const siteVisitTask = customerTasks.find(t =>
@@ -250,9 +242,9 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
       console.error('Error submitting interested feedback:', error);
       showToast.error('Failed to submit feedback. Please try again.');
     }
-  };
+  }, [customer.id, customerTasks, interestedPropertyIds, selectedPropertyIds, onSelectProperties, currentPropertyIndex]);
 
-  const handlePropertyNotInterested = async (propertyId) => {
+  const handlePropertyNotInterested = useCallback(async (propertyId) => {
     try {
       // Get the current site visit task for this customer
       const siteVisitTask = customerTasks.find(t =>
@@ -300,9 +292,9 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
       console.error('Error submitting not interested feedback:', error);
       showToast.error('Failed to submit feedback. Please try again.');
     }
-  };
+  }, [customer.id, customerTasks, selectedPropertyIds, interestedPropertyIds, onSelectProperties, currentPropertyIndex]);
 
-  const handlePropertyHold = async (propertyId) => {
+  const handlePropertyHold = useCallback(async (propertyId) => {
     try {
       // Get the current site visit task for this customer
       const siteVisitTask = customerTasks.find(t =>
@@ -342,17 +334,9 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
       console.error('Error submitting hold feedback:', error);
       showToast.error('Failed to submit feedback. Please try again.');
     }
-  };
+  }, [customer.id, customerTasks, holdPropertyIds, selectedPropertyIds, interestedPropertyIds, onSelectProperties]);
 
-  const customerDeals = activeDeals.filter(d => d.customerId === customer.id);
-  const dealtPropertyIds = customerDeals.map(d => d.propertyId);
-  const customerTasks = followUps.filter(f => f.customerId === customer.id);
-
-  // Determine which properties to show based on stage
-  // Filter out hold properties from the active list
-  const propertiesToShow = customer.stage === 'Interested'
-    ? interestedPropertyIds.filter(id => !holdPropertyIds.includes(id))
-    : selectedPropertyIds.filter(id => !holdPropertyIds.includes(id));
+  if (!customer) return null;
 
   return (
     <Modal
@@ -381,62 +365,22 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
 
             {/* --- UPDATED NEXT STEP CARD (Vertical Layout + Full Width Button) --- */}
             {showNextStepCard && (
-              <View style={styles.nextStepCard}>
-                <View style={styles.nextStepInfo}>
-                  <Text style={styles.nextStepLabel}>NEXT STEP</Text>
-                  <Text style={styles.nextStepTitle}>Move to {nextStage.label}</Text>
-                  <Text style={styles.nextStepSub}>Advance stage to track progress.</Text>
-                </View>
-
-                <TouchableOpacity
-                  style={[
-                    styles.proceedButton,
-                    (customer.stage === 'Contacted' && selectedPropertyIds.length === 0) && styles.proceedButtonDisabled,
-                    loading && styles.proceedButtonDisabled
-                  ]}
-                  onPress={handleProceedToNextStage}
-                  activeOpacity={0.9}
-                  disabled={(customer.stage === 'Contacted' && selectedPropertyIds.length === 0) || loading}
-                >
-                  <Text style={styles.proceedButtonText}>
-                    {loading ? 'Processing...' : `Proceed to ${nextStage.label}`}
-                  </Text>
-                  {!loading && <ChevronRight size={16} color="white" />}
-                </TouchableOpacity>
-              </View>
+              <NextStepCard
+                nextStage={nextStage}
+                customer={customer}
+                selectedPropertyIds={selectedPropertyIds}
+                onProceed={handleProceedToNextStage}
+                loading={loading}
+                styles={styles}
+              />
             )}
 
             {/* Customer Contact Card - Show only for New stage */}
             {customer.stage === 'New' && (
-              <View style={styles.section}>
-                <View style={styles.contactCard}>
-                  <View style={styles.contactInfoSection}>
-                    <View style={styles.contactAvatar}>
-                      <Text style={styles.contactAvatarText}>{customer.name.charAt(0)}</Text>
-                    </View>
-                    <View style={styles.contactDetails}>
-                      <Text style={styles.contactName}>{customer.name}</Text>
-                      <Text style={styles.contactPhone}>{customer.phone}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.contactButtonRow}>
-                    <TouchableOpacity
-                      style={styles.contactActionBtn}
-                      onPress={() => Linking.openURL(`tel:${customer.phone}`)}
-                    >
-                      <Phone size={18} color="#16a34a" />
-                      <Text style={styles.contactActionText}>Call</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.contactActionBtn}
-                      onPress={() => Linking.openURL(`https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}`)}
-                    >
-                      <MessageCircle size={18} color="#25D366" />
-                      <Text style={styles.contactActionText}>WhatsApp</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
+              <ContactCard
+                customer={customer}
+                styles={styles}
+              />
             )}
 
             {/* Select Properties Section - Show only for Contacted stage */}
@@ -521,66 +465,16 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
                       const hasDeal = dealtPropertyIds.includes(prop.id);
 
                       return (
-                        <View key={prop.id} style={styles.matchCard}>
-                          <Image source={{ uri: prop.image }} style={styles.matchImg} />
-                          <View style={styles.matchContent}>
-                            <View>
-                              <Text style={styles.matchTitle} numberOfLines={1}>{prop.title}</Text>
-                              <View style={styles.rowCenter}>
-                                <MapPin size={12} color="#9ca3af" />
-                                <Text style={styles.matchLoc} numberOfLines={1}>{prop.location}</Text>
-                              </View>
-                            </View>
-
-                            <View style={styles.matchFooter}>
-                              <Text style={styles.matchPrice}>{formatCurrency(prop.price)}</Text>
-                              {!hasDeal ? (
-                                <TouchableOpacity
-                                  onPress={() => {
-                                    if (customer.stage === 'Interested') {
-                                      // Show confirmation alert before starting deal
-                                      Alert.alert(
-                                        '🤝 Start Deal',
-                                        `Are you sure you want to start a deal for "${prop.title}" with ${customer.name}?\n\nThis will move the customer to In-Process stage.`,
-                                        [
-                                          {
-                                            text: 'Cancel',
-                                            style: 'cancel'
-                                          },
-                                          {
-                                            text: 'Yes, Start Deal',
-                                            onPress: () => {
-                                              onStartDeal(customer, prop);
-                                              if (onUpdateStage) {
-                                                onUpdateStage(customer.id, 'In-Process');
-                                              }
-                                            }
-                                          }
-                                        ]
-                                      );
-                                    } else {
-                                      // Open Google Maps for other stages
-                                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
-                                    }
-                                  }}
-                                  style={styles.visitBtn}
-                                >
-                                  {customer.stage !== 'Interested' && (
-                                    <MapPin size={14} color="white" />
-                                  )}
-                                  <Text style={styles.visitBtnText}>
-                                    {customer.stage === 'Interested' ? 'Start Deal' : 'Visit'}
-                                  </Text>
-                                </TouchableOpacity>
-                              ) : (
-                                <View style={styles.dealStartedBadge}>
-                                  <CircleCheckBig size={12} color="#059669" />
-                                  <Text style={styles.dealStartedText}>Deal Started</Text>
-                                </View>
-                              )}
-                            </View>
-                          </View>
-                        </View>
+                        <PropertyCard
+                          key={prop.id}
+                          property={prop}
+                          customer={customer}
+                          hasDeal={hasDeal}
+                          onStartDeal={onStartDeal}
+                          onUpdateStage={onUpdateStage}
+                          onOpenDeal={onOpenDeal}
+                          styles={styles}
+                        />
                       );
                     })}
                   </View>
@@ -775,85 +669,16 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
                 <Text style={styles.sectionTitle}>Tasks ({customerTasks.length})</Text>
                 {customerTasks.length > 0 ? (
                   <View style={styles.listContainer}>
-                    {customerTasks.map(task => {
-                      // Support both single propertyId (old) and propertyIds array (new)
-                      const taskPropertyIds = task.propertyIds || (task.propertyId ? [task.propertyId] : []);
-                      const taskProperties = properties.filter(p => taskPropertyIds.includes(p.id));
-                      const date = new Date(task.date);
-                      const isSiteVisit = task.type === 'Site Visit' || task.type === 'Visit';
-                      const statusColor = task.status === 'Done' ? '#059669' : '#d97706';
-
-                      return (
-                        <View key={task.id} style={styles.taskCard}>
-                          <View style={styles.taskHeader}>
-                            <View style={[styles.taskTypeBadge, {
-                              backgroundColor: isSiteVisit ? '#fffbeb' : '#eff6ff'
-                            }]}>
-                              <Text style={[styles.taskTypeText, {
-                                color: isSiteVisit ? '#b45309' : '#1d4ed8'
-                              }]}>
-                                {isSiteVisit ? 'Site Visit' : task.type}
-                              </Text>
-                            </View>
-
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                              <TouchableOpacity
-                                onPress={() => onEditTask && onEditTask(task)}
-                                style={{ padding: 4 }}
-                              >
-                                <Edit3 size={14} color="#6b7280" />
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                onPress={() => onDeleteTask && onDeleteTask(task.id)}
-                                style={{ padding: 4 }}
-                              >
-                                <Trash2 size={14} color="#ef4444" />
-                              </TouchableOpacity>
-                              <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-                                <Text style={styles.statusText}>{task.status}</Text>
-                              </View>
-                            </View>
-                          </View>
-
-                          <Text style={styles.taskNote} numberOfLines={2}>{task.note}</Text>
-
-                          <View style={styles.taskFooter}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.taskDate}>
-                                {date.toLocaleDateString()} at {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </Text>
-                              {taskProperties.length > 0 && (
-                                <Text style={styles.taskProperty} numberOfLines={1}>
-                                  {taskProperties.map(p => p.title).join(', ')}
-                                </Text>
-                              )}
-                            </View>
-
-                            {/* Site Visit Button - Show only for Site Visit tasks */}
-                            {isSiteVisit && taskProperties.length > 0 && (
-                              <TouchableOpacity
-                                style={styles.taskSiteVisitButton}
-                                onPress={() => {
-                                  if (taskProperties.length === 1) {
-                                    // Single property - directly navigate to Google Maps
-                                    const prop = taskProperties[0];
-                                    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
-                                  } else {
-                                    // Multiple properties - open site visit map view
-                                    setShowMapView(true);
-                                  }
-                                }}
-                              >
-                                <MapPin size={16} color="white" />
-                                <Text style={styles.taskSiteVisitButtonText}>
-                                  {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
-                                </Text>
-                              </TouchableOpacity>
-                            )}
-                          </View>
-                        </View>
-                      );
-                    })}
+                    {customerTasks.map(task => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        properties={properties}
+                        onEdit={onEditTask}
+                        onDelete={onDeleteTask}
+                        onNavigateMultiple={handleTaskNavigateMultiple}
+                      />
+                    ))}
                   </View>
                 ) : (
                   <View style={styles.emptyTasksContainer}>
@@ -866,156 +691,18 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
           </ScrollView>
 
           {/* Property Picker Modal */}
-          {showPropertyPicker && (
-            <View style={styles.pickerOverlay}>
-              <View style={styles.pickerHeader}>
-                <Text style={styles.pickerTitle}>
-                  {customer.stage === 'Contacted' ? 'Select Properties to Show' : 'Select Property'}
-                </Text>
-                <TouchableOpacity onPress={() => {
-                  setShowPropertyPicker(false);
-                  setSearchQuery('');
-                }} style={styles.closeButton}>
-                  <X size={22} color="#000" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Search Bar */}
-              <View style={styles.searchContainer}>
-                <Search size={18} color="#9ca3af" />
-                <TextInput
-                  placeholder="Search properties..."
-                  placeholderTextColor="#9ca3af"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  style={styles.searchInput}
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')}>
-                    <X size={18} color="#9ca3af" />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <ScrollView style={styles.pickerContent}>
-                {(() => {
-                  const filteredProperties = properties.filter(p => {
-                    // Filter by search query
-                    const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      p.location.toLowerCase().includes(searchQuery.toLowerCase());
-                    
-                    // Filter by customer requirements (only Category and Type)
-                    const matchesCategory = !customer.category || p.category === customer.category;
-                    const matchesType = !customer.type || p.type === customer.type;
-                    
-                    // For Contacted and Site Visit stages: show matching properties
-                    if (customer.stage === 'Contacted' || customer.stage === 'Site Visit') {
-                      return matchesSearch && 
-                             matchesCategory && 
-                             matchesType && 
-                             p.status !== 'Sold';
-                    } else {
-                      return matchesSearch && 
-                             matchesCategory && 
-                             matchesType && 
-                             p.status === 'Available' && 
-                             !dealtPropertyIds.includes(p.id);
-                    }
-                  });
-
-                  if (filteredProperties.length === 0) {
-                    return (
-                      <View style={styles.noResultsContainer}>
-                        <Text style={styles.noResultsText}>No properties match the requirements</Text>
-                        <Text style={styles.noResultsSubtext}>
-                          {customer.category && `Category: ${customer.category}`}
-                          {customer.type && ` • Type: ${customer.type}`}
-                        </Text>
-                      </View>
-                    );
-                  }
-
-                  return filteredProperties.map(p => {
-                    const isSelected = selectedPropertyIds.includes(p.id);
-                    const canToggle = customer.stage === 'Contacted' || customer.stage === 'Site Visit';
-                    return (
-                      <TouchableOpacity
-                        key={p.id}
-                        onPress={() => {
-                          if (canToggle) {
-                            // For Contacted and Site Visit stages: toggle selection
-                            handleToggleProperty(p.id);
-                          } else {
-                            // For other stages: show confirmation before starting deal
-                            Alert.alert(
-                              '🤝 Start Deal',
-                              `Are you sure you want to start a deal for "${p.title}" with ${customer.name}?\n\nThis will move the customer to In-Process stage.`,
-                              [
-                                {
-                                  text: 'Cancel',
-                                  style: 'cancel'
-                                },
-                                {
-                                  text: 'Yes, Start Deal',
-                                  onPress: () => {
-                                    onStartDeal(customer, p);
-                                    if (onUpdateStage) {
-                                      onUpdateStage(customer.id, 'In-Process');
-                                    }
-                                    setShowPropertyPicker(false);
-                                    setSearchQuery('');
-                                  }
-                                }
-                              ]
-                            );
-                          }
-                        }}
-                        style={[
-                          styles.pickerItem,
-                          canToggle && isSelected && styles.pickerItemSelected
-                        ]}
-                      >
-                        <Image source={{ uri: p.image }} style={styles.pickerImg} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.pickerItemTitle}>{p.title}</Text>
-                          <View style={styles.rowCenter}>
-                            <MapPin size={10} color="#9ca3af" />
-                            <Text style={styles.pickerItemLocation}>{p.location}</Text>
-                          </View>
-                          <Text style={styles.pickerItemPrice}>{formatCurrency(p.price)}</Text>
-                        </View>
-                        {canToggle ? (
-                          <View style={[
-                            styles.checkboxCircle,
-                            isSelected && styles.checkboxCircleSelected
-                          ]}>
-                            {isSelected && <Check size={16} color="#ffffff" />}
-                          </View>
-                        ) : (
-                          <Plus size={20} color="#2563eb" />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  });
-                })()}
-              </ScrollView>
-
-              {/* Done button for Contacted and Site Visit stages */}
-              {(customer.stage === 'Contacted' || customer.stage === 'Site Visit') && (
-                <View style={styles.pickerFooter}>
-                  <TouchableOpacity
-                    style={styles.doneButton}
-                    onPress={() => {
-                      setShowPropertyPicker(false);
-                      setSearchQuery('');
-                    }}
-                  >
-                    <Text style={styles.doneButtonText}>Done ({selectedPropertyIds.length} selected)</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          )}
+          <PropertyPickerModal
+            visible={showPropertyPicker}
+            customer={customer}
+            properties={properties}
+            selectedPropertyIds={selectedPropertyIds}
+            dealtPropertyIds={dealtPropertyIds}
+            onClose={() => setShowPropertyPicker(false)}
+            onToggleProperty={handleToggleProperty}
+            onStartDeal={onStartDeal}
+            onUpdateStage={onUpdateStage}
+            styles={styles}
+          />
 
         </View>
 
@@ -2301,4 +1988,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CustomerDetailSheet;
+export default memo(CustomerDetailSheet);

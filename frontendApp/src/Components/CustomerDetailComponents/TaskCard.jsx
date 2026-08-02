@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
 import { Edit3, Trash2, MapPin } from 'lucide-react-native';
 
-const TaskCard = memo(({ task, properties, onEdit, onDelete }) => {
+const TaskCard = memo(({ task, properties, onEdit, onDelete, onNavigateMultiple }) => {
   const taskPropertyIds = task.propertyIds || (task.propertyId ? [task.propertyId] : []);
   const taskProperties = properties.filter(p => taskPropertyIds.includes(p.id));
   const date = new Date(task.date);
@@ -13,6 +13,8 @@ const TaskCard = memo(({ task, properties, onEdit, onDelete }) => {
     if (taskProperties.length === 1) {
       const prop = taskProperties[0];
       Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+    } else if (taskProperties.length > 1 && onNavigateMultiple) {
+      onNavigateMultiple(task);
     }
   };
 

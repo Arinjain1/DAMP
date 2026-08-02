@@ -2,13 +2,12 @@ import {
   ArrowRight,
   Briefcase,
   Clock,
-  Handshake,
   Plus,
   UserPlus
 } from 'lucide-react-native';
 import { useEffect, useMemo, useState, useCallback, memo } from 'react';
+import { Image } from 'expo-image';
 import {
-  Image,
   Platform,
   ScrollView,
   StatusBar,
@@ -19,11 +18,8 @@ import {
   RefreshControl,
   Dimensions,
 } from 'react-native';
-
-const { width: screenWidth } = Dimensions.get('window');
 import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
-
 import { dashboardAPI } from '../config/api';
 import {
   INITIAL_CUSTOMERS,
@@ -33,6 +29,8 @@ import {
   INITIAL_PROPERTIES,
 } from '../MockData/Mockdata';
 import Skeleton from '../Components/Skeleton';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 // Currency formatter
 const formatCurrency = (amount) =>

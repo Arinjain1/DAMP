@@ -7,9 +7,10 @@ const NextStepCard = memo(({
   customer, 
   selectedPropertyIds, 
   onProceed, 
+  loading,
   styles 
 }) => {
-  const isDisabled = customer.stage === 'Contacted' && selectedPropertyIds.length === 0;
+  const isDisabled = (customer.stage === 'Contacted' && selectedPropertyIds.length === 0) || loading;
 
   return (
     <View style={styles.nextStepCard}>
@@ -28,8 +29,10 @@ const NextStepCard = memo(({
         activeOpacity={0.9}
         disabled={isDisabled}
       >
-        <Text style={styles.proceedButtonText}>Proceed to {nextStage.label}</Text>
-        <ChevronRight size={16} color="white" />
+        <Text style={styles.proceedButtonText}>
+          {loading ? 'Processing...' : `Proceed to ${nextStage.label}`}
+        </Text>
+        {!loading && <ChevronRight size={16} color="white" />}
       </TouchableOpacity>
     </View>
   );

@@ -1,5 +1,6 @@
-import React, { memo, useMemo } from 'react';
-import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, Image, Alert } from 'react-native';
+import React, { memo, useMemo, useState, useEffect } from 'react';
+import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { Search, X, MapPin, Check, Plus } from 'lucide-react-native';
 
 const formatCurrency = (amount) =>
@@ -15,18 +16,27 @@ const PropertyPickerModal = memo(({
   properties,
   selectedPropertyIds,
   dealtPropertyIds,
-  searchQuery,
-  onSearchChange,
   onClose,
   onToggleProperty,
   onStartDeal,
   onUpdateStage,
   styles
 }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Clear search query when modal visibility changes
+  useEffect(() => {
+    if (!visible) {
+      setSearchQuery('');
+    }
+  }, [visible]);
+
   const filteredProperties = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
     return properties.filter(p => {
-      const matchesSearch = p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.location?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = !query || 
+        p.title?.toLowerCase().includes(query) ||
+        p.location?.toLowerCase().includes(query);
       
       const customerPropertyType = customer.propertyType || customer.type;
       
@@ -89,11 +99,11 @@ const PropertyPickerModal = memo(({
               placeholder="Search properties..."
               placeholderTextColor="#9ca3af"
               value={searchQuery}
-              onChangeText={onSearchChange}
+              onChangeText={setSearchQuery}
               style={styles.searchInput}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => onSearchChange('')}>
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
                 <X size={18} color="#9ca3af" />
               </TouchableOpacity>
             )}
