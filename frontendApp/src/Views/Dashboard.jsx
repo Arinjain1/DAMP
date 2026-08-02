@@ -446,7 +446,7 @@ const Dashboard = ({
                 <Image 
                   source={require('../../assets/images/rafiki.png')} 
                   style={styles.emptyStateImage}
-                  resizeMode="contain"
+                  contentFit="contain"
                 />
                 <Text style={styles.emptyStateTitle}>All Clear!</Text>
                 <Text style={styles.emptyStateText}>
