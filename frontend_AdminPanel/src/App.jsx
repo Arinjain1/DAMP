@@ -1,15 +1,8 @@
-import React from 'react'
-import AdminPanel from './Views/AdminPanel'
+import React from 'react';
+import BrokmateAdminApp from './Components/BrokmateAdminApp';
 
 const App = () => {
-  
-  
-  return (
-    <div className='min-h-screen bg-gray-50'>
-      
-      <AdminPanel />
-    </div>
-  )
-}
+  return <BrokmateAdminApp />;
+};
 
-export default App
+export default App;
