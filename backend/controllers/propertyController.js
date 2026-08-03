@@ -35,7 +35,7 @@ export const createProperty = async (req, res, next) => {
         city || 'Indore', locality || '', project_name || '', address,
         price, size || 0, size_unit || 'Sq. Ft.', length_ft || 0, width_ft || 0,
         owner_name, owner_phone, amenities || [], bond || null, image_url || null,
-        generatedTitle, 'Available'
+        generatedTitle, 'Pending'
       ]
     );
 
@@ -102,52 +102,63 @@ export const updateProperty = async (req, res, next) => {
 
 export const getProperties = async (req, res, next) => {
   const brokerId = req.user.id;
-  const { search, category, listing_type, property_type, min_price, max_price } = req.query;
+  const { search, status, type } = req.query; // 'type' can be 'mine', 'network', or 'all'
 
   try {
-    // 2. GET FIX: Filter out soft-deleted properties immediately
-    let sql = `SELECT * FROM properties WHERE broker_id = $1 AND is_deleted = false`;
-    let params = [brokerId];
+    // THE MAGIC SQL: Fetch my properties OR properties shared with me
+    let sql = `
+      SELECT 
+        p.*, 
+        u.full_name as listed_by_name, 
+        u.phone_number as listed_by_phone,
+        CASE WHEN p.broker_id = $1 THEN true ELSE false END as is_mine
+      FROM properties p
+      JOIN users u ON p.broker_id = u.id
+      WHERE p.is_deleted = false
+      AND (
+        p.broker_id = $1 
+        OR p.id IN (
+          SELECT DISTINCT UNNEST(shared_properties) 
+          FROM collaborations 
+          WHERE (sender_id = $1 OR receiver_id = $1) 
+          AND status = 'accepted'
+        )
+      )
+    `;
+    
+    const params = [brokerId];
     let paramIndex = 2;
 
-    if (listing_type) {
-      sql += ` AND listing_type = $${paramIndex}`;
-      params.push(listing_type);
+    // Optional Frontend Filters
+    if (type === 'mine') {
+      sql += ` AND p.broker_id = $1`;
+    } else if (type === 'network') {
+      sql += ` AND p.broker_id != $1`;
+    }
+
+    if (status && status !== 'All') {
+      sql += ` AND p.status = $${paramIndex}`;
+      params.push(status);
       paramIndex++;
     }
-    if (category) {
-      sql += ` AND (category = $${paramIndex} OR property_category = $${paramIndex})`;
-      params.push(category);
-      paramIndex++;
-    }
-    if (property_type && property_type !== 'All') {
-      sql += ` AND property_type = $${paramIndex}`;
-      params.push(property_type);
-      paramIndex++;
-    }
-    if (min_price && max_price) {
-      sql += ` AND price BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
-      params.push(min_price, max_price);
-      paramIndex += 2;
-    }
+
     if (search) {
-      sql += ` AND (
-        city ILIKE $${paramIndex} OR 
-        project_name ILIKE $${paramIndex} OR 
-        locality ILIKE $${paramIndex} OR 
-        owner_name ILIKE $${paramIndex} OR
-        title ILIKE $${paramIndex}
-      )`;
+      sql += ` AND (p.title ILIKE $${paramIndex} OR p.address ILIKE $${paramIndex} OR p.city ILIKE $${paramIndex})`;
       params.push(`%${search}%`);
       paramIndex++;
     }
-    sql += ` ORDER BY created_at DESC`;
+
+    sql += ` ORDER BY p.created_at DESC`;
 
     const result = await query(sql, params);
 
-    res.json({ success: true, count: result.rowCount, data: result.rows });
+    res.json({
+      success: true,
+      count: result.rowCount,
+      data: result.rows
+    });
   } catch (err) {
-    console.error('=== Get Properties Error ===', err);
+    console.error("Get Properties Error:", err);
     next(err);
   }
 };

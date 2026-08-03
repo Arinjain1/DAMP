@@ -61,20 +61,9 @@ export const updateClient = async (req, res, next) => {
   const brokerId = req.user.id;
   const clientId = req.params.id;
   const { 
-    name, 
-    phone, 
-    requirement_type,   
-    property_category,  
-    property_type,      
-    configuration,     
-    furnishing_status,  
-    budget_min,         
-    budget_max,         
-    preferred_location, 
-    notes,
-    selected_properties,
-    interested_properties,
-    hold_properties
+    name, phone, requirement_type, property_category, property_type, 
+    configuration, furnishing_status, budget_min, budget_max, 
+    preferred_location, notes, selected_properties, interested_properties, hold_properties
   } = req.body;
 
   try {
@@ -89,10 +78,8 @@ export const updateClient = async (req, res, next) => {
     ];
     
     let values = [
-      name, phone, 
-      requirement_type, property_category, property_type, 
-      configuration, furnishing_status, 
-      budget_min || 0, budget_max || 0, preferred_location || '', notes || ''
+      name, phone, requirement_type, property_category, property_type, 
+      configuration, furnishing_status, budget_min || 0, budget_max || 0, preferred_location || '', notes || ''
     ];
 
     let paramIndex = 12;
