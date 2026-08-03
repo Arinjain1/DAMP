@@ -15,7 +15,6 @@ import visitRoutes from './routes/visitRoutes.js';
 import paymentRoutes from './routes/paymentsRoute.js';
 import dealRoutes from './routes/dealRoutes.js';  
 import adminRoutes from './routes/adminRoutes.js';
-import { seedAdmin } from './seedAdmin.js';
 dotenv.config();
 
 const app = express();
@@ -41,7 +40,6 @@ app.use('/api/admin', adminRoutes);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT,"0.0.0.0", async () => {
+app.listen(PORT,"0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  await seedAdmin();
 });

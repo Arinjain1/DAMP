@@ -140,6 +140,7 @@ function AppNavigator() {
       <Tabs.Screen name="deals" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="deal-page" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="notifications" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="collab-page" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="stats" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="legal" options={{ href: null, tabBarStyle: { display: 'none' } }} />
 

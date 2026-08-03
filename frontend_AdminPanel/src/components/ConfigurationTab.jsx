@@ -3,7 +3,6 @@ import React from 'react';
 const ConfigurationTab = ({ setToast }) => {
   const configs = [
     { title: "Cities & Localities", desc: "Launch areas, service radius and active state", active: true },
-    { title: "KYC Policy", desc: "Required documents, expiry and re-verification", active: true },
     { title: "Property Taxonomy", desc: "Residential/commercial types and subtypes", active: false },
     { title: "Collaboration Policy", desc: "Request expiry, visibility and rate limits", active: true },
     { title: "Plan Entitlements", desc: "Limits and premium access", active: true },

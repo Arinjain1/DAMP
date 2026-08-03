@@ -14,7 +14,8 @@ import {
   Menu,
   X,
   Sun,
-  Moon
+  Moon,
+  LogOut
 } from 'lucide-react';
 import DashboardTab from './DashboardTab';
 import NetworkTab from './NetworkTab';
@@ -27,7 +28,14 @@ import Toast from './Toast';
 import SidebarItem from './SidebarItem';
 import { MOCK_DATA } from '../Mockdata/mockdata';
 
-function BrokmateAdminApp() {
+function BrokmateAdminApp({ user, onLogout }) {
+  const getInitials = (fullName) => {
+    if (!fullName) return 'SA';
+    return fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  };
+
+  const initials = getInitials(user?.full_name);
+  const adminName = user?.full_name || 'Super Admin';
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState('light'); // Set to light theme by default
@@ -198,12 +206,23 @@ function BrokmateAdminApp() {
           </nav>
           
           <div className="p-5 border-t border-[#BFB7FD]/20">
-            <div className="bg-[#f8f7ff] dark:bg-slate-800/80 rounded-2xl p-4 flex items-center space-x-4 border border-[#BFB7FD]/20 shadow-sm">
-              <div className="w-10 h-10 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 text-slate-600 dark:text-white rounded-full flex items-center justify-center font-black shadow-inner">SA</div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-slate-900 dark:text-white truncate">Super Admin</p>
-                <p className="text-[11px] font-bold text-[#7c6ce0] uppercase tracking-wider truncate">Global Access</p>
+            <div className="bg-[#f8f7ff] dark:bg-slate-800/80 rounded-2xl p-4 flex items-center justify-between border border-[#BFB7FD]/20 shadow-sm">
+              <div className="flex items-center space-x-3 min-w-0">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#BFB7FD] to-[#7c6ce0] text-white rounded-full flex items-center justify-center font-black shadow-md flex-shrink-0">
+                  {initials}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-slate-900 dark:text-white truncate">{adminName}</p>
+                  <p className="text-[11px] font-bold text-[#7c6ce0] uppercase tracking-wider truncate">Global Access</p>
+                </div>
               </div>
+              <button 
+                onClick={onLogout}
+                className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-all"
+                title="Log Out"
+              >
+                <LogOut size={18} />
+              </button>
             </div>
           </div>
         </aside>

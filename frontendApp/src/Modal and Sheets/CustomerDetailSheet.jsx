@@ -5,6 +5,7 @@ import {
   ChevronRight,
   CircleCheckBig
 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import CustomerHeader from '../Components/CustomerHeader';
 import StageIndicator from '../Components/CustomerDetailComponents/StageIndicator';
 import PropertyListItem from '../Components/CustomerDetailComponents/PropertyListItem';
@@ -57,6 +58,9 @@ const formatCurrency = (amount) => {
 };
 
 const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask, onUpdateStage, onSelectProperties, openMapView = false }) => {
+  const router = useRouter();
+  const [activeDetailTab, setActiveDetailTab] = useState('Overview'); // 'Overview' | 'Collaboration'
+
   // Get followUps and deals directly from Redux for real-time updates
   const followUps = useSelector((state) => state.followUps.followUps);
   const activeDeals = useSelector((state) => state.deals.deals);
@@ -354,8 +358,26 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
           {/* Header */}
           <CustomerHeader name={customer.name} phone={customer.phone} onClose={onClose} />
 
+          {/* Tab Selector */}
+          <View style={styles.tabSelectorRow}>
+            <TouchableOpacity 
+              style={[styles.detailTabBtn, activeDetailTab === 'Overview' && styles.detailTabBtnActive]} 
+              onPress={() => setActiveDetailTab('Overview')}
+            >
+              <Text style={[styles.detailTabBtnText, activeDetailTab === 'Overview' && styles.detailTabBtnTextActive]}>CRM Overview</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.detailTabBtn, activeDetailTab === 'Collaboration' && styles.detailTabBtnActive]} 
+              onPress={() => setActiveDetailTab('Collaboration')}
+            >
+              <Text style={[styles.detailTabBtnText, activeDetailTab === 'Collaboration' && styles.detailTabBtnTextActive]}>Collaboration</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Stage Indicator */}
-          <StageIndicator currentStage={customer.stage || 'New'} loading={loading} />
+          {activeDetailTab === 'Overview' && (
+            <StageIndicator currentStage={customer.stage || 'New'} loading={loading} />
+          )}
 
           {/* Main Content */}
           <ScrollView
@@ -363,6 +385,8 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
             contentContainerStyle={{ paddingBottom: 100 }}
             showsVerticalScrollIndicator={false}
           >
+            {activeDetailTab === 'Overview' ? (
+              <View>
 
             {/* --- UPDATED NEXT STEP CARD (Vertical Layout + Full Width Button) --- */}
             {showNextStepCard && (
@@ -686,6 +710,147 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
                     <Text style={styles.emptyTasksText}>No tasks yet. Add a task to get started.</Text>
                   </View>
                 )}
+              </View>
+            )}
+            </View>
+            ) : (
+              <View style={styles.collabTabContainer}>
+                
+                {/* 1. Anonymous Network Requirement (Page 15 in PDF) */}
+                <View style={styles.collabSectionCard}>
+                  <Text style={styles.collabSectionTitle}>Anonymous Network Requirement</Text>
+                  
+                  <View style={styles.collabInfoGrid}>
+                    <View style={styles.collabInfoRow}>
+                      <Text style={styles.collabInfoLabel}>Visibility</Text>
+                      <Text style={styles.collabInfoValue}>Verified brokers</Text>
+                    </View>
+                    <View style={styles.collabInfoRow}>
+                      <Text style={styles.collabInfoLabel}>Client name</Text>
+                      <Text style={styles.collabInfoValue}>Hidden</Text>
+                    </View>
+                    <View style={styles.collabInfoRow}>
+                      <Text style={styles.collabInfoLabel}>Client phone</Text>
+                      <Text style={styles.collabInfoValue}>Manual sharing</Text>
+                    </View>
+                    <View style={styles.collabInfoRow}>
+                      <Text style={styles.collabInfoLabel}>Last reconfirmed</Text>
+                      <Text style={styles.collabInfoValue}>Today</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity style={styles.collabEditSettingsBtn}>
+                    <Text style={styles.collabEditSettingsBtnText}>Edit Network Visibility</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* 2. Active Collaboration (Rahul Sharma) */}
+                <View style={styles.collabSectionCard}>
+                  <View style={styles.collabHeaderRow}>
+                    <Text style={styles.collabSectionTitle}>Active Collaboration</Text>
+                    <TouchableOpacity 
+                      style={styles.openRoomBtn} 
+                      onPress={() => {
+                        onClose(); // Close the client details sheet modal
+                        router.push('/collab-page'); // Navigate to the full-screen collab page
+                      }}
+                    >
+                      <Text style={styles.openRoomBtnText}>Open room</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.activeCollabBrokerCard}>
+                    <View style={styles.brokerAvatarCircle}>
+                      <Text style={styles.brokerAvatarInitial}>R</Text>
+                    </View>
+                    <View style={styles.brokerDetailsColumn}>
+                      <Text style={styles.activeCollabBrokerName}>Rahul Sharma</Text>
+                      <Text style={styles.activeCollabBrokerAgency}>Property-side broker • Verified</Text>
+                    </View>
+                    <View style={styles.activeCollabSplitBox}>
+                      <Text style={styles.activeCollabSplitValue}>50/50</Text>
+                      <Text style={styles.activeCollabSplitLabel}>Split</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.selectedPropertyDetails}>
+                    <Text style={styles.selectedPropertyLabel}>Selected Property:</Text>
+                    <Text style={styles.selectedPropertyValue}>Gokuldham Apartment • Vijay Nagar</Text>
+                    <Text style={styles.sharingStatusText}>Commission: 50/50 • Client phone: Not shared</Text>
+                  </View>
+
+                  {/* Collaboration Progress Pipeline stage */}
+                  <View style={styles.collabPipelineContainer}>
+                    <Text style={styles.pipelineTitleText}>Collaboration Pipeline Stage</Text>
+                    
+                    <View style={styles.pipelineProgressBarRow}>
+                      {[
+                        { label: 'Matched', done: true },
+                        { label: 'Accepted', done: true },
+                        { label: 'Visit', done: true, active: true },
+                        { label: 'Deal', done: false },
+                        { label: 'Paid', done: false }
+                      ].map((stage, idx) => (
+                        <View key={idx} style={styles.pipelineStepContainer}>
+                          <View style={styles.pipelineDotRow}>
+                            {idx > 0 && (
+                              <View style={[styles.pipelineLine, stage.done && styles.pipelineLineActive]} />
+                            )}
+                            <View style={[
+                              styles.pipelineDotCircle, 
+                              stage.done && styles.pipelineDotCircleDone,
+                              stage.active && styles.pipelineDotCircleActive
+                            ]}>
+                              {stage.done ? (
+                                <Text style={styles.pipelineDotCheck}>✓</Text>
+                              ) : (
+                                <View style={styles.pipelineDotInner} />
+                              )}
+                            </View>
+                          </View>
+                          <Text style={[
+                            styles.pipelineStepLabel,
+                            stage.active && styles.pipelineStepLabelActive
+                          ]}>{stage.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* 3. Matching Properties (Page 15 in PDF) */}
+                <View style={styles.collabSectionCard}>
+                  <View style={styles.collabHeaderRow}>
+                    <Text style={styles.collabSectionTitle}>Matching Properties</Text>
+                    <Text style={styles.collabMatchesCount}>8 matches</Text>
+                  </View>
+
+                  <View style={styles.matchingPropertyItem}>
+                    <Image 
+                      source={{ uri: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&q=80' }} 
+                      style={styles.matchingPropertyImg} 
+                    />
+                    <View style={styles.matchingPropertyInfo}>
+                      <View style={styles.matchingPropertyHeader}>
+                        <Text style={styles.matchingPropertyTitle} numberOfLines={1}>Luxury 2 BHK • Nipania</Text>
+                        <View style={styles.matchingPercentBadge}>
+                          <Text style={styles.matchingPercentText}>94% Match</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.matchingPropertySubtitle}>₹52L • Broker: Amit Verma</Text>
+                      
+                      <TouchableOpacity 
+                        style={styles.matchingRequestCollabBtn}
+                        onPress={() => {
+                          showToast.success('Collaboration request sent to Amit Verma!');
+                        }}
+                      >
+                        <Text style={styles.matchingRequestCollabText}>Request Collab</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+
               </View>
             )}
 
@@ -1986,6 +2151,321 @@ const styles = StyleSheet.create({
     fontFamily: 'Lato_400Regular',
     color: '#9ca3af',
     textAlign: 'center',
+  },
+
+  // Tabs selectors inside client details
+  tabSelectorRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    marginBottom: 8,
+  },
+  detailTabBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  detailTabBtnActive: {
+    borderBottomColor: '#a9a0f5',
+  },
+  detailTabBtnText: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  detailTabBtnTextActive: {
+    color: '#111827',
+  },
+
+  // Collaboration Tab content view
+  collabTabContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 16,
+  },
+  collabSectionCard: {
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  collabSectionTitle: {
+    fontSize: 16,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  collabInfoGrid: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  collabInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  collabInfoLabel: {
+    fontSize: 13,
+    color: '#6b7280',
+    fontFamily: 'Lato_400Regular',
+  },
+  collabInfoValue: {
+    fontSize: 13,
+    color: '#111827',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  collabEditSettingsBtn: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  collabEditSettingsBtnText: {
+    fontSize: 13,
+    color: '#374151',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  collabHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  openRoomBtn: {
+    backgroundColor: '#f3e8ff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  openRoomBtnText: {
+    fontSize: 11,
+    color: '#7c3aed',
+    fontFamily: 'Montserrat_700Bold',
+  },
+  activeCollabBrokerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#f9fafb',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+  },
+  brokerAvatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#ddd6fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brokerAvatarInitial: {
+    fontSize: 14,
+    color: '#7c3aed',
+    fontFamily: 'Montserrat_700Bold',
+  },
+  brokerDetailsColumn: {
+    flex: 1,
+  },
+  activeCollabBrokerName: {
+    fontSize: 14,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#111827',
+  },
+  activeCollabBrokerAgency: {
+    fontSize: 11,
+    color: '#6b7280',
+    fontFamily: 'Lato_400Regular',
+    marginTop: 1,
+  },
+  activeCollabSplitBox: {
+    alignItems: 'flex-end',
+  },
+  activeCollabSplitValue: {
+    fontSize: 14,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#16a34a',
+  },
+  activeCollabSplitLabel: {
+    fontSize: 9,
+    color: '#9ca3af',
+    fontFamily: 'Lato_400Regular',
+  },
+  selectedPropertyDetails: {
+    marginTop: 14,
+    backgroundColor: '#eff6ff',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  selectedPropertyLabel: {
+    fontSize: 11,
+    color: '#1d4ed8',
+    fontFamily: 'Montserrat_700Bold',
+  },
+  selectedPropertyValue: {
+    fontSize: 13,
+    color: '#1e40af',
+    fontFamily: 'Montserrat_600SemiBold',
+    marginTop: 2,
+  },
+  sharingStatusText: {
+    fontSize: 11,
+    color: '#60a5fa',
+    fontFamily: 'Lato_400Regular',
+    marginTop: 4,
+  },
+  collabPipelineContainer: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    paddingTop: 14,
+  },
+  pipelineTitleText: {
+    fontSize: 13,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  pipelineProgressBarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  pipelineStepContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  pipelineDotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+    width: '100%',
+    justifyContent: 'center',
+  },
+  pipelineLine: {
+    height: 3,
+    backgroundColor: '#e5e7eb',
+    position: 'absolute',
+    left: '-50%',
+    right: '50%',
+    top: 9,
+    zIndex: -1,
+  },
+  pipelineLineActive: {
+    backgroundColor: '#10b981',
+  },
+  pipelineDotCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pipelineDotCircleDone: {
+    borderColor: '#10b981',
+    backgroundColor: '#10b981',
+  },
+  pipelineDotCircleActive: {
+    borderColor: '#7c3aed',
+    backgroundColor: '#7c3aed',
+  },
+  pipelineDotCheck: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  pipelineDotInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#d1d5db',
+  },
+  pipelineStepLabel: {
+    fontSize: 10,
+    color: '#9ca3af',
+    fontFamily: 'Lato_400Regular',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  pipelineStepLabelActive: {
+    color: '#7c3aed',
+    fontFamily: 'Montserrat_700Bold',
+  },
+  collabMatchesCount: {
+    fontSize: 12,
+    color: '#968CE4',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  matchingPropertyItem: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  matchingPropertyImg: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+    backgroundColor: '#f3f4f6',
+  },
+  matchingPropertyInfo: {
+    flex: 1,
+  },
+  matchingPropertyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 6,
+  },
+  matchingPropertyTitle: {
+    fontSize: 14,
+    fontFamily: 'Montserrat_700Bold',
+    color: '#111827',
+    flex: 1,
+  },
+  matchingPercentBadge: {
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: '#bfdbfe',
+  },
+  matchingPercentText: {
+    fontSize: 9,
+    color: '#1d4ed8',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+  matchingPropertySubtitle: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontFamily: 'Lato_400Regular',
+    marginTop: 2,
+  },
+  matchingRequestCollabBtn: {
+    backgroundColor: '#111827',
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+  },
+  matchingRequestCollabText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontFamily: 'Montserrat_700Bold',
   },
 });
 

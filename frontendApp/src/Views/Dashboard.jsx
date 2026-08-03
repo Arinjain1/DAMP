@@ -412,6 +412,71 @@ const Dashboard = ({
             />
           </TouchableOpacity>
 
+          {/* ================= MATCH OPPORTUNITIES (Page 7/8 in PDF) ================= */}
+          <View style={{ marginTop: 24 }}>
+            <View style={styles.focusHeader}>
+              <Text style={styles.sectionTitle}>Match Opportunities</Text>
+              <TouchableOpacity style={styles.viewAll} onPress={onOpenCollab}>
+                <Text style={styles.viewAllText}>View All</Text>
+                <ArrowRight size={14} color="#968CE4" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingVertical: 4 }}>
+              {/* Card 1: YOUR PROPERTY */}
+              <View style={styles.matchOpportunityCard}>
+                <View style={[styles.matchCardTag, { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }]}>
+                  <Text style={[styles.matchCardTagText, { color: '#1d4ed8' }]}>YOUR PROPERTY</Text>
+                </View>
+                <Text style={styles.matchCardTitle}>3 BHK - Vijay Nagar</Text>
+                <Text style={styles.matchCardSubtitle}>₹85L - 5 matching client requirements</Text>
+                <TouchableOpacity style={styles.matchCardBtnDark} onPress={onOpenCollab}>
+                  <Text style={styles.matchCardBtnTextLight}>View Matches</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Card 2: YOUR CLIENT */}
+              <View style={styles.matchOpportunityCard}>
+                <View style={[styles.matchCardTag, { backgroundColor: '#f5f3ff', borderColor: '#ddd6fe' }]}>
+                  <Text style={[styles.matchCardTagText, { color: '#7c3aed' }]}>YOUR CLIENT</Text>
+                </View>
+                <Text style={styles.matchCardTitle}>2 BHK - Nipania</Text>
+                <Text style={styles.matchCardSubtitle}>₹45-55L - 7 matching properties</Text>
+                <TouchableOpacity style={styles.matchCardBtnPurple} onPress={onOpenCollab}>
+                  <Text style={styles.matchCardBtnTextLight}>View Matches</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+
+          {/* ================= ACTIVE COLLABORATIONS ================= */}
+          <View style={{ marginTop: 24 }}>
+            <View style={styles.focusHeader}>
+              <Text style={styles.sectionTitle}>Active Collaborations</Text>
+              <TouchableOpacity style={styles.viewAll} onPress={onOpenCollab}>
+                <Text style={styles.viewAllText}>View All</Text>
+                <ArrowRight size={14} color="#968CE4" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.activeCollabCard} onPress={onOpenCollab} activeOpacity={0.9}>
+              <View style={styles.collabAvatar}>
+                <Text style={styles.collabAvatarText}>R</Text>
+              </View>
+              <View style={styles.collabInfo}>
+                <Text style={styles.collabName}>Rahul Sharma</Text>
+                <Text style={styles.collabDetails}>Gokuldham • Client for 2 BHK</Text>
+                <View style={styles.collabBadge}>
+                  <Text style={styles.collabBadgeText}>Site Visit Scheduled</Text>
+                </View>
+              </View>
+              <View style={styles.collabProgressBox}>
+                <Text style={styles.collabProgressText}>50 / 50</Text>
+                <Text style={styles.openRoomLink}>Open room ›</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
           {/* Active Deals */}
           {activeDeals.length > 0 && (
             <View style={{ marginTop: 24 }}>
@@ -699,5 +764,125 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  // Match Opportunities (Page 7/8 in PDF)
+  matchOpportunityCard: {
+    width: 280,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    marginRight: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    gap: 8,
+  },
+  matchCardTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+  },
+  matchCardTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  matchCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  matchCardSubtitle: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  matchCardBtnDark: {
+    backgroundColor: '#111827',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  matchCardBtnPurple: {
+    backgroundColor: '#7c3aed',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  matchCardBtnTextLight: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+
+  // Active Collaborations
+  activeCollabCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  collabAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#ddd6fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  collabAvatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#7c3aed',
+  },
+  collabInfo: {
+    flex: 1,
+  },
+  collabName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  collabDetails: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  collabBadge: {
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  collabBadgeText: {
+    fontSize: 10,
+    color: '#16a34a',
+    fontWeight: '700',
+  },
+  collabProgressBox: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  collabProgressText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  openRoomLink: {
+    fontSize: 10,
+    color: '#9ca3af',
+    marginTop: 4,
+    fontWeight: '500',
   },
 });

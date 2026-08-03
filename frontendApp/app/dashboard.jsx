@@ -6,7 +6,6 @@ import { useDispatch, useSelector } from "react-redux";
 import Dashboard from "../src/Views/Dashboard";
 import FAB from "../src/Components/FAB";
 import AddModal from "../src/Modal and Sheets/AddModal";
-import CollaborationSheet from "../src/Modal and Sheets/CollaborationSheet";
 import CustomerDetailSheet from "../src/Modal and Sheets/CustomerDetailSheet";
 import PropertyDetailSheet from "../src/Modal and Sheets/PropertyDetailSheet";
 import SubscriptionSheet from "../src/Modal and Sheets/SubscriptionSheet";
@@ -445,7 +444,7 @@ export default function DashboardPage() {
         followUps={followUps}
         activeDeals={deals}
         unreadCount={unreadCount}
-        onOpenCollab={() => dispatch(setCollabOpen(true))}
+        onOpenCollab={() => router.push('/collab-page')}
         onOpenDeal={(deal) => {
           dispatch(setSelectedDeal(deal));
           router.push('/deal-page');
@@ -558,10 +557,6 @@ export default function DashboardPage() {
         />
       )}
 
-      <CollaborationSheet
-        isOpen={collabOpen}
-        onClose={() => dispatch(setCollabOpen(false))}
-      />
     </View>
   );
 }

@@ -15,7 +15,6 @@ export const MOCK_DATA = {
       { name: 'Jun', active: 8416, paid: 4208 },
     ],
     attention: [
-      { label: "KYC ageing > 24h", value: 42, color: "text-amber-500" },
       { label: "Failed renewals", value: 19, color: "text-red-500" },
       { label: "Open disputes", value: 11, color: "text-red-500" },
       { label: "Security alerts", value: 3, color: "text-amber-500" }
@@ -28,11 +27,11 @@ export const MOCK_DATA = {
     ]
   },
   network: [
-    { id: 'BRK-10241', name: 'Rahul Sharma', kyc: 'Approved', status: 'Active', plan: 'Paid', planName: 'Pro Monthly (INR 99)', planStart: '05 Jul 2026', planEnd: '05 Aug 2026', props: 12, clients: 7, collabs: 4 },
-    { id: 'BRK-10242', name: 'Deepika Mall', kyc: 'Approved', status: 'Active', plan: 'Paid', planName: 'Pro Monthly (INR 99)', planStart: '12 Jul 2026', planEnd: '12 Aug 2026', props: 26, clients: 13, collabs: 8 },
-    { id: 'BRK-10243', name: 'Amit Verma', kyc: 'Pending', status: 'Inactive', plan: 'Free', planName: 'Free Tier', planStart: '01 Aug 2026', planEnd: 'N/A', props: 3, clients: 2, collabs: 0 },
-    { id: 'BRK-10244', name: 'Sonal Jain', kyc: 'Approved', status: 'Active', plan: 'Grace', planName: 'Pro Monthly (INR 99)', planStart: '22 Jun 2026', planEnd: '22 Jul 2026', props: 18, clients: 9, collabs: 5 },
-    { id: 'BRK-10245', name: 'M. Khan', kyc: 'Suspended', status: 'Blocked', plan: 'Paid', planName: 'Pro Monthly (INR 99)', planStart: '15 Jul 2026', planEnd: '15 Aug 2026', props: 31, clients: 17, collabs: 11 },
+    { id: 'BRK-10241', name: 'Rahul Sharma', status: 'Active', plan: 'Paid', planName: 'Pro Monthly (INR 99)', planStart: '05 Jul 2026', planEnd: '05 Aug 2026', props: 12, clients: 7, collabs: 4 },
+    { id: 'BRK-10242', name: 'Deepika Mall', status: 'Active', plan: 'Paid', planName: 'Pro Monthly (INR 99)', planStart: '12 Jul 2026', planEnd: '12 Aug 2026', props: 26, clients: 13, collabs: 8 },
+    { id: 'BRK-10243', name: 'Amit Verma', status: 'Inactive', plan: 'Free', planName: 'Free Tier', planStart: '01 Aug 2026', planEnd: 'N/A', props: 3, clients: 2, collabs: 0 },
+    { id: 'BRK-10244', name: 'Sonal Jain', status: 'Active', plan: 'Grace', planName: 'Pro Monthly (INR 99)', planStart: '22 Jun 2026', planEnd: '22 Jul 2026', props: 18, clients: 9, collabs: 5 },
+    { id: 'BRK-10245', name: 'M. Khan', status: 'Blocked', plan: 'Paid', planName: 'Pro Monthly (INR 99)', planStart: '15 Jul 2026', planEnd: '15 Aug 2026', props: 31, clients: 17, collabs: 11 },
   ],
   userActivity: {
     'BRK-10241': [
@@ -70,11 +69,11 @@ export const MOCK_DATA = {
   support: [
     { id: 'SUP-1812', category: 'Login / OTP', priority: 'High', user: 'Deepika Mall', state: 'In Progress', age: '18m' },
     { id: 'SUP-1808', category: 'Plan activation', priority: 'Medium', user: 'Rahul Sharma', state: 'Waiting User', age: '2h' },
-    { id: 'SUP-1799', category: 'KYC correction', priority: 'High', user: 'Amit Verma', state: 'New', age: '3h' },
+    { id: 'SUP-1799', category: 'Profile update', priority: 'High', user: 'Amit Verma', state: 'New', age: '3h' },
     { id: 'SUP-1782', category: 'Notification', priority: 'Low', user: 'Sonal Jain', state: 'Resolved', age: '1d' },
   ],
   audit: [
-    { id: 'AUD-8821', action: 'admin.approve_kyc', actor: 'Admin A', object: 'BRK-10241', result: 'Success', time: '10:42' },
+    { id: 'AUD-8821', action: 'admin.verify_broker', actor: 'Admin A', object: 'BRK-10241', result: 'Success', time: '10:42' },
     { id: 'AUD-8818', action: 'session.revoke', actor: 'Security', object: 'USR-321', result: 'Success', time: '10:19' },
     { id: 'AUD-8810', action: 'config.update', actor: 'Super Admin', object: 'Plan policy', result: 'Success', time: '09:54' },
     { id: 'AUD-8802', action: 'dispute.view_sensitive', actor: 'Reviewer B', object: 'DSP-441', result: 'Allowed', time: '09:21' },

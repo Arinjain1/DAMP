@@ -39,7 +39,6 @@ const AnalyticsTab = () => {
            <div className="space-y-6">
               {[
                 { label: 'Registered', val: '12,840', pct: '100%' },
-                { label: 'KYC Approved', val: '10,320', pct: '80%' },
                 { label: 'Active 30D', val: '8,416', pct: '65%' },
                 { label: 'Paid', val: '4,208', pct: '32%' },
                 { label: 'Collaborated', val: '1,736', pct: '13%' },

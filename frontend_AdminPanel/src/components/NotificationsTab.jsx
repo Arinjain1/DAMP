@@ -16,7 +16,6 @@ const NotificationsTab = ({ setToast }) => (
             <label className="block text-sm font-bold text-slate-700 dark:text-gray-300 mb-2 uppercase tracking-wide">Target Audience</label>
             <select className="w-full bg-[#f8f7ff] dark:bg-slate-800 border border-[#BFB7FD]/40 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#7c6ce0]/50">
               <option>Active paid users in Indore</option>
-              <option>All users requiring KYC</option>
               <option>Suspended accounts</option>
             </select>
           </div>

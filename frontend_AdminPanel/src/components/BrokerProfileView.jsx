@@ -33,15 +33,9 @@ const BrokerProfileView = ({ broker, onClose, setToast }) => {
 
         <div className="p-8 space-y-8 flex-1">
           {/* Status Section */}
-          <div className="flex gap-4">
-             <div className="bg-[#f8f7ff] dark:bg-slate-800/50 p-4 rounded-2xl border border-[#BFB7FD]/20 flex-1">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">KYC Status</p>
-                <StatusBadge status={broker.kyc} />
-             </div>
-             <div className="bg-[#f8f7ff] dark:bg-slate-800/50 p-4 rounded-2xl border border-[#BFB7FD]/20 flex-1">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Account State</p>
-                <StatusBadge status={broker.status} />
-             </div>
+          <div className="bg-[#f8f7ff] dark:bg-slate-800/50 p-4 rounded-2xl border border-[#BFB7FD]/20">
+             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Account State</p>
+             <StatusBadge status={broker.status} />
           </div>
 
           {/* Subscription Details Card (Enhanced) */}

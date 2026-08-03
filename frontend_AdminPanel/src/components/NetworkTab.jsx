@@ -30,7 +30,7 @@ const NetworkTab = ({ setToast }) => {
       </div>
 
       <div className="flex flex-wrap gap-2 text-sm">
-        {['KYC: All', 'Status: Active', 'Plan: All', 'City: All'].map(f => (
+        {['Status: Active', 'Plan: All', 'City: All'].map(f => (
           <span key={f} className="px-4 py-1.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-gray-300 font-semibold rounded-full border border-[#BFB7FD]/30 shadow-sm flex items-center cursor-pointer hover:border-[#7c6ce0] transition-colors">
             {f} <ChevronRight size={14} className="ml-1 opacity-50" />
           </span>
@@ -43,7 +43,6 @@ const NetworkTab = ({ setToast }) => {
             <thead className="bg-[#f8f7ff] dark:bg-slate-800/50 text-slate-500 dark:text-gray-400 border-b border-[#BFB7FD]/30">
               <tr>
                 <th className="px-6 py-5 font-bold uppercase tracking-wider text-xs">Broker</th>
-                <th className="px-6 py-5 font-bold uppercase tracking-wider text-xs">KYC</th>
                 <th className="px-6 py-5 font-bold uppercase tracking-wider text-xs">Account</th>
                 <th className="px-6 py-5 font-bold uppercase tracking-wider text-xs">Plan</th>
                 <th className="px-6 py-5 font-bold uppercase tracking-wider text-xs text-right">Properties</th>
@@ -64,7 +63,6 @@ const NetworkTab = ({ setToast }) => {
                     </div>
                     <div className="text-xs font-semibold text-slate-400 ml-12">{row.id}</div>
                   </td>
-                  <td className="px-6 py-4"><StatusBadge status={row.kyc} /></td>
                   <td className="px-6 py-4"><StatusBadge status={row.status} /></td>
                   <td className="px-6 py-4"><StatusBadge status={row.plan} /></td>
                   <td className="px-6 py-4 text-right text-slate-600 dark:text-gray-300 font-bold">{row.props}</td>
