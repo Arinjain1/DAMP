@@ -279,6 +279,7 @@ const Dashboard = ({
             <Image
               source={require('../../assets/images/ChatGPT Image Jul 28, 2026, 11_18_12 PM 1.png')}
               style={styles.bannerImage}
+              contentFit="contain"
             />
           </View>
 
@@ -361,6 +362,7 @@ const Dashboard = ({
                   <Image 
                     source={require('../../assets/images/pajamas_partner-verified.png')} 
                     style={styles.verificationBadge}
+                    contentFit="contain"
                   />
                 </View>
                 <Text style={styles.dateText}>{currentDate}</Text>
@@ -371,6 +373,7 @@ const Dashboard = ({
               <Image 
                 source={require('../../assets/images/famicons_notifications.png')} 
                 style={styles.notificationIcon}
+                contentFit="contain"
               />
               {unreadCount > 0 && <View style={styles.dot} />}
             </TouchableOpacity>
@@ -387,6 +390,7 @@ const Dashboard = ({
           <Image
             source={require('../../assets/images/ChatGPT Image Jul 28, 2026, 11_18_12 PM 1.png')}
             style={styles.bannerImage}
+            contentFit="contain"
           />
         </View>
 
@@ -409,6 +413,7 @@ const Dashboard = ({
             <Image
               source={require('../../assets/images/Group 1597884459.png')}
               style={styles.collabBannerImage}
+              contentFit="contain"
             />
           </TouchableOpacity>
 
@@ -554,7 +559,6 @@ const styles = StyleSheet.create({
     height: (screenWidth - 20) / 2.258,
     alignSelf: 'flex-end',
     marginRight: -20,
-    resizeMode: 'contain',
     marginTop: -6,
     zIndex: -1,
   },
@@ -582,9 +586,9 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   userName: { fontSize: 18, color: '#000000' , fontFamily:'Lato_700Bold' },
   dateText: { fontSize: 11, fontWeight: '500', color: '#5B5B5B', fontFamily: 'MONTSERRAT_500' },
-  verificationBadge: { width: 16, height: 16, resizeMode: 'contain' },
+  verificationBadge: { width: 16, height: 16 },
   bellButton: { padding: 12, borderRadius: 16, position: 'relative' },
-  notificationIcon: { width: 24, height: 24, resizeMode: 'contain' },
+  notificationIcon: { width: 24, height: 24 },
   dot: {
     position: 'absolute',
     top: 8,
@@ -662,7 +666,6 @@ const styles = StyleSheet.create({
   collabBannerImage: {
     width: screenWidth - 40,
     height: (screenWidth - 40) / 2.122,
-    resizeMode: 'contain',
   },
   
   errorBanner: {
