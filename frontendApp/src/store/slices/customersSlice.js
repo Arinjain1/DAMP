@@ -154,6 +154,14 @@ export const updateCustomerProperties = createAsyncThunk(
   'customers/updateProperties',
   async ({ id, data }, { rejectWithValue }) => {
     try {
+      if (String(id).startsWith('mock-')) {
+        return {
+          id,
+          selectedProperties: data.selectedProperties || [],
+          interestedProperties: data.interestedProperties || [],
+          holdProperties: data.holdProperties || []
+        };
+      }
       const response = await customersAPI.updateProperties(id, {
         selected_properties: data.selectedProperties,
         interested_properties: data.interestedProperties,
@@ -304,7 +312,76 @@ const customersSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchCustomers.fulfilled, (state, action) => {
-        state.customers = action.payload;
+        const loadedCustomers = action.payload || [];
+        
+        // Ensure mock collaboration clients are present for testing
+        const hasManas = loadedCustomers.some(c => c.name === 'Manas');
+        const hasRahul = loadedCustomers.some(c => c.name === 'Rahul Sharma');
+        const hasRohan = loadedCustomers.some(c => c.name === 'Rohan');
+        
+        const mockClients = [];
+        if (!hasManas) {
+          mockClients.push({
+            id: 'mock-manas',
+            name: 'Manas',
+            phone: '9876543210',
+            stage: 'Interested',
+            requirementType: 'Buy',
+            propertyCategory: 'Residential',
+            propertyType: 'Apartment',
+            configuration: '2 BHK',
+            furnishingStatus: 'Semi-Furnished',
+            budgetMin: 4000000,
+            budgetMax: 6000000,
+            preferredLocation: 'Vijay Nagar',
+            notes: 'Looking for a premium 2 BHK apartment near Vijay Nagar Indore.',
+            selectedProperties: [2],
+            interestedProperties: [],
+            holdProperties: []
+          });
+        }
+        if (!hasRahul) {
+          mockClients.push({
+            id: 'mock-rahul',
+            name: 'Rahul Sharma',
+            phone: '9988776655',
+            stage: 'Site Visit',
+            requirementType: 'Buy',
+            propertyCategory: 'Residential',
+            propertyType: 'Apartment',
+            configuration: '3 BHK',
+            furnishingStatus: 'Unfurnished',
+            budgetMin: 7000000,
+            budgetMax: 9000000,
+            preferredLocation: 'Nipania',
+            notes: 'Client looking for a 3 BHK in Nipania with high compatibility.',
+            selectedProperties: [],
+            interestedProperties: [],
+            holdProperties: []
+          });
+        }
+        if (!hasRohan) {
+          mockClients.push({
+            id: 'mock-rohan',
+            name: 'Rohan',
+            phone: '9123456789',
+            stage: 'New',
+            requirementType: 'Buy',
+            propertyCategory: 'Residential',
+            propertyType: 'Apartment',
+            configuration: '2 BHK',
+            furnishingStatus: 'Fully-Furnished',
+            budgetMin: 5000000,
+            budgetMax: 7000000,
+            preferredLocation: 'Shalimar Township',
+            notes: 'Ready buyer looking for immediate registry.',
+            selectedProperties: [],
+            interestedProperties: [],
+            holdProperties: []
+          });
+        }
+        
+        state.customers = [...mockClients, ...loadedCustomers];
         state.loading = false;
       })
       .addCase(fetchCustomers.rejected, (state, action) => {

@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Dimensions, PanResponder } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Dimensions, PanResponder, Image } from 'react-native';
 import * as LucideIcons from 'lucide-react-native';
 
 // Helper to format budget text
@@ -186,10 +186,36 @@ const CustomerForm = memo(({
   styles,
   PROPERTY_STRUCTURE,
   budgetRange,
-  setBudgetRange
+  setBudgetRange,
+  pickImage
 }) => {
   return (
     <View style={styles.formContainer}>
+      <View style={{ alignItems: 'center', marginBottom: 16 }}>
+        <TouchableOpacity 
+          onPress={pickImage} 
+          style={{
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            borderWidth: 1,
+            borderColor: '#e5e7eb',
+            backgroundColor: '#f9fafb',
+            justifyContent: 'center',
+            alignItems: 'center',
+            overflow: 'hidden'
+          }}
+        >
+          {formData.image ? (
+            <Image source={{ uri: formData.image }} style={{ width: '100%', height: '100%' }} />
+          ) : (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <LucideIcons.Camera size={22} color="#6b7280" />
+              <Text style={{ fontSize: 9, color: '#6b7280', marginTop: 2, fontWeight: '500' }}>Add Photo</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
       <MemoizedRadioGroup label="Property Requirements" name="listingType" options={['Buy', 'Rent/Lease']} selectedValue={formData.listingType} onChange={handleChange} styles={styles} />
       <MemoizedRadioGroup label="What Kind of Property?" name="category" options={Object.keys(PROPERTY_STRUCTURE)} selectedValue={formData.category} onChange={handleChange} styles={styles} />
       <MemoizedPropertyTypeGroup category={formData.category} selectedValue={formData.type} onChange={handleChange} styles={styles} PROPERTY_STRUCTURE={PROPERTY_STRUCTURE} />

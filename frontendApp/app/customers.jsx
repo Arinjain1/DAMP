@@ -1,9 +1,8 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { View, InteractionManager } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
 import AddModal from '../src/Modal and Sheets/AddModal';
-import CustomerDetailSheet from '../src/Modal and Sheets/CustomerDetailSheet';
 import CustomersList from '../src/Views/CustomersList';
 
 // Redux actions
@@ -88,8 +87,24 @@ export default function Customers() {
       });
     });
     
-    return unsubscribe;
   }, [fetchTasks]);
+
+  // Redirect to full-page route when customer is selected
+  useEffect(() => {
+    if (selectedCustomer) {
+      const dealStages = ['In-Process', 'Negotiation', 'Token', 'Settlement', 'Agreement', 'Completed'];
+      const isInDealStage = dealStages.includes(selectedCustomer.stage);
+      const customerDeal = deals.find(d => d.customerId === selectedCustomer.id);
+
+      if (isInDealStage && customerDeal) {
+        dispatch(setSelectedDeal(customerDeal));
+        dispatch(clearSelectedCustomer());
+        router.push('/deal-page');
+      } else {
+        router.push('/customer-detail');
+      }
+    }
+  }, [selectedCustomer, deals, dispatch, router]);
 
   // 🚀 Memoized Handlers for List (Prevents List Re-renders)
   const handleAddCustomer = useCallback(() => {
@@ -133,7 +148,18 @@ export default function Customers() {
       dispatch(setSelectedDeal(customerDeal));
       router.push('/deal-page');
     } else {
-      dispatch(setSelectedCustomer(customer));
+      const mockDeal = {
+        id: 99,
+        customerId: customer.id,
+        propertyId: 'p1',
+        stage: 'Negotiation',
+        status: 'Negotiation',
+        startedAt: new Date().toISOString(),
+        meetings: []
+      };
+      dispatch(addDeal(mockDeal));
+      dispatch(setSelectedDeal(mockDeal));
+      router.push('/deal-page');
     }
   }, [deals, dispatch, router]);
 
@@ -373,10 +399,24 @@ export default function Customers() {
     }
   }, [dispatch]);
 
+  const mappedCustomers = useMemo(() => {
+    return (customers || []).map(cust => {
+      const isCollab = cust.name?.includes('Arin') || cust.name?.includes('Karan') || cust.collaborated;
+      if (isCollab) {
+        return {
+          ...cust,
+          collaborated: true,
+          stage: 'In-Process'
+        };
+      }
+      return cust;
+    });
+  }, [customers]);
+
   return (
     <View className="flex-1 bg-gray-50">
       <CustomersList
-        customers={customers}
+        customers={mappedCustomers}
         loading={loading}
         onSelect={handleSelectCustomer}
         onAddCustomer={handleAddCustomer}
@@ -397,41 +437,6 @@ export default function Customers() {
         initialCustomer={selectedCustomer}
       />
 
-      {selectedCustomer && (
-        (() => {
-          // Check if customer is in deal stages (In-Process onwards)
-          const dealStages = ['In-Process', 'Negotiation', 'Token', 'Settlement', 'Agreement', 'Completed'];
-          const isInDealStage = dealStages.includes(selectedCustomer.stage);
-          const customerDeal = deals.find(d => d.customerId === selectedCustomer.id);
-
-          // If customer is in deal stage and has a deal, open deal-page
-          if (isInDealStage && customerDeal) {
-            dispatch(setSelectedDeal(customerDeal));
-            dispatch(clearSelectedCustomer());
-            router.push('/deal-page');
-            return null;
-          }
-
-          // Otherwise show customer detail sheet
-          return (
-            <CustomerDetailSheet
-              customer={selectedCustomer}
-              onClose={handleCloseSheet}
-              properties={properties}
-              activeDeals={deals}
-              followUps={followUps}
-              onAddFollowUp={handleAddFollowUpFromCustomer}
-              onEditTask={handleEditTask}
-              onDeleteTask={handleDeleteTask}
-              onUpdateStatus={handleUpdateStatus}
-              onUpdateStage={handleUpdateStage}
-              onSelectProperties={handleSelectProperties}
-              onStartDeal={handleStartDeal}
-              onOpenDeal={handleOpenDealFromSheet}
-            />
-          );
-        })()
-      )}
     </View>
   );
 }

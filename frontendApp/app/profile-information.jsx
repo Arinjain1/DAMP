@@ -1,4 +1,5 @@
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Camera as CameraIcon } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import {
   Platform,
   ScrollView,
@@ -8,11 +9,14 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Image,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { useEffect, useState } from 'react';
 import { userAPI } from '../src/config/api';
+import { showToast } from '../src/utils/toast';
 
 export default function ProfileInformation() {
   const router = useRouter();
@@ -37,6 +41,48 @@ export default function ProfileInformation() {
       setProfileData(user);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
+
+  const openCamera = async () => {
+    const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!cameraPermission.granted) return;
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets) {
+      handleUpdateAvatar(result.assets[0].uri);
+    }
+  };
+
+  const openGallery = async () => {
+    const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!mediaPermission.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets) {
+      handleUpdateAvatar(result.assets[0].uri);
+    }
+  };
+
+  const handleUpdateAvatar = async (newUri) => {
+    try {
+      const updated = { ...displayData, avatar: newUri };
+      setProfileData(updated);
+      await userAPI.updateProfile({ avatar: newUri });
+      showToast.success('Profile photo updated successfully!');
+    } catch (error) {
+      console.log('Update avatar error:', error);
+      showToast.error('Could not save profile photo.');
     }
   };
 
@@ -117,13 +163,26 @@ export default function ProfileInformation() {
       >
         {/* Profile Section */}
         <View style={styles.profileSection}>
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarInitial}>
-              {displayData?.full_name?.charAt(0)?.toUpperCase() ||
-                displayData?.name?.charAt(0)?.toUpperCase() ||
-                'U'}
-            </Text>
-          </View>
+          <TouchableOpacity 
+            onPress={() => setPhotoSheetVisible(true)} 
+            style={styles.avatarPlaceholder}
+            activeOpacity={0.85}
+          >
+            {displayData?.avatar ? (
+              <Image source={{ uri: displayData.avatar }} style={{ width: '100%', height: '100%', borderRadius: 45 }} />
+            ) : (
+              <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={styles.avatarInitial}>
+                  {displayData?.full_name?.charAt(0)?.toUpperCase() ||
+                    displayData?.name?.charAt(0)?.toUpperCase() ||
+                    'U'}
+                </Text>
+                <View style={{ position: 'absolute', bottom: -2, right: -2, backgroundColor: '#7c3aed', padding: 4, borderRadius: 10, borderWidth: 1.5, borderColor: '#fff' }}>
+                  <CameraIcon size={10} color="#fff" />
+                </View>
+              </View>
+            )}
+          </TouchableOpacity>
 
           <View style={styles.nameContainer}>
             <Text style={styles.profileName}>
@@ -168,6 +227,41 @@ export default function ProfileInformation() {
           />
         </View>
       </ScrollView>
+
+      {/* Photo Selection Sheet */}
+      <Modal visible={photoSheetVisible} transparent animationType="slide">
+        <TouchableOpacity 
+          activeOpacity={1} 
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} 
+          onPress={() => setPhotoSheetVisible(false)}
+        >
+          <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 12 }}>
+            <View style={{ width: 40, height: 4, backgroundColor: '#e5e7eb', borderRadius: 2, alignSelf: 'center', marginBottom: 8 }} />
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#1f2937', marginBottom: 8, textAlign: 'center' }}>Select Profile Photo</Text>
+            
+            <TouchableOpacity 
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }} 
+              onPress={() => { setPhotoSheetVisible(false); openCamera(); }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#374151' }}>📷 Take Photo</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }} 
+              onPress={() => { setPhotoSheetVisible(false); openGallery(); }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#374151' }}>🖼️ Choose from Gallery</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={{ paddingVertical: 14, alignItems: 'center', marginTop: 8 }} 
+              onPress={() => setPhotoSheetVisible(false)}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#ef4444' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }

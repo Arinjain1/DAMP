@@ -138,7 +138,11 @@ function AppNavigator() {
       <Tabs.Screen name="profile-information" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="support-hub" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="deals" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="customer-detail" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="find-properties" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="find-clients" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="deal-page" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="property-detail" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="notifications" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="collab-page" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="stats" options={{ href: null, tabBarStyle: { display: 'none' } }} />

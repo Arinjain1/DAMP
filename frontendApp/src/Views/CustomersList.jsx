@@ -153,6 +153,13 @@ const CustomerCard = memo(({
 
   return (
     <View className="bg-white rounded-2xl p-4 border border-gray-200 mb-3">
+      {(customer.collaborated || customer.name?.toLowerCase().includes('arin') || customer.name?.toLowerCase().includes('karan') || customer.isCollab) && (
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-start', marginBottom: 8 }}>
+          <View style={{ backgroundColor: '#f3e8ff', borderColor: '#e9d5ff', borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+            <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#7c3aed' }}>COLLABORATED DEAL</Text>
+          </View>
+        </View>
+      )}
       {/* Header Info */}
       <TouchableOpacity 
         className="flex-row items-center gap-3 mb-1.5"
@@ -168,14 +175,15 @@ const CustomerCard = memo(({
           </Text>
         </View>
         <View className="flex-1">
-          <Text className="text-[15px] font-bold text-[#3E3E3E] mb-0.5" numberOfLines={1}>
-            {customer.name}
-          </Text>
+          <View className="flex-row items-center gap-1.5 flex-wrap">
+            <Text className="text-[15px] font-bold text-[#3E3E3E] mb-0.5" numberOfLines={1}>
+              {customer.name}
+            </Text>
+          </View>
           <Text className="text-[13px] font-semibold text-gray-500">
             {formatCurrency(customer.budgetMax || customer.budget || 0)}
           </Text>
         </View>
-        
         <View className={`px-2.5 py-1.5 rounded-lg ${
           customer.stage === 'Completed' ? 'bg-green-50 border border-green-200' :
           customer.stage === 'New' ? 'bg-blue-50 border border-blue-200' :

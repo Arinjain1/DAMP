@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
+  Alert,
 } from 'react-native';
 import {
   Check,
@@ -25,17 +26,47 @@ import {
   Lock,
   Unlock,
   Shield,
+  Clock,
 } from 'lucide-react-native';
 import { showToast } from '../utils/toast';
 import WhatsAppIcon from '../Components/WhatsAppIcon';
+import { router } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useDispatch } from 'react-redux';
+import { addFollowUp } from '../store/slices/followUpsSlice';
+import { tasksAPI } from '../config/api';
+import { addDeal, setSelectedDeal } from '../store/slices/dealsSlice';
 
-export default function CollaborationSheet({ isOpen, onClose }) {
+export default function CollaborationSheet({ isOpen, onClose, initialRoomId, initialMatchId }) {
+  const dispatch = useDispatch();
   // Main navigation tabs: 'matches' | 'requests' | 'active' | 'network'
-  const [activeTab, setActiveTab] = useState('matches');
+  const [activeTab, setActiveTab] = useState(initialRoomId ? 'active' : 'matches');
   const [matchSubTab, setMatchSubTab] = useState('clients'); // 'clients' | 'properties'
   
   // Transition states for sub-views
-  const [selectedRoomId, setSelectedRoomId] = useState(null);
+  const [selectedRoomId, setSelectedRoomId] = useState(initialRoomId || null);
+  
+  const [selectedMatchStep, setSelectedMatchStep] = useState('detail'); // 'detail' | 'request'
+  const [selectedMatchSplit, setSelectedMatchSplit] = useState('50-50');
+  const [matchRequestMessage, setMatchRequestMessage] = useState('');
+
+  React.useEffect(() => {
+    if (initialRoomId) {
+      setSelectedRoomId(initialRoomId);
+      setActiveTab('active');
+    } else if (initialMatchId) {
+      setSelectedMatchId(initialMatchId);
+      setSelectedMatchStep('detail');
+      setSelectedMatchSplit('50-50');
+      setMatchRequestMessage('');
+      setActiveTab('matches');
+    } else {
+      setSelectedRoomId(null);
+      setSelectedMatchId(null);
+      setActiveTab('matches');
+    }
+  }, [initialRoomId, initialMatchId]);
+
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [selectedMatchId, setSelectedMatchId] = useState(null);
   const [isCountering, setIsCountering] = useState(false);
@@ -54,30 +85,106 @@ export default function CollaborationSheet({ isOpen, onClose }) {
   // 1. Matches State
   const [matches, setMatches] = useState([
     {
-      id: 201,
-      compatibility: 92,
+      id: 1,
+      compatibility: 91,
       freshness: 'Fresh today',
       type: 'clients',
-      title: '3 BHK Apartment · Nipania',
-      budget: '₹82L',
+      title: '2 BHK Flat · Andheri East',
+      budget: '₹75-90 L',
       moveInStatus: 'Ready to move',
-      size: '1450 sq.ft.',
-      broker: 'Amit Verma',
+      size: '1050 sq.ft.',
+      broker: 'Ravi Sir',
       verified: true,
-      responseRate: '93% response'
+      responseRate: '98% response',
+      bhk: '2 BHK',
+      price: '₹75-90 L',
+      loc: 'Andheri East',
+      initial: 'RS'
     },
     {
-      id: 202,
-      compatibility: 88,
+      id: 2,
+      compatibility: 84,
+      freshness: '2 days ago',
+      type: 'clients',
+      title: '2 BHK Flat · Andheri West',
+      budget: '₹70-85 L',
+      moveInStatus: 'Ready to move',
+      size: '980 sq.ft.',
+      broker: 'Sita Properties',
+      verified: true,
+      responseRate: '92% response',
+      bhk: '2 BHK',
+      price: '₹70-85 L',
+      loc: 'Andheri West',
+      initial: 'SP'
+    },
+    {
+      id: 3,
+      compatibility: 77,
+      freshness: '3 days ago',
+      type: 'clients',
+      title: '2 BHK Flat · Andheri East',
+      budget: '₹78-92 L',
+      moveInStatus: 'Ready to move',
+      size: '1020 sq.ft.',
+      broker: 'Gopal Realty',
+      verified: true,
+      responseRate: '85% response',
+      bhk: '2 BHK',
+      price: '₹78-92 L',
+      loc: 'Andheri East',
+      initial: 'GR'
+    },
+    {
+      id: 4,
+      compatibility: 91,
+      freshness: 'Fresh today',
+      type: 'properties',
+      title: 'Requires 2 BHK · Andheri East',
+      budget: '₹75-90 L',
+      moveInStatus: 'Ready to move',
+      size: '1050 sq.ft.',
+      broker: 'Ravi Sir',
+      verified: true,
+      responseRate: '98% response',
+      bhk: '2 BHK',
+      price: '₹75-90 L',
+      loc: 'Andheri East',
+      initial: 'RS'
+    },
+    {
+      id: 5,
+      compatibility: 84,
       freshness: '2 days ago',
       type: 'properties',
-      title: 'Commercial Showroom · Vijay Nagar',
-      budget: '₹1.5Cr',
+      title: 'Requires 2 BHK · Andheri West',
+      budget: '₹70-85 L',
       moveInStatus: 'Ready to move',
-      size: '2200 sq.ft.',
-      broker: 'Deepika Mall',
+      size: '980 sq.ft.',
+      broker: 'Sita Properties',
       verified: true,
-      responseRate: '95% response'
+      responseRate: '92% response',
+      bhk: '2 BHK',
+      price: '₹70-85 L',
+      loc: 'Andheri West',
+      initial: 'SP'
+    },
+    {
+      id: 6,
+      compatibility: 77,
+      freshness: '3 days ago',
+      type: 'properties',
+      title: 'Requires 2 BHK · Andheri East',
+      budget: '₹78-92 L',
+      moveInStatus: 'Ready to move',
+      size: '1020 sq.ft.',
+      broker: 'Gopal Realty',
+      verified: true,
+      responseRate: '85% response',
+      bhk: '2 BHK',
+      price: '₹78-92 L',
+      loc: 'Andheri East',
+      initial: 'GR'
     }
   ]);
 
@@ -179,12 +286,8 @@ export default function CollaborationSheet({ isOpen, onClose }) {
 
   // 7. Shared Visits State
   const [sharedVisits, setSharedVisits] = useState({
-    1: [
-      { id: 701, time: 'Today - 4:00 PM', status: 'Confirmed', client: 'Arin Jain', property: 'Gokuldham', outcome: null },
-    ],
-    2: [
-      { id: 702, time: '3 days ago', status: 'Completed', client: 'Karan Singh', property: 'Luxury Villa', outcome: 'Interested' }
-    ]
+    1: [],
+    2: []
   });
 
   // State controls for chat messaging
@@ -198,6 +301,10 @@ export default function CollaborationSheet({ isOpen, onClose }) {
   // State controls for scheduling a visit
   const [visitTime, setVisitTime] = useState('Tomorrow - 2:00 PM');
   const [visitClient, setVisitClient] = useState('Arin Jain');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [visitDateVal, setVisitDateVal] = useState(new Date());
+  const [reschedulingVisitId, setReschedulingVisitId] = useState(null);
 
   // State controls for countering split/negotiations
   const [counterSplitVal, setCounterSplitVal] = useState('50/50');
@@ -210,31 +317,60 @@ export default function CollaborationSheet({ isOpen, onClose }) {
     const req = requests.find((r) => r.id === reqId);
     if (!req) return;
 
-    // Create a new active collaboration room
-    const newRoom = {
-      id: activeRooms.length + 1,
-      full_name: req.full_name,
-      phone_number: req.phone_number,
-      operating_area: req.operating_area,
-      property: req.target,
-      client: req.role === 'Client-side' ? 'Client of Suresh (Anonymous)' : 'Your Client',
-      yourRole: req.role === 'Client-side' ? 'Property-side' : 'Client-side',
-      theirRole: req.role,
-      split: req.proposedSplit,
-      stage: 'Accepted',
-      commissionStatus: 'Pending',
-      dealId: null,
-      unlocked: { ...req.unlocks, clientPhone: false }
-    };
+    Alert.alert(
+      "Accept Request",
+      `Are you sure you want to accept collaboration with ${req.full_name}? This will share visibility and open a private active room.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Accept & Unlock",
+          onPress: () => {
+            const newRoom = {
+              id: activeRooms.length + 1,
+              full_name: req.full_name,
+              phone_number: req.phone_number,
+              operating_area: req.operating_area,
+              property: req.target,
+              client: req.role === 'Client-side' ? 'Client of Suresh (Anonymous)' : 'Your Client',
+              yourRole: req.role === 'Client-side' ? 'Property-side' : 'Client-side',
+              theirRole: req.role,
+              split: req.proposedSplit,
+              stage: 'Accepted',
+              commissionStatus: 'Pending',
+              dealId: null,
+              unlocked: { ...req.unlocks, clientPhone: false }
+            };
 
-    setActiveRooms((prev) => [newRoom, ...prev]);
-    setRequests((prev) => prev.filter((r) => r.id !== reqId));
-    showToast.success(`Collaboration with ${req.full_name} accepted!`);
+            setActiveRooms((prev) => [newRoom, ...prev]);
+            setRequests((prev) => prev.filter((r) => r.id !== reqId));
+            setSelectedRequestId(null);
+            showToast.success(`Collaboration with ${req.full_name} accepted!`);
+          }
+        }
+      ]
+    );
   };
 
   const handleRejectRequest = (reqId) => {
-    setRequests((prev) => prev.filter((r) => r.id !== reqId));
-    showToast.info('Collaboration proposal declined.');
+    const req = requests.find((r) => r.id === reqId);
+    if (!req) return;
+
+    Alert.alert(
+      "Decline Request",
+      `Are you sure you want to decline the request from ${req.full_name}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Decline",
+          style: "destructive",
+          onPress: () => {
+            setRequests((prev) => prev.filter((r) => r.id !== reqId));
+            setSelectedRequestId(null);
+            showToast.info('Collaboration proposal declined.');
+          }
+        }
+      ]
+    );
   };
 
   const handleCounterRequest = (reqId) => {
@@ -334,20 +470,60 @@ export default function CollaborationSheet({ isOpen, onClose }) {
   };
 
   // Schedule New Visit
-  const handleScheduleVisit = (roomId) => {
+  const handleScheduleVisit = async (roomId) => {
+    const roomObj = activeRooms.find((r) => r.id === roomId);
+    const propertyName = roomObj?.property || 'Gokuldham Apartment';
+    const partnerBrokerName = roomObj?.full_name || 'Deepak Bhai';
+    const formattedTime = visitDateVal.toLocaleDateString() + ' ' + visitDateVal.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const newVisit = {
       id: Date.now(),
-      time: visitTime,
+      time: formattedTime,
       status: 'Confirmed',
       client: visitClient,
-      property: 'Gokuldham Apartment',
+      property: propertyName,
       outcome: null,
     };
     setSharedVisits((prev) => ({
       ...prev,
       [roomId]: [...(prev[roomId] || []), newVisit],
     }));
+
+    // Add shared task to checklist
+    const newTask = {
+      id: Date.now() + 1,
+      title: `[Collaborated] Site Visit Scheduled for ${visitClient} (${formattedTime}) with ${partnerBrokerName}`,
+      completed: false,
+    };
+    setSharedTasks((prev) => ({
+      ...prev,
+      [roomId]: [...(prev[roomId] || []), newTask],
+    }));
+
+    // Add global follow-up task to Redux (so it shows up in dashboard / todays focus / main tasks)
+    const newGlobalFollowUp = {
+      id: `collab_f_${Date.now()}`,
+      customerId: 'c1',
+      propertyId: 'p1',
+      date: visitDateVal.toISOString(),
+      note: `[Collaborated] Site Visit Scheduled for ${visitClient} (${formattedTime}) on ${propertyName} with ${partnerBrokerName}`,
+      client_name: `${visitClient} (Collab: ${partnerBrokerName})`,
+      clientNameFallback: `${visitClient} (Collab: ${partnerBrokerName})`,
+      propertyNameFallback: propertyName,
+      propertyLocationFallback: roomObj?.operating_area || 'Andheri East, Mumbai',
+      status: 'Pending',
+      type: 'Site Visit',
+    };
+    dispatch(addFollowUp(newGlobalFollowUp));
+
     showToast.success('Site visit scheduled!');
+  };
+
+  const handleRescheduleVisit = (roomId, visitId, newTime) => {
+    setSharedVisits((prev) => ({
+      ...prev,
+      [roomId]: prev[roomId].map((v) => (v.id === visitId ? { ...v, time: newTime } : v)),
+    }));
+    showToast.success('Site visit rescheduled!');
   };
 
   // Complete Visit Outcome
@@ -362,6 +538,12 @@ export default function CollaborationSheet({ isOpen, onClose }) {
       setActiveRooms((prev) =>
         prev.map((room) => (room.id === roomId ? { ...room, stage: 'Deal' } : room))
       );
+      
+      // Close sheet modal and navigate to deal-page
+      onClose();
+      setTimeout(() => {
+        router.push('/deal-page');
+      }, 100);
     }
     showToast.success(`Visit marked complete: ${outcome}`);
   };
@@ -381,6 +563,21 @@ export default function CollaborationSheet({ isOpen, onClose }) {
     setActiveRooms((prev) =>
       prev.map((room) => (room.id === roomId ? { ...room, stage: 'Deal', dealId: 99 } : room))
     );
+    const roomObj = activeRooms.find((r) => r.id === roomId);
+    const isRoom2 = roomId === 2;
+    const customerId = isRoom2 ? 'c2' : 'c1';
+    
+    const newCollabDeal = {
+      id: 99,
+      customerId: customerId,
+      propertyId: 'p1',
+      stage: 'Negotiation',
+      status: 'Negotiation',
+      startedAt: new Date().toISOString(),
+      meetings: []
+    };
+    dispatch(addDeal(newCollabDeal));
+    dispatch(setSelectedDeal(newCollabDeal));
     showToast.success('Deal linkage initialized. Lead moved to In-Process!');
   };
 
@@ -415,88 +612,71 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                 return (
                   <View style={styles.flexContainer}>
                     {/* Header */}
-                    <View style={styles.header}>
-                      <TouchableOpacity
-                        onPress={() => setSelectedRoomId(null)}
-                        style={styles.backButton}
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 15 : 50,
+                      paddingBottom: 16,
+                      paddingHorizontal: 20,
+                      backgroundColor: 'white',
+                      borderBottomWidth: 1,
+                      borderColor: '#e5e7eb',
+                      justifyContent: 'space-between',
+                    }}>
+                      <TouchableOpacity 
+                        onPress={() => setSelectedRoomId(null)} 
+                        style={{ padding: 4 }}
                       >
-                        <ArrowLeft size={18} color="#374151" />
+                        <ArrowLeft size={24} color="#111827" />
                       </TouchableOpacity>
-                      <View style={styles.headerTitleContainer}>
-                        <Text style={styles.headerTitle}>{room?.full_name}</Text>
-                        <View style={styles.activeIndicatorBox}>
-                          <View style={styles.greenDot} />
-                          <Text style={styles.activeLabel}>Active Room</Text>
-                        </View>
+                      
+                      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>
+                        Shared Room
+                      </Text>
+                      
+                      <View style={{
+                        backgroundColor: '#e2fbe8',
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 14,
+                      }}>
+                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#16a34a', fontFamily: 'Montserrat_700Bold' }}>Active</Text>
                       </View>
-                      <View style={styles.headerActionsRow}>
-                        <TouchableOpacity
-                          onPress={() => handleWhatsApp(room?.phone_number)}
-                          style={[styles.callRoundBtn, { marginRight: 8 }]}
-                        >
-                          <WhatsAppIcon size={14} color="#25D366" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleCall(room?.phone_number)}
-                          style={styles.callRoundBtn}
-                        >
-                          <Phone size={14} color="#4b5563" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* Timeline Tracker */}
-                    <View style={styles.pipelineBar}>
-                      {['Matched', 'Accepted', 'Visit', 'Deal', 'Paid'].map((stg, i) => {
-                        const stages = ['Matched', 'Accepted', 'Visit', 'Deal', 'Paid'];
-                        const activeIdx = stages.indexOf(room?.stage);
-                        const currentIdx = stages.indexOf(stg);
-                        const isDone = currentIdx <= activeIdx;
-
-                        return (
-                          <View key={stg} style={styles.pipelineStep}>
-                            <View
-                              style={[
-                                styles.pipelineCircle,
-                                isDone && styles.pipelineCircleActive,
-                              ]}
-                            >
-                              {isDone ? (
-                                <Check size={10} color="#ffffff" strokeWidth={3} />
-                              ) : (
-                                <Text style={styles.pipelineNum}>{i + 1}</Text>
-                              )}
-                            </View>
-                            <Text
-                              style={[styles.pipelineText, isDone && styles.pipelineTextActive]}
-                            >
-                              {stg}
-                            </Text>
-                          </View>
-                        );
-                      })}
                     </View>
 
                     {/* Room Sub-Tabs */}
-                    <View style={styles.subTabScrollWrapper}>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.roomTabs}>
-                        {['Overview', 'Chat', 'Tasks', 'Visits', 'Deal & Commission'].map((t) => (
-                          <TouchableOpacity
-                            key={t}
-                            style={[styles.roomTab, activeRoomTab === t && styles.activeRoomTab]}
-                            onPress={() => setActiveRoomTab(t)}
+                    <View style={{
+                      flexDirection: 'row',
+                      gap: 8,
+                      marginBottom: 16,
+                      marginTop: 12,
+                      paddingHorizontal: 20,
+                    }}>
+                      {['Overview', 'Tasks', 'Visit'].map((t) => (
+                        <TouchableOpacity
+                          key={t}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 10,
+                            borderRadius: 10,
+                            backgroundColor: activeRoomTab === t ? '#000000' : '#F4F7FE',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          onPress={() => setActiveRoomTab(t)}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontWeight: '600',
+                              color: activeRoomTab === t ? '#ffffff' : '#6b7280',
+                              fontFamily: 'Montserrat_700Bold',
+                            }}
                           >
-                            <Text
-                              style={[
-                                styles.roomTabText,
-                                activeRoomTab === t && styles.activeRoomTabText,
-                              ]}
-                            >
-                              {t}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
+                            {t}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
 
                     {/* Sub-Tab Contents */}
@@ -505,105 +685,195 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                       contentContainerStyle={styles.scrollContent}
                     >
                       {activeRoomTab === 'Overview' && (
-                        <View style={styles.gap16}>
-                          {/* Visibility settings */}
-                          <View style={styles.detailCard}>
-                            <View style={styles.cardHeaderRow}>
-                              <Shield size={16} color="#7c3aed" />
-                              <Text style={styles.cardSectionTitle}>Data Disclosure Rules</Text>
-                            </View>
-                            <View style={styles.infoRow}>
-                              <Text style={styles.infoLabel}>Exact Address</Text>
-                              <View style={styles.badgeRow}>
-                                <Unlock size={12} color="#16a34a" />
-                                <Text style={styles.unlockedText}>Unlocked</Text>
+                        <View style={{ gap: 16, paddingBottom: 20 }}>
+                          {/* Deal Overview Card */}
+                          <View style={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: 16,
+                            padding: 18,
+                            borderColor: '#e5e7eb',
+                            borderWidth: 1,
+                          }}>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1e293b', marginBottom: 16, fontFamily: 'Montserrat_700Bold' }}>Deal Overview</Text>
+                            <View style={{ gap: 12 }}>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text style={{ fontSize: 13, color: '#64748b', fontFamily: 'Lato_400Regular' }}>Property</Text>
+                                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1e293b', fontFamily: 'Montserrat_700Bold' }}>{room?.property || '3 BHK Bandra West'}</Text>
                               </View>
-                            </View>
-                            <View style={styles.infoRow}>
-                              <Text style={styles.infoLabel}>Owner Contact</Text>
-                              <View style={styles.badgeRow}>
-                                <Unlock size={12} color="#16a34a" />
-                                <Text style={styles.unlockedText}>Unlocked</Text>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text style={{ fontSize: 13, color: '#64748b', fontFamily: 'Lato_400Regular' }}>Client</Text>
+                                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1e293b', fontFamily: 'Montserrat_700Bold' }}>
+                                  {room?.client || 'Arin Jain (Client of Rahul)'}
+                                </Text>
                               </View>
-                            </View>
-                            <View style={styles.infoRow}>
-                              <Text style={styles.infoLabel}>Client Identity</Text>
-                              <View style={styles.badgeRow}>
-                                <Lock size={12} color="#dc2626" />
-                                <Text style={styles.lockedText}>Protected</Text>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text style={{ fontSize: 13, color: '#64748b', fontFamily: 'Lato_400Regular' }}>Stage</Text>
+                                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1e293b', fontFamily: 'Montserrat_700Bold' }}>
+                                  {room?.stage === 'Visit' ? 'Visit Planned' : (room?.stage === 'Deal' ? 'Deal In Progress' : room?.stage)}
+                                </Text>
                               </View>
                             </View>
                           </View>
 
-                          {/* Split and Roles */}
-                          <View style={styles.detailCard}>
-                            <Text style={styles.cardSectionTitle}>Commission Agreement</Text>
-                            <View style={styles.infoRow}>
-                              <Text style={styles.infoLabel}>Commission Split</Text>
-                              <Text style={styles.infoValue}>{room?.split} Split</Text>
+                          {/* Broker Roles & Split Card */}
+                          <View style={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: 16,
+                            padding: 18,
+                            borderColor: '#e5e7eb',
+                            borderWidth: 1,
+                          }}>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1e293b', marginBottom: 16, fontFamily: 'Montserrat_700Bold' }}>Broker Roles & Split</Text>
+                            <View style={{ gap: 12, marginBottom: 16 }}>
+                              {/* Aap row */}
+                              <View style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: '#f5f3ff',
+                                padding: 12,
+                                borderRadius: 14,
+                                justifyContent: 'space-between',
+                              }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                  <View style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 20,
+                                    backgroundColor: '#ddd6fe',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}>
+                                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#BFB7FD', fontFamily: 'Montserrat_700Bold' }}>R</Text>
+                                  </View>
+                                  <View>
+                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1e293b', fontFamily: 'Montserrat_700Bold' }}>Aap (Rajesh Bhai)</Text>
+                                    <Text style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Lato_400Regular', textTransform: 'capitalize' }}>
+                                      {room?.yourRole || 'Property-side'} broker
+                                    </Text>
+                                  </View>
+                                </View>
+                                <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#BFB7FD', fontFamily: 'Montserrat_700Bold' }}>
+                                  {room?.yourRole === 'Client-side' ? (room?.split ? room.split.split('/')[0] : '50') : (room?.split ? room.split.split('/')[1] : '50')}%
+                                </Text>
+                              </View>
+
+                              {/* Other broker row */}
+                              <View style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: '#f8fafc',
+                                padding: 12,
+                                borderRadius: 14,
+                                justifyContent: 'space-between',
+                              }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                  <View style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 20,
+                                    backgroundColor: '#e2e8f0',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}>
+                                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#64748b', fontFamily: 'Montserrat_700Bold' }}>
+                                      {room?.full_name?.charAt(0).toUpperCase()}
+                                    </Text>
+                                  </View>
+                                  <View>
+                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1e293b', fontFamily: 'Montserrat_700Bold' }}>{room?.full_name || 'Deepak Bhai'}</Text>
+                                    <Text style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Lato_400Regular', textTransform: 'capitalize' }}>
+                                      {room?.theirRole || 'Client-side'} broker
+                                    </Text>
+                                  </View>
+                                </View>
+                                <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#64748b', fontFamily: 'Montserrat_700Bold' }}>
+                                  {room?.yourRole === 'Client-side' ? (room?.split ? room.split.split('/')[1] : '50') : (room?.split ? room.split.split('/')[0] : '50')}%
+                                </Text>
+                              </View>
                             </View>
-                            <View style={styles.infoRow}>
-                              <Text style={styles.infoLabel}>Your Role</Text>
-                              <Text style={styles.infoValue}>{room?.yourRole}</Text>
-                            </View>
-                            <View style={styles.infoRow}>
-                              <Text style={styles.infoLabel}>Associated Listing</Text>
-                              <Text style={styles.infoValue}>{room?.property}</Text>
+
+                            {/* Status notice */}
+                            <View style={{
+                              backgroundColor: '#f0fdf4',
+                              borderColor: '#bbf7d0',
+                              borderWidth: 1,
+                              borderRadius: 12,
+                              padding: 12,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 8,
+                            }}>
+                              <Shield size={16} color="#16a34a" />
+                              <Text style={{ fontSize: 13, color: '#16a34a', fontWeight: '500', fontFamily: 'Lato_400Regular' }}>
+                                Contact details dono ke liye unlock ho gaye
+                              </Text>
                             </View>
                           </View>
 
-                          {/* Next actions */}
-                          <View style={styles.nextActionBox}>
-                            <Text style={styles.nextActionTitle}>Suggested Next Action</Text>
-                            <Text style={styles.nextActionDesc}>
-                              {room?.stage === 'Accepted'
-                                ? 'Coordinate with Rahul to set up a site visit time for the buyer client.'
-                                : room?.stage === 'Visit'
-                                ? 'Complete the site visit check-in and request feedback from the buyer client.'
-                                : 'Draft deal tokens and log milestones splits under the Deal tab.'}
+                          {/* Agreed Split Card */}
+                          <View style={{
+                            backgroundColor: '#f5f3ff',
+                            borderRadius: 16,
+                            padding: 18,
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}>
+                            <View>
+                              <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#1e293b', fontFamily: 'Montserrat_700Bold' }}>Agreed Split</Text>
+                              <Text style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Lato_400Regular', marginTop: 2 }}>Dono ne agree kar liya • Written</Text>
+                            </View>
+                            <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#BFB7FD', fontFamily: 'Montserrat_700Bold' }}>
+                              {room?.split?.replace('/', '-') || '50-50'}
                             </Text>
                           </View>
-                        </View>
-                      )}
 
-                      {activeRoomTab === 'Chat' && (
-                        <View style={styles.chatWrapper}>
-                          <ScrollView
-                            ref={scrollViewRef}
-                            style={styles.chatScroll}
-                            contentContainerStyle={styles.chatContent}
-                            onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+                          {/* Visit Schedule Karo Button */}
+                          <TouchableOpacity
+                            style={{
+                              backgroundColor: '#BFB7FD',
+                              borderRadius: 16,
+                              paddingVertical: 16,
+                              alignItems: 'center',
+                              flexDirection: 'row',
+                              justifyContent: 'center',
+                              gap: 8,
+                              marginTop: 10,
+                            }}
+                            onPress={() => setActiveRoomTab('Visit')}
                           >
-                            {roomChats.map((msg) => (
-                              <View
-                                key={msg.id}
-                                style={[
-                                  styles.chatBubble,
-                                  msg.sender === 'you' ? styles.bubbleYou : styles.bubbleThem,
-                                ]}
-                              >
-                                <Text style={msg.sender === 'you' ? styles.chatTextYou : styles.chatTextThem}>
-                                  {msg.text}
-                                </Text>
-                                <Text style={styles.chatTime}>{msg.time}</Text>
-                              </View>
-                            ))}
-                          </ScrollView>
-                          
-                          <View style={styles.chatInputRow}>
-                            <TextInput
-                              style={styles.chatInput}
-                              value={newMsgText}
-                              onChangeText={setNewMsgText}
-                              placeholder="Type message..."
-                              placeholderTextColor="#9ca3af"
-                            />
-                            <TouchableOpacity
-                              style={styles.chatSendBtn}
-                              onPress={() => handleSendMsg(selectedRoomId)}
-                            >
-                              <Send size={16} color="#ffffff" />
-                            </TouchableOpacity>
+                            <Calendar size={18} color="#ffffff" />
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#ffffff', fontFamily: 'Montserrat_700Bold' }}>Visit Schedule Karo</Text>
+                          </TouchableOpacity>
+
+                          {/* Interested (Start Deal) Button */}
+                          <TouchableOpacity
+                            style={{
+                              backgroundColor: '#16a34a',
+                              borderRadius: 16,
+                              paddingVertical: 16,
+                              alignItems: 'center',
+                              flexDirection: 'row',
+                              justifyContent: 'center',
+                              gap: 8,
+                              marginTop: 10,
+                            }}
+                            onPress={() => {
+                              onClose();
+                              setTimeout(() => {
+                                router.push('/deal-page');
+                              }, 100);
+                            }}
+                          >
+                            <CheckCircle2 size={18} color="#ffffff" />
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#ffffff', fontFamily: 'Montserrat_700Bold' }}>Interested (Start Deal)</Text>
+                          </TouchableOpacity>
+
+                          {/* Footer Logo */}
+                          <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 12 }}>
+                            <Text style={{ fontSize: 12, color: '#94a3b8', fontFamily: 'Lato_400Regular' }}>
+                              BrokMate • Indian Real Estate CRM
+                            </Text>
                           </View>
                         </View>
                       )}
@@ -685,9 +955,32 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                         </View>
                       )}
 
-                      {activeRoomTab === 'Visits' && (
+                      {activeRoomTab === 'Visit' && (
                         <View style={styles.gap16}>
-                          <Text style={styles.cardSectionTitle}>Collaborative Site Visits</Text>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <Text style={styles.cardSectionTitle}>Collaborative Site Visits</Text>
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: '#16a34a',
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 10,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 6,
+                              }}
+                              onPress={() => {
+                                handleStartDeal(selectedRoomId);
+                                onClose();
+                                setTimeout(() => {
+                                  router.push('/deal-page');
+                                }, 100);
+                              }}
+                            >
+                              <CheckCircle2 size={14} color="#ffffff" />
+                              <Text style={{ fontSize: 12, fontWeight: '700', color: '#ffffff', fontFamily: 'Montserrat_700Bold' }}>Interested (Start Deal)</Text>
+                            </TouchableOpacity>
+                          </View>
                           {roomVisits.map((visit) => (
                             <View key={visit.id} style={styles.visitCard}>
                               <View style={styles.visitHeaderRow}>
@@ -696,7 +989,7 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                                 </View>
                                 <View style={styles.flex1}>
                                   <Text style={styles.visitTimeText}>{visit.time}</Text>
-                                  <Text style={styles.visitDetailText}>Client: {visit.client}</Text>
+                                  <Text style={styles.visitDetailText}>Client: {visit.client} • Broker: {room?.full_name || 'Deepak Bhai'}</Text>
                                 </View>
                                 <View style={styles.visitStatusBadge}>
                                   <Text style={styles.visitStatusBadgeText}>{visit.status}</Text>
@@ -711,22 +1004,69 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                                   </Text>
                                 </View>
                               ) : (
-                                <View style={styles.visitActionsRow}>
+                                <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, alignItems: 'center' }}>
                                   <TouchableOpacity
-                                    style={styles.visitActionOutline}
-                                    onPress={() =>
-                                      handleVisitOutcome(selectedRoomId, visit.id, 'Hold')
-                                    }
+                                    style={{
+                                      flex: 1.5,
+                                      paddingVertical: 10,
+                                      borderRadius: 10,
+                                      borderWidth: 1,
+                                      borderColor: '#BFB7FD',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      backgroundColor: '#ffffff',
+                                    }}
+                                    onPress={() => {
+                                      setReschedulingVisitId(visit.id);
+                                      setVisitDateVal(new Date());
+                                      setShowDatePicker(true);
+                                    }}
                                   >
-                                    <Text style={styles.visitActionTextDark}>On Hold</Text>
+                                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#7c3aed', fontFamily: 'Montserrat_700Bold' }}>Reschedule</Text>
                                   </TouchableOpacity>
+
                                   <TouchableOpacity
-                                    style={[styles.visitActionSolid, { backgroundColor: '#16a34a' }]}
+                                    style={{
+                                      flex: 1.5,
+                                      paddingVertical: 10,
+                                      borderRadius: 10,
+                                      backgroundColor: '#BFB7FD',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    }}
                                     onPress={() =>
-                                      handleVisitOutcome(selectedRoomId, visit.id, 'Interested')
+                                      handleVisitOutcome(selectedRoomId, visit.id, 'Completed')
                                     }
                                   >
-                                    <Text style={styles.visitActionTextLight}>Interested (Start Deal)</Text>
+                                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#ffffff', fontFamily: 'Montserrat_700Bold' }}>Complete</Text>
+                                  </TouchableOpacity>
+
+                                  <TouchableOpacity
+                                    style={{
+                                      width: 36,
+                                      height: 36,
+                                      borderRadius: 18,
+                                      backgroundColor: '#f3f4f6',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    }}
+                                    onPress={() => handleWhatsApp(room?.phone_number)}
+                                  >
+                                    <WhatsAppIcon size={16} color="#25D366" />
+                                  </TouchableOpacity>
+
+                                  <TouchableOpacity
+                                    style={{
+                                      width: 36,
+                                      height: 36,
+                                      borderRadius: 18,
+                                      backgroundColor: '#f3f4f6',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    }}
+                                    onPress={() => handleCall(room?.phone_number)}
+                                  >
+                                    <Phone size={16} color="#4b5563" />
                                   </TouchableOpacity>
                                 </View>
                               )}
@@ -737,21 +1077,79 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                           <View style={styles.addTaskForm}>
                             <Text style={styles.miniSectionTitle}>Propose Site Visit</Text>
                             <TextInput
-                              style={[styles.addTaskInput, { marginBottom: 10 }]}
+                              style={[styles.addTaskInput, { marginBottom: 12 }]}
                               value={visitClient}
                               onChangeText={setVisitClient}
                               placeholder="Client Name (e.g. Arin Jain)"
                               placeholderTextColor="#9ca3af"
                             />
-                            <TextInput
-                              style={styles.addTaskInput}
-                              value={visitTime}
-                              onChangeText={setVisitTime}
-                              placeholder="Date & Time (e.g. Tomorrow 4 PM)"
-                              placeholderTextColor="#9ca3af"
-                            />
+                            
+                            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+                              <TouchableOpacity
+                                style={{
+                                  flex: 1,
+                                  height: 44,
+                                  borderWidth: 1,
+                                  borderColor: '#d1d5db',
+                                  borderRadius: 10,
+                                  backgroundColor: '#ffffff',
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  paddingHorizontal: 12,
+                                }}
+                                onPress={() => setShowDatePicker(true)}
+                              >
+                                <Text style={{ fontSize: 13, color: '#1f2937', fontFamily: 'Lato_400Regular' }}>
+                                  {visitDateVal.toLocaleDateString()}
+                                </Text>
+                                <Calendar size={14} color="#BFB7FD" />
+                              </TouchableOpacity>
+
+                              <TouchableOpacity
+                                style={{
+                                  flex: 1,
+                                  height: 44,
+                                  borderWidth: 1,
+                                  borderColor: '#d1d5db',
+                                  borderRadius: 10,
+                                  backgroundColor: '#ffffff',
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  paddingHorizontal: 12,
+                                }}
+                                onPress={() => setShowTimePicker(true)}
+                              >
+                                <Text style={{ fontSize: 13, color: '#1f2937', fontFamily: 'Lato_400Regular' }}>
+                                  {visitDateVal.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </Text>
+                                <Clock size={14} color="#BFB7FD" />
+                              </TouchableOpacity>
+                            </View>
+
+                            {(showDatePicker || showTimePicker) && (
+                              <DateTimePicker
+                                value={visitDateVal}
+                                mode={showDatePicker ? 'date' : 'time'}
+                                display="default"
+                                onChange={(event, selectedDate) => {
+                                  setShowDatePicker(false);
+                                  setShowTimePicker(false);
+                                  if (selectedDate) {
+                                    setVisitDateVal(selectedDate);
+                                    if (reschedulingVisitId) {
+                                      const formattedTime = selectedDate.toLocaleDateString() + ' ' + selectedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                      handleRescheduleVisit(selectedRoomId, reschedulingVisitId, formattedTime);
+                                      setReschedulingVisitId(null);
+                                    }
+                                  }
+                                }}
+                              />
+                            )}
+
                             <TouchableOpacity
-                              style={styles.addTaskSubmitBtn}
+                              style={[styles.addTaskSubmitBtn, { backgroundColor: '#BFB7FD' }]}
                               onPress={() => handleScheduleVisit(selectedRoomId)}
                             >
                               <Text style={styles.addTaskSubmitText}>Schedule Site Visit</Text>
@@ -760,7 +1158,7 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                         </View>
                       )}
 
-                      {activeRoomTab === 'Deal & Commission' && (
+                      {activeRoomTab === 'Deal' && (
                         <View style={styles.gap16}>
                           {/* Deal linkage status */}
                           <View style={styles.detailCard}>
@@ -835,15 +1233,34 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                 const req = requests.find((r) => r.id === selectedRequestId);
                 return (
                   <View style={styles.flexContainer}>
-                    <View style={styles.header}>
-                      <TouchableOpacity
-                        onPress={() => setSelectedRequestId(null)}
-                        style={styles.backButton}
+                    {/* Header */}
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 15 : 50,
+                      paddingBottom: 16,
+                      paddingHorizontal: 20,
+                      backgroundColor: 'white',
+                      borderBottomWidth: 1,
+                      borderColor: '#e5e7eb',
+                      justifyContent: 'space-between',
+                    }}>
+                      <TouchableOpacity 
+                        onPress={() => {
+                          if (isCountering) {
+                            setIsCountering(false);
+                          } else {
+                            setSelectedRequestId(null);
+                          }
+                        }} 
+                        style={{ padding: 4 }}
                       >
-                        <ArrowLeft size={18} color="#374151" />
+                        <ArrowLeft size={24} color="#111827" />
                       </TouchableOpacity>
-                      <Text style={styles.headerTitle}>Negotiate Terms</Text>
-                      <View style={{ width: 32 }} />
+                      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>
+                        {isCountering ? 'Counter Terms' : 'Connection Request'}
+                      </Text>
+                      <View style={{ width: 28 }} />
                     </View>
 
                     <ScrollView style={styles.flexContainer} contentContainerStyle={styles.scrollContent}>
@@ -867,6 +1284,25 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                           <Text style={styles.oppRole}>
                             Broker Role: <Text style={styles.boldText}>{req?.role}</Text>
                           </Text>
+                          <View style={{ height: 1, backgroundColor: '#f3f4f6', marginVertical: 10 }} />
+                          <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Region / Locality</Text>
+                            <Text style={[styles.infoValue, { fontWeight: '600' }]}>{req?.operating_area || 'Bandra West'}</Text>
+                          </View>
+                          <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Full Address</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Lock size={12} color="#b45309" />
+                              <Text style={[styles.infoValue, { color: '#b45309' }]}>Locked (Accept to view)</Text>
+                            </View>
+                          </View>
+                          <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Owner Contact</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Lock size={12} color="#b45309" />
+                              <Text style={[styles.infoValue, { color: '#b45309' }]}>Locked (Accept to view)</Text>
+                            </View>
+                          </View>
                         </View>
 
                         {/* Split Terms */}
@@ -875,17 +1311,61 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                           
                           {isCountering ? (
                             <View style={styles.counterBox}>
-                              <Text style={styles.counterLabel}>Edit Split Ratio:</Text>
+                              <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 10, fontFamily: 'Montserrat_700Bold' }}>Choose Revised Split:</Text>
+                              <View style={{ gap: 8, marginBottom: 16 }}>
+                                {['50-50', '60-40', '55-45', '70-30'].map(split => {
+                                  const formattedSplit = split.replace('-', '/');
+                                  const isSelected = counterSplitVal === formattedSplit;
+                                  return (
+                                    <TouchableOpacity
+                                      key={split}
+                                      onPress={() => setCounterSplitVal(formattedSplit)}
+                                      style={[{
+                                        flexDirection: 'row',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        paddingVertical: 12,
+                                        paddingHorizontal: 14,
+                                        borderRadius: 10,
+                                        borderWidth: 1.5,
+                                        borderColor: '#e5e7eb',
+                                        backgroundColor: '#ffffff',
+                                      }, isSelected && {
+                                        borderColor: '#7c3aed',
+                                        backgroundColor: '#f5f3ff',
+                                      }]}
+                                    >
+                                      <Text style={[{
+                                        fontSize: 13,
+                                        fontWeight: '500',
+                                        color: '#111827',
+                                        fontFamily: 'Lato_400Regular',
+                                      }, isSelected && {
+                                        fontWeight: '700',
+                                        fontFamily: 'Montserrat_700Bold',
+                                      }]}>
+                                        {formattedSplit} Split
+                                      </Text>
+                                      {isSelected && <Check size={16} color="#7c3aed" />}
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                              <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 8, fontFamily: 'Montserrat_700Bold' }}>Add Counter Note:</Text>
                               <TextInput
-                                style={styles.counterInput}
-                                value={counterSplitVal}
-                                onChangeText={setCounterSplitVal}
-                                placeholder="e.g. 50/50, 40/60"
-                                placeholderTextColor="#9ca3af"
-                              />
-                              <Text style={styles.counterLabel}>Add Counter Note:</Text>
-                              <TextInput
-                                style={[styles.counterInput, { height: 80 }]}
+                                style={{
+                                  backgroundColor: '#ffffff',
+                                  borderColor: '#e5e7eb',
+                                  borderWidth: 1,
+                                  borderRadius: 10,
+                                  padding: 12,
+                                  height: 70,
+                                  textAlignVertical: 'top',
+                                  fontSize: 13,
+                                  fontFamily: 'Lato_400Regular',
+                                  color: '#111827',
+                                  marginBottom: 16,
+                                }}
                                 value={counterMessage}
                                 onChangeText={setCounterMessage}
                                 placeholder="Reason for change..."
@@ -975,201 +1455,316 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                 return (
                   <View style={styles.flexContainer}>
                     {/* Header */}
-                    <View style={styles.matchDetailHeader}>
-                      <View style={styles.headerTitleRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.matchDetailTitle}>Match</Text>
-                          <Text style={styles.matchDetailTitle}>Detail</Text>
-                          <Text style={styles.matchDetailSubtitle}>Explainable compatibility</Text>
-                        </View>
-                        <TouchableOpacity onPress={() => setSelectedMatchId(null)} style={styles.closeButton} activeOpacity={0.7}>
-                          <X size={26} color="#374151" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* Scrollable details */}
-                    <ScrollView style={styles.flexContainer} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                      {/* Card 1: Overview badge */}
-                      <View style={styles.matchDetailCard}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <View style={{ flex: 1, gap: 4 }}>
-                            <View style={[styles.percentBadge, styles.percentBadgeGreen, { alignSelf: 'flex-start' }]}>
-                              <Text style={[styles.percentText, styles.percentTextGreen]}>92% STRONG MATCH</Text>
-                            </View>
-                            <Text style={{ fontSize: 18, fontWeight: '700', color: '#1f2937', marginTop: 8 }}>
-                              {match?.broker === 'Amit Verma' ? 'Arin Jain ↔ Gokuldham' : 'Rahul Sharma ↔ Vijay Nagar'}
-                            </Text>
-                            <Text style={{ fontSize: 12, color: '#6b7280' }}>
-                              Client requirement matched with property
-                            </Text>
-                          </View>
-                          
-                          <View style={{ 
-                            backgroundColor: '#f3e8ff', 
-                            width: 60, 
-                            height: 60, 
-                            borderRadius: 14, 
-                            alignItems: 'center', 
-                            justifyContent: 'center' 
-                          }}>
-                            <Text style={{ fontSize: 18, fontWeight: '700', color: '#7c3aed' }}>{match?.compatibility}%</Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      {/* Card 2: Requirement */}
-                      <View style={styles.matchDetailCard}>
-                        <Text style={styles.matchDetailCardTitle}>Requirement</Text>
-                        <View style={styles.matchDetailRow}>
-                          <Text style={styles.matchDetailLabel}>Property</Text>
-                          <Text style={styles.matchDetailValue}>2 BHK Apartment</Text>
-                        </View>
-                        <View style={styles.matchDetailRow}>
-                          <Text style={styles.matchDetailLabel}>Location</Text>
-                          <Text style={styles.matchDetailValue}>Vijay Nagar / Nipania</Text>
-                        </View>
-                        <View style={styles.matchDetailRow}>
-                          <Text style={styles.matchDetailLabel}>Budget</Text>
-                          <Text style={styles.matchDetailValue}>₹40-60L</Text>
-                        </View>
-                        <View style={styles.matchDetailRow}>
-                          <Text style={styles.matchDetailLabel}>Timeline</Text>
-                          <Text style={styles.matchDetailValue}>30 days</Text>
-                        </View>
-                      </View>
-
-                      {/* Card 3: Property */}
-                      <View style={styles.matchDetailCard}>
-                        <Text style={styles.matchDetailCardTitle}>Property</Text>
-                        <View style={styles.matchDetailRow}>
-                          <Text style={styles.matchDetailLabel}>Configuration</Text>
-                          <Text style={styles.matchDetailValue}>1 BHK Apartment</Text>
-                        </View>
-                        <View style={styles.matchDetailRow}>
-                          <Text style={styles.matchDetailLabel}>Location</Text>
-                          <Text style={styles.matchDetailValue}>Vijay Nagar</Text>
-                        </View>
-                        <View style={styles.matchDetailRow}>
-                          <Text style={styles.matchDetailLabel}>Price</Text>
-                          <Text style={styles.matchDetailValue}>₹23.33L</Text>
-                        </View>
-                        <View style={styles.matchDetailRow}>
-                          <Text style={styles.matchDetailLabel}>Availability</Text>
-                          <Text style={styles.matchDetailValue}>Confirmed today</Text>
-                        </View>
-                      </View>
-
-                      {/* Card 4: Why it matches */}
-                      <View style={styles.matchDetailCard}>
-                        <Text style={styles.matchDetailCardTitle}>Why it matches</Text>
-                        <View style={styles.matchDetailRow}>
-                          <Text style={styles.matchDetailLabel}>Location</Text>
-                          <Text style={styles.matchDetailValueGreen}>Excellent</Text>
-                        </View>
-                        <View style={styles.matchDetailRow}>
-                          <Text style={styles.matchDetailLabel}>Budget</Text>
-                          <Text style={styles.matchDetailValueGreen}>Within range</Text>
-                        </View>
-                        <View style={styles.matchDetailRow}>
-                          <Text style={styles.matchDetailLabel}>Configuration</Text>
-                          <Text style={styles.matchDetailValueOrange}>Flexible</Text>
-                        </View>
-                        <View style={styles.matchDetailRow}>
-                          <Text style={styles.matchDetailLabel}>Freshness</Text>
-                          <Text style={styles.matchDetailValueGreen}>Confirmed today</Text>
-                        </View>
-                      </View>
-
-                      {/* Card 5: Broker Info */}
-                      <View style={styles.matchDetailCard}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                            <View style={{ 
-                              width: 40, 
-                              height: 40, 
-                              borderRadius: 20, 
-                              backgroundColor: '#e0e7ff', 
-                              alignItems: 'center', 
-                              justifyContent: 'center' 
-                            }}>
-                              <Text style={{ fontSize: 16, fontWeight: '700', color: '#4f46e5' }}>
-                                {match?.broker?.charAt(0)}
-                              </Text>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={{ fontSize: 15, fontWeight: '700', color: '#1f2937' }}>{match?.broker}</Text>
-                              <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-                                {match?.verified ? 'Verified · 24 completed collaborations' : 'Active Broker'}
-                              </Text>
-                            </View>
-                          </View>
-                          <View style={[styles.percentBadge, styles.percentBadgeGreen]}>
-                            <Text style={[styles.percentText, styles.percentTextGreen]}>{match?.responseRate}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    </ScrollView>
-
-                    {/* Bottom Actions */}
-                    <View style={{ 
-                      flexDirection: 'row', 
-                      gap: 12, 
-                      paddingHorizontal: 20, 
-                      paddingBottom: 24, 
-                      paddingTop: 12,
-                      backgroundColor: '#ffffff',
-                      borderTopWidth: 1,
-                      borderColor: '#f3f4f6'
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 15 : 50,
+                      paddingBottom: 16,
+                      paddingHorizontal: 20,
+                      backgroundColor: 'white',
+                      borderBottomWidth: 1,
+                      borderColor: '#e5e7eb',
+                      justifyContent: 'space-between',
                     }}>
                       <TouchableOpacity 
-                        style={{ 
-                          flex: 1, 
-                          paddingVertical: 14, 
-                          borderRadius: 12, 
-                          borderWidth: 1.5, 
-                          borderColor: '#7c3aed', 
-                          alignItems: 'center' 
-                        }}
                         onPress={() => {
-                          showToast.success('Opportunity added to shortlists!');
-                          setSelectedMatchId(null);
-                        }}
+                          if (selectedMatchStep === 'request') {
+                            setSelectedMatchStep('detail');
+                          } else {
+                            setSelectedMatchId(null);
+                          }
+                        }} 
+                        style={{ padding: 4 }}
                       >
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#7c3aed' }}>Shortlist</Text>
+                        <ArrowLeft size={24} color="#111827" />
                       </TouchableOpacity>
-                      
-                      <TouchableOpacity 
-                        style={{ 
-                          flex: 1.5, 
-                          paddingVertical: 14, 
-                          borderRadius: 12, 
-                          backgroundColor: '#7c3aed', 
-                          alignItems: 'center' 
-                        }}
-                        onPress={() => {
-                          const newReq = {
-                            id: Date.now(),
-                            full_name: match.broker,
-                            phone_number: '9876543200',
-                            operating_area: match.title.split(' · ')[1] || 'Indore',
-                            role: match.type === 'properties' ? 'Client-side' : 'Property-side',
-                            target: match.title,
-                            proposedSplit: '50/50',
-                            status: 'New',
-                            version: 1,
-                            unlocks: { address: true, ownerContact: false },
-                            message: 'Requesting collaboration split on matched property opportunity.'
-                          };
-                          setRequests(prev => [newReq, ...prev]);
-                          setMatches(prev => prev.filter(m => m.id !== match.id));
-                          setSelectedMatchId(null);
-                          showToast.success(`Collaboration request sent to ${match.broker}!`);
-                        }}
-                      >
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffff' }}>Request Collaboration</Text>
-                      </TouchableOpacity>
+                      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>
+                        {selectedMatchStep === 'request' ? 'Send Request' : (match?.type === 'properties' ? 'Client Details' : 'Property Details')}
+                      </Text>
+                      <View style={{ width: 28 }} />
                     </View>
+
+                    {selectedMatchStep === 'detail' ? (
+                      <View style={styles.flexContainer}>
+                        <ScrollView style={styles.flexContainer} contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+                          {/* Broker Info Card */}
+                          <View style={{
+                            backgroundColor: 'white',
+                            borderColor: '#e5e7eb',
+                            borderWidth: 1,
+                            borderRadius: 16,
+                            padding: 16,
+                            marginBottom: 12,
+                          }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                              <View style={{
+                                width: 50,
+                                height: 50,
+                                borderRadius: 25,
+                                backgroundColor: '#f3f4f6',
+                                alignItems: 'center',
+                                justifyContainer: 'center',
+                                justifyContent: 'center',
+                              }}>
+                                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#6b7280', fontFamily: 'Montserrat_700Bold' }}>
+                                  {match?.initial || match?.broker?.slice(0, 2).toUpperCase()}
+                                </Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{match?.broker}</Text>
+                                <Text style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>Verified Broker • Mumbai</Text>
+                              </View>
+                            </View>
+
+                            <View style={{
+                              backgroundColor: '#f3e8ff',
+                              borderColor: '#e9d5ff',
+                              borderWidth: 1,
+                              borderRadius: 10,
+                              padding: 10,
+                              flexDirection: 'row',
+                              gap: 8,
+                              alignItems: 'center',
+                            }}>
+                              <Shield size={16} color="#7c3aed" />
+                              <Text style={{ fontSize: 11, color: '#6b21a8', fontWeight: '500', flex: 1, fontFamily: 'Lato_400Regular' }}>
+                                Contact details request accept hone ke baad unlock honge.
+                              </Text>
+                            </View>
+                          </View>
+
+                          {/* Details Grid */}
+                          <View style={{
+                            backgroundColor: 'white',
+                            borderColor: '#e5e7eb',
+                            borderWidth: 1,
+                            borderRadius: 16,
+                            padding: 16,
+                            marginBottom: 12,
+                          }}>
+                            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1f2937', marginBottom: 12, fontFamily: 'Montserrat_700Bold' }}>
+                              {match?.type === 'properties' ? 'Client Specifications' : 'Property Specifications'}
+                            </Text>
+                            <View style={{ gap: 12 }}>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <Text style={{ fontSize: 13, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>BHK</Text>
+                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{match?.bhk || '2 BHK'}</Text>
+                              </View>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <Text style={{ fontSize: 13, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>Budget</Text>
+                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{match?.price || '₹75-90 L'}</Text>
+                              </View>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <Text style={{ fontSize: 13, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>Locality</Text>
+                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{match?.loc || 'Andheri East'}</Text>
+                              </View>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <Text style={{ fontSize: 13, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>Property Type</Text>
+                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>Residential Flat</Text>
+                              </View>
+                            </View>
+                          </View>
+
+                          {/* Match Score Card */}
+                          <View style={{
+                            backgroundColor: 'white',
+                            borderColor: '#e5e7eb',
+                            borderWidth: 1,
+                            borderRadius: 16,
+                            padding: 16,
+                            marginBottom: 30,
+                          }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                              <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1f2937', fontFamily: 'Montserrat_700Bold' }}>Match Score</Text>
+                              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#7c3aed', fontFamily: 'Montserrat_700Bold' }}>{match?.compatibility || 91}%</Text>
+                            </View>
+                            <View style={{ height: 6, backgroundColor: '#f3f4f6', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
+                              <View style={{ height: '100%', backgroundColor: '#7c3aed', borderRadius: 3, width: `${match?.compatibility || 91}%` }} />
+                            </View>
+                            <Text style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>Budget, locality, BHK sab match karte hain</Text>
+                          </View>
+                        </ScrollView>
+
+                        {/* Bottom Actions */}
+                        <View style={{
+                          paddingHorizontal: 20,
+                          paddingBottom: 24,
+                          paddingTop: 12,
+                          backgroundColor: '#ffffff',
+                          borderTopWidth: 1,
+                          borderColor: '#f3f4f6',
+                          flexDirection: 'row',
+                          gap: 10,
+                        }}>
+                          <TouchableOpacity
+                            style={{
+                              flex: 1,
+                              paddingVertical: 16,
+                              borderRadius: 14,
+                              backgroundColor: '#BFB7FD',
+                              alignItems: 'center',
+                              flexDirection: 'row',
+                              justifyContent: 'center',
+                              gap: 6,
+                            }}
+                            onPress={() => setSelectedMatchStep('request')}
+                          >
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#ffffff', fontFamily: 'Montserrat_700Bold' }}>Send Request</Text>
+                            <Send size={16} color="white" />
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={{
+                              flex: 1.2,
+                              paddingVertical: 16,
+                              borderRadius: 14,
+                              backgroundColor: '#16a34a',
+                              alignItems: 'center',
+                              flexDirection: 'row',
+                              justifyContent: 'center',
+                              gap: 6,
+                            }}
+                            onPress={() => {
+                              onClose();
+                              setTimeout(() => {
+                                router.push('/deal-page');
+                              }, 100);
+                            }}
+                          >
+                            <CheckCircle2 size={16} color="white" />
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#ffffff', fontFamily: 'Montserrat_700Bold' }}>Interested (Deal)</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.flexContainer}>
+                        <ScrollView style={styles.flexContainer} contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+                          {/* Target Broker Name Card */}
+                          <View style={{
+                            backgroundColor: '#f5f3ff',
+                            borderRadius: 16,
+                            padding: 16,
+                            marginBottom: 20,
+                          }}>
+                            <Text style={{ fontSize: 13, color: '#6b7280', marginBottom: 4, fontFamily: 'Lato_400Regular' }}>Sending Request To</Text>
+                            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{match?.broker}</Text>
+                          </View>
+
+                          {/* Split Options Picker */}
+                          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 12, fontFamily: 'Montserrat_700Bold' }}>Choose Commission Split</Text>
+                          <View style={{ gap: 10, marginBottom: 20 }}>
+                            {['50-50', '60-40', '55-45', '70-30'].map(split => {
+                              const isSelected = selectedMatchSplit === split;
+                              const formattedSplit = split.replace('-', '/');
+                              return (
+                                <TouchableOpacity
+                                  key={split}
+                                  onPress={() => setSelectedMatchSplit(split)}
+                                  style={[{
+                                    flexDirection: 'row',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    paddingVertical: 14,
+                                    paddingHorizontal: 16,
+                                    borderRadius: 12,
+                                    borderWidth: 1.5,
+                                    borderColor: '#e5e7eb',
+                                    backgroundColor: '#ffffff',
+                                  }, isSelected && {
+                                    borderColor: '#7c3aed',
+                                    backgroundColor: '#f5f3ff',
+                                  }]}
+                                >
+                                  <Text style={[{
+                                    fontSize: 14,
+                                    fontWeight: '500',
+                                    color: '#111827',
+                                    fontFamily: 'Lato_400Regular',
+                                  }, isSelected && {
+                                    fontWeight: '700',
+                                    fontFamily: 'Montserrat_700Bold',
+                                  }]}>
+                                    {formattedSplit} Split
+                                  </Text>
+                                  {isSelected && <Check size={18} color="#7c3aed" />}
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+
+                          {/* Message input */}
+                          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 12, fontFamily: 'Montserrat_700Bold' }}>Message (Optional)</Text>
+                          <TextInput
+                            value={matchRequestMessage}
+                            onChangeText={setMatchRequestMessage}
+                            placeholder="Write a message (optional)..."
+                            placeholderTextColor="#9ca3af"
+                            style={{
+                              backgroundColor: '#ffffff',
+                              borderColor: '#e5e7eb',
+                              borderWidth: 1,
+                              borderRadius: 12,
+                              padding: 14,
+                              height: 80,
+                              textAlignVertical: 'top',
+                              fontSize: 14,
+                              fontFamily: 'Lato_400Regular',
+                              color: '#111827',
+                              marginBottom: 20,
+                            }}
+                            multiline
+                          />
+
+                          {/* Warning notice */}
+                          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 20 }}>
+                            <Text style={{ fontSize: 12, color: '#b45309', fontFamily: 'Lato_400Regular' }}>
+                              ⓘ Exact details will be unlocked only after the request is accepted.
+                            </Text>
+                          </View>
+                        </ScrollView>
+
+                        {/* Sticky Confirm button */}
+                        <View style={{
+                          paddingHorizontal: 20,
+                          paddingBottom: 24,
+                          paddingTop: 12,
+                          backgroundColor: '#ffffff',
+                          borderTopWidth: 1,
+                          borderColor: '#f3f4f6',
+                        }}>
+                          <TouchableOpacity
+                            style={{
+                              width: '100%',
+                              paddingVertical: 16,
+                              borderRadius: 14,
+                              backgroundColor: '#BFB7FD',
+                              alignItems: 'center',
+                            }}
+                            onPress={() => {
+                              const newReq = {
+                                id: Date.now(),
+                                full_name: match.broker,
+                                phone_number: '9876543200',
+                                operating_area: match.loc || 'Andheri East',
+                                role: match.type === 'properties' ? 'Client-side' : 'Property-side',
+                                target: match.title,
+                                proposedSplit: selectedMatchSplit.replace('-', '/'),
+                                status: 'New',
+                                version: 1,
+                                unlocks: { address: true, ownerContact: false },
+                                message: matchRequestMessage || 'Requesting collaboration split on matched property opportunity.'
+                              };
+                              setRequests(prev => [newReq, ...prev]);
+                              setMatches(prev => prev.filter(m => m.id !== match.id));
+                              setSelectedMatchId(null);
+                              showToast.success(`Collaboration request sent to ${match.broker}!`);
+                            }}
+                          >
+                            <Text style={{ fontSize: 16, fontWeight: '700', color: '#ffffff', fontFamily: 'Montserrat_700Bold' }}>Confirm & Send Request</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
                   </View>
                 );
               })()
@@ -1215,7 +1810,7 @@ export default function CollaborationSheet({ isOpen, onClose }) {
 
                 {/* Segmented Tab selectors */}
                 <View style={styles.hubTabContainer}>
-                  {['matches', 'requests', 'active', 'network'].map((t) => {
+                  {['matches', 'requests', 'active'].map((t) => {
                     const isActive = activeTab === t;
                     return (
                       <TouchableOpacity
@@ -1316,33 +1911,25 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                             <View style={styles.matchActions}>
                               <TouchableOpacity
                                 style={styles.matchActionOutline}
-                                onPress={() => setSelectedMatchId(item.id)}
+                                onPress={() => {
+                                  setSelectedMatchId(item.id);
+                                  setSelectedMatchStep('detail');
+                                  setSelectedMatchSplit('50-50');
+                                  setMatchRequestMessage('');
+                                }}
                               >
                                 <Text style={styles.matchActionTextDark}>Details</Text>
                               </TouchableOpacity>
                               <TouchableOpacity
                                 style={styles.matchActionSolid}
                                 onPress={() => {
-                                  // Add request proposal locally
-                                  const newReq = {
-                                    id: Date.now(),
-                                    full_name: item.broker,
-                                    phone_number: '9876543200',
-                                    operating_area: item.title.split(' · ')[1] || 'Indore',
-                                    role: item.type === 'properties' ? 'Client-side' : 'Property-side',
-                                    target: item.title,
-                                    proposedSplit: '50/50',
-                                    status: 'New',
-                                    version: 1,
-                                    unlocks: { address: true, ownerContact: false },
-                                    message: 'Requesting collaboration split on matched property opportunity.'
-                                  };
-                                  setRequests(prev => [newReq, ...prev]);
-                                  setMatches(prev => prev.filter(m => m.id !== item.id));
-                                  showToast.success(`Collaboration request sent to ${item.broker}!`);
+                                  setSelectedMatchId(item.id);
+                                  setSelectedMatchStep('request');
+                                  setSelectedMatchSplit('50-50');
+                                  setMatchRequestMessage('');
                                 }}
                               >
-                                <Text style={styles.matchActionTextLight}>Shortlist</Text>
+                                <Text style={styles.matchActionTextLight}>Send Request</Text>
                               </TouchableOpacity>
                             </View>
                           </View>
@@ -1355,37 +1942,74 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                     <View style={styles.gap12}>
                       <Text style={styles.sectionSubtitle}>Pending Collaboration Proposals</Text>
                       {requests.length > 0 ? (
-                        requests.map((req) => (
-                          <TouchableOpacity
-                            key={req.id}
-                            style={styles.requestCard}
-                            onPress={() => setSelectedRequestId(req.id)}
-                          >
-                            <View style={styles.requestHeader}>
-                              <View style={styles.avatar}>
-                                <Text style={styles.avatarText}>
-                                  {req.full_name?.charAt(0).toUpperCase()}
+                        requests.map((req) => {
+                          const isCountered = req.status === 'Countered';
+                          return (
+                            <TouchableOpacity
+                              key={req.id}
+                              style={[
+                                styles.requestCard,
+                                isCountered && {
+                                  borderColor: '#f59e0b',
+                                  backgroundColor: '#fffdf5',
+                                  borderWidth: 1.5,
+                                }
+                              ]}
+                              onPress={() => setSelectedRequestId(req.id)}
+                            >
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 8 }}>
+                                <View style={[styles.requestHeader, { flex: 1 }]}>
+                                  <View style={styles.avatar}>
+                                    <Text style={styles.avatarText}>
+                                      {req.full_name?.charAt(0).toUpperCase()}
+                                    </Text>
+                                  </View>
+                                  <View style={[styles.requestMetaInfo, { flex: 1 }]}>
+                                    <Text style={styles.requestName} numberOfLines={1}>{req.full_name}</Text>
+                                    <Text style={{ fontSize: 11, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>Version {req.version}</Text>
+                                  </View>
+                                </View>
+                                
+                                <View style={{
+                                  backgroundColor: isCountered ? '#fef3c7' : '#eff6ff',
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 4,
+                                  borderRadius: 8,
+                                  borderWidth: 1,
+                                  borderColor: isCountered ? '#fcd34d' : '#bfdbfe',
+                                }}>
+                                  <Text style={{
+                                    fontSize: 10,
+                                    fontWeight: '700',
+                                    color: isCountered ? '#d97706' : '#1d4ed8',
+                                    fontFamily: 'Montserrat_700Bold'
+                                  }}>
+                                    {isCountered ? 'COUNTER OFFER' : 'NEW'}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              <Text style={styles.requestDetailsText}>
+                                Wants to collaborate on: <Text style={styles.boldText}>{req.target}</Text>
+                              </Text>
+                              <Text style={styles.requestDetailsText}>
+                                Commission Split: <Text style={styles.boldText}>{req.proposedSplit}</Text>
+                              </Text>
+                              
+                              {req.message && (
+                                <Text style={[styles.requestMsgSnippet, isCountered && { color: '#b45309' }]} numberOfLines={2}>
+                                  &quot;{req.message}&quot;
+                                </Text>
+                              )}
+                              
+                              <View style={[styles.tapToReviewRow, isCountered && { borderTopColor: '#fef3c7', borderTopWidth: 1 }]}>
+                                <Text style={[styles.tapToReviewText, isCountered && { color: '#d97706', fontWeight: 'bold' }]}>
+                                  {isCountered ? 'Revised split proposed. Tap to review terms' : 'Tap to Accept, Decline or Counter'}
                                 </Text>
                               </View>
-                              <View style={styles.requestMetaInfo}>
-                                <Text style={styles.requestName}>{req.full_name}</Text>
-                                <Text style={styles.requestStatusLabel}>{req.status} (v{req.version})</Text>
-                              </View>
-                            </View>
-                            <Text style={styles.requestDetailsText}>
-                              Wants to collaborate on: <Text style={styles.boldText}>{req.target}</Text>
-                            </Text>
-                            <Text style={styles.requestDetailsText}>
-                              Commission Split: <Text style={styles.boldText}>{req.proposedSplit}</Text>
-                            </Text>
-                            <Text style={styles.requestMsgSnippet} numberOfLines={2}>
-                              &quot;{req.message}&quot;
-                            </Text>
-                            <View style={styles.tapToReviewRow}>
-                              <Text style={styles.tapToReviewText}>Tap to Accept, Decline or Counter</Text>
-                            </View>
-                          </TouchableOpacity>
-                        ))
+                            </TouchableOpacity>
+                          );
+                        })
                       ) : (
                         <View style={styles.emptyState}>
                           <Text style={styles.emptyStateText}>No pending proposals</Text>
@@ -1404,8 +2028,15 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                             key={room.id}
                             style={styles.roomListItem}
                             onPress={() => {
-                              setSelectedRoomId(room.id);
-                              setActiveRoomTab('Overview');
+                              if (room.stage === 'Deal') {
+                                onClose();
+                                setTimeout(() => {
+                                  router.push('/deal-page');
+                                }, 100);
+                              } else {
+                                setSelectedRoomId(room.id);
+                                setActiveRoomTab('Overview');
+                              }
                             }}
                           >
                             <View style={styles.roomListItemHeader}>
@@ -1430,78 +2061,6 @@ export default function CollaborationSheet({ isOpen, onClose }) {
                           <Text style={styles.emptyStateText}>No active collaborations yet</Text>
                         </View>
                       )}
-                    </View>
-                  )}
-
-                  {/* NETWORK / DIRECTORY SEARCH VIEW */}
-                  {activeTab === 'network' && (
-                    <View style={styles.gap12}>
-                      <TouchableOpacity
-                        style={styles.addButton}
-                        onPress={() => setShowAddForm(!showAddForm)}
-                      >
-                        <Plus size={18} color="#6b7280" />
-                        <Text style={styles.addButtonText}>Add Connection Request</Text>
-                      </TouchableOpacity>
-
-                      {showAddForm && (
-                        <View style={styles.addForm}>
-                          <Text style={styles.formTitle}>Invite External Broker</Text>
-                          <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Name</Text>
-                            <TextInput
-                              style={styles.input}
-                              value={formName}
-                              onChangeText={setFormName}
-                              placeholder="Enter broker name"
-                              placeholderTextColor="#9ca3af"
-                            />
-                          </View>
-                          <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Phone Number</Text>
-                            <TextInput
-                              style={styles.input}
-                              value={formPhone}
-                              onChangeText={setFormPhone}
-                              placeholder="Enter phone number"
-                              placeholderTextColor="#9ca3af"
-                              keyboardType="phone-pad"
-                            />
-                          </View>
-                          <TouchableOpacity
-                            style={styles.continueButton}
-                            onPress={handleSendRequest}
-                          >
-                            <Text style={styles.continueButtonText}>Send Invite</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-
-                      <Text style={styles.sectionSubtitle}>Verified Network Directory</Text>
-                      {networkBrokers.map((broker) => (
-                        <View key={broker.id} style={styles.networkCard}>
-                          <View style={styles.networkHeader}>
-                            <View style={styles.brokerAvatarBg}>
-                              <Text style={styles.avatarText}>
-                                {broker.full_name?.charAt(0).toUpperCase()}
-                              </Text>
-                            </View>
-                            <View style={styles.flex1}>
-                              <Text style={styles.networkName}>{broker.full_name}</Text>
-                              <Text style={styles.networkArea}>{broker.operating_area}</Text>
-                            </View>
-                            <TouchableOpacity
-                              style={styles.connectBtn}
-                              onPress={() => {
-                                setSuccessData({ name: broker.full_name, phone: broker.phone_number });
-                                setShowSuccessModal(true);
-                              }}
-                            >
-                              <Text style={styles.connectBtnText}>Connect</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      ))}
                     </View>
                   )}
                 </ScrollView>
@@ -1732,12 +2291,15 @@ const styles = StyleSheet.create({
   miniStatBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
+    flexBasis: '23.5%',
+    flexGrow: 1,
+    flexShrink: 1,
     paddingVertical: 10,
     backgroundColor: '#f8fafc',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#f1f5f9',
+    minHeight: 62,
   },
   miniStatNum: {
     fontSize: 18,
@@ -1783,7 +2345,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#BFB7FD',
     borderTopLeftRadius: 2,
     borderTopRightRadius: 2,
   },
@@ -2149,7 +2711,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#BFB7FD',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2178,8 +2740,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxCircleCompleted: {
-    backgroundColor: '#7c3aed',
-    borderColor: '#7c3aed',
+    backgroundColor: '#BFB7FD',
+    borderColor: '#BFB7FD',
   },
   taskTextInfo: {
     flex: 1,
@@ -2253,7 +2815,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   addTaskSubmitBtn: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#BFB7FD',
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
@@ -2385,7 +2947,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   dealStartBtn: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#BFB7FD',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -2587,7 +3149,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#BFB7FD',
     alignItems: 'center',
   },
   acceptFinalBtnText: {
@@ -2768,9 +3330,9 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   doneButton: {
-    backgroundColor: '#7c3aed',
-    paddingVertical: 12,
-    borderRadius: 10,
+    backgroundColor: '#BFB7FD',
+    paddingVertical: 14,
+    borderRadius: 12,
     width: '100%',
     alignItems: 'center',
   },

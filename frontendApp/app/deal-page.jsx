@@ -1,5 +1,5 @@
 import { MapPin, X, Bell, CheckCircle, Clock } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Image, Modal, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -27,7 +27,7 @@ export default function DealPage() {
   const { profile } = useSelector(state => state.auth);
 
   if (!selectedDeal) {
-    router.back();
+    router.navigate('/dashboard');
     return null;
   }
 
@@ -147,7 +147,7 @@ export default function DealPage() {
   }, [reminderEnabled, meetings]);
 
   const handleClose = () => {
-    router.back();
+    router.navigate('/dashboard');
   };
 
   const handleSnoozeReminder = async () => {
@@ -191,7 +191,27 @@ export default function DealPage() {
 
   const tabs = ['Meeting', 'Payment', 'Agreement'];
 
-  // Get user name and avatar
+  // Get client details from deal
+  const [simulatedRole, setSimulatedRole] = useState('ClientBroker');
+  const visibilitySetting = selectedDeal.roomId ? 'basic' : 'full';
+
+  const displayClientName = useMemo(() => {
+    if (!customer) return 'Unknown Client';
+    if (selectedDeal.roomId && simulatedRole === 'PropertyBroker') {
+      if (visibilitySetting === 'basic') return 'Hidden (Basic Visibility)';
+    }
+    return customer.name;
+  }, [customer, selectedDeal.roomId, simulatedRole, visibilitySetting]);
+
+  const displayClientPhone = useMemo(() => {
+    if (!customer) return '';
+    if (selectedDeal.roomId && simulatedRole === 'PropertyBroker') {
+      if (visibilitySetting === 'basic') return 'Manual sharing only';
+      if (visibilitySetting === 'partial') return '••••••••' + (customer.phone?.slice(-2) || '00');
+    }
+    return customer.phone;
+  }, [customer, selectedDeal.roomId, simulatedRole, visibilitySetting]);
+
   const userName = profile?.name || customer?.name || 'User';
   const userAvatar = profile?.avatar;
 
@@ -211,21 +231,73 @@ export default function DealPage() {
       {/* Header with Profile and Close Button */}
       <View style={styles.header}>
         <View style={styles.profileSection}>
-          {userAvatar ? (
-            <Image source={{ uri: userAvatar }} style={styles.profileImage} />
-          ) : (
-            <View style={[styles.profileAvatar, { backgroundColor: colorTheme.bg }]}>
-              <Text style={[styles.profileAvatarText, { color: colorTheme.text }]}>
-                {userName.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
-          <Text style={styles.profileName}>{userName}</Text>
+          <View style={[styles.profileAvatar, { backgroundColor: colorTheme.bg }]}>
+            <Text style={[styles.profileAvatarText, { color: colorTheme.text }]}>
+              {displayClientName.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={{ marginLeft: 8 }}>
+            <Text style={styles.profileName}>{displayClientName}</Text>
+            <Text style={{ fontSize: 11, color: '#6b7280' }}>{displayClientPhone}</Text>
+          </View>
         </View>
         <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
           <X size={20} color="#1f2937" />
         </TouchableOpacity>
       </View>
+
+      {/* Simulated Collaboration Visibility Banner */}
+      {selectedDeal.roomId && (
+        <View style={{ 
+          backgroundColor: '#eff6ff', 
+          borderBottomWidth: 1, 
+          borderBottomColor: '#dbeafe', 
+          paddingHorizontal: 16, 
+          paddingVertical: 10, 
+          flexDirection: 'row', 
+          justifyContent: 'space-between', 
+          alignItems: 'center' 
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+            <Shield size={14} color="#2563eb" />
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#1e40af' }}>
+              🤝 Collaborated Deal ({simulatedRole === 'ClientBroker' ? 'Client-Side' : 'Property-Side'})
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <TouchableOpacity 
+              onPress={() => setSimulatedRole('ClientBroker')}
+              style={{ 
+                backgroundColor: simulatedRole === 'ClientBroker' ? '#2563eb' : '#ffffff', 
+                borderWidth: 1, 
+                borderColor: '#2563eb', 
+                paddingHorizontal: 8, 
+                paddingVertical: 3, 
+                borderRadius: 6 
+              }}
+            >
+              <Text style={{ fontSize: 8, fontWeight: '700', color: simulatedRole === 'ClientBroker' ? '#ffffff' : '#2563eb' }}>
+                Client Side
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => setSimulatedRole('PropertyBroker')}
+              style={{ 
+                backgroundColor: simulatedRole === 'PropertyBroker' ? '#2563eb' : '#ffffff', 
+                borderWidth: 1, 
+                borderColor: '#2563eb', 
+                paddingHorizontal: 8, 
+                paddingVertical: 3, 
+                borderRadius: 6 
+              }}
+            >
+              <Text style={{ fontSize: 8, fontWeight: '700', color: simulatedRole === 'PropertyBroker' ? '#ffffff' : '#2563eb' }}>
+                Property Side
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Tabs */}

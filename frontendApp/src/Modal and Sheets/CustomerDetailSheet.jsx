@@ -3,7 +3,11 @@ import {
   Plus,
   MapPin,
   ChevronRight,
-  CircleCheckBig
+  CircleCheckBig,
+  Search,
+  Shield,
+  ArrowLeft,
+  Send
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import CustomerHeader from '../Components/CustomerHeader';
@@ -57,9 +61,21 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask, onUpdateStage, onSelectProperties, openMapView = false }) => {
+const formatBudget = (min, max) => {
+  if (min && max) {
+    const minVal = min >= 10000000 ? `${(min / 10000000).toFixed(1)}` : `${(min / 100000).toFixed(0)}L`;
+    const maxVal = max >= 10000000 ? `${(max / 10000000).toFixed(1)} Cr` : `${(max / 100000).toFixed(0)} L`;
+    return `${minVal}-${maxVal}`;
+  }
+  if (max) {
+    return max >= 10000000 ? `${(max / 10000000).toFixed(1)} Cr` : `${(max / 100000).toFixed(0)} L`;
+  }
+  return '1.2 Cr';
+};
+
+const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask, onUpdateStage, onSelectProperties, openMapView = false, asScreen = false }) => {
   const router = useRouter();
-  const [activeDetailTab, setActiveDetailTab] = useState('Overview'); // 'Overview' | 'Collaboration'
+  const [activeDetailTab, setActiveDetailTab] = useState('Overview'); // 'Overview' | 'Connect'
 
   // Get followUps and deals directly from Redux for real-time updates
   const followUps = useSelector((state) => state.followUps.followUps);
@@ -75,11 +91,25 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
   const [showAddFollowUpModal, setShowAddFollowUpModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stageUpdating, setStageUpdating] = useState(false);
+  const [collabView, setCollabView] = useState('connect-tab'); 
+  const [selectedBrokerMatch, setSelectedBrokerMatch] = useState(null);
+  const [selectedSplit, setSelectedSplit] = useState('50-50');
+  const [requestMessage, setRequestMessage] = useState('');
+  const sentConnectRequests = useSelector((state) => state.ui.sentConnectRequests);
+  const hasSentRequest = sentConnectRequests.includes(customer.id);
 
   // Fetch customer details on mount to get latest property selections
   useEffect(() => {
     const fetchCustomerDetails = async () => {
       if (!customer?.id) return;
+
+      if (String(customer.id).startsWith('mock-')) {
+        setSelectedPropertyIds(customer.selectedProperties || []);
+        setInterestedPropertyIds(customer.interestedProperties || []);
+        setHoldPropertyIds(customer.holdProperties || []);
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
@@ -343,17 +373,10 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
 
   if (!customer) return null;
 
-  return (
-    <Modal
-      visible={true}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <View style={styles.overlay}>
-
-        <View style={styles.sheetContainer}>
+  const renderContent = () => (
+    <>
+      <View style={asScreen ? styles.screenContainer : styles.sheetOverlay}>
+        <View style={asScreen ? styles.screenSheetContainer : styles.sheetContainer}>
 
           {/* Header */}
           <CustomerHeader name={customer.name} phone={customer.phone} onClose={onClose} />
@@ -364,13 +387,13 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
               style={[styles.detailTabBtn, activeDetailTab === 'Overview' && styles.detailTabBtnActive]} 
               onPress={() => setActiveDetailTab('Overview')}
             >
-              <Text style={[styles.detailTabBtnText, activeDetailTab === 'Overview' && styles.detailTabBtnTextActive]}>CRM Overview</Text>
+              <Text style={[styles.detailTabBtnText, activeDetailTab === 'Overview' && styles.detailTabBtnTextActive]}>CRM</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.detailTabBtn, activeDetailTab === 'Collaboration' && styles.detailTabBtnActive]} 
-              onPress={() => setActiveDetailTab('Collaboration')}
+              style={[styles.detailTabBtn, activeDetailTab === 'Connect' && styles.detailTabBtnActive]} 
+              onPress={() => setActiveDetailTab('Connect')}
             >
-              <Text style={[styles.detailTabBtnText, activeDetailTab === 'Collaboration' && styles.detailTabBtnTextActive]}>Collaboration</Text>
+              <Text style={[styles.detailTabBtnText, activeDetailTab === 'Connect' && styles.detailTabBtnTextActive]}>Connect</Text>
             </TouchableOpacity>
           </View>
 
@@ -715,142 +738,90 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
             </View>
             ) : (
               <View style={styles.collabTabContainer}>
-                
                 {/* 1. Anonymous Network Requirement (Page 15 in PDF) */}
-                <View style={styles.collabSectionCard}>
-                  <Text style={styles.collabSectionTitle}>Anonymous Network Requirement</Text>
-                  
-                  <View style={styles.collabInfoGrid}>
-                    <View style={styles.collabInfoRow}>
-                      <Text style={styles.collabInfoLabel}>Visibility</Text>
-                      <Text style={styles.collabInfoValue}>Verified brokers</Text>
-                    </View>
-                    <View style={styles.collabInfoRow}>
-                      <Text style={styles.collabInfoLabel}>Client name</Text>
-                      <Text style={styles.collabInfoValue}>Hidden</Text>
-                    </View>
-                    <View style={styles.collabInfoRow}>
-                      <Text style={styles.collabInfoLabel}>Client phone</Text>
-                      <Text style={styles.collabInfoValue}>Manual sharing</Text>
-                    </View>
-                    <View style={styles.collabInfoRow}>
-                      <Text style={styles.collabInfoLabel}>Last reconfirmed</Text>
-                      <Text style={styles.collabInfoValue}>Today</Text>
-                    </View>
+                <View style={[styles.collabSectionCard, { backgroundColor: '#f5f3ff', borderColor: '#ddd6fe', borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <Shield size={18} color="#7c3aed" />
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#7c3aed', fontFamily: 'Montserrat_700Bold' }}>Anonymous Requirement</Text>
                   </View>
-
-                  <TouchableOpacity style={styles.collabEditSettingsBtn}>
-                    <Text style={styles.collabEditSettingsBtnText}>Edit Network Visibility</Text>
-                  </TouchableOpacity>
+                  <Text style={{ fontSize: 12, color: '#6b7280', lineHeight: 18, marginBottom: 16, fontFamily: 'Lato_400Regular' }}>
+                    Jab aap match dhundoge, dusre brokers ko sirf requirement dikhegi - naam/phone nahi.
+                  </Text>
+                  
+                  <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 14, gap: 10 }}>
+                    <Text style={{ fontSize: 13, color: '#4b5563', fontFamily: 'Lato_400Regular' }}>
+                      Budget: <Text style={{ fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>₹{formatBudget(customer.budgetMin, customer.budgetMax)}</Text>
+                    </Text>
+                    <Text style={{ fontSize: 13, color: '#4b5563', fontFamily: 'Lato_400Regular' }}>
+                      Chahiye: <Text style={{ fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{customer.configuration || '3 BHK'}, {customer.location || 'Bandra'}</Text>
+                    </Text>
+                    <Text style={{ fontSize: 13, color: '#4b5563', fontFamily: 'Lato_400Regular' }}>
+                      Type: <Text style={{ fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{customer.type || 'Flat'}</Text>
+                    </Text>
+                  </View>
                 </View>
 
-                {/* 2. Active Collaboration (Rahul Sharma) */}
-                <View style={styles.collabSectionCard}>
-                  <View style={styles.collabHeaderRow}>
-                    <Text style={styles.collabSectionTitle}>Active Collaboration</Text>
+                {/* Find Matching Properties button */}
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#635BFF',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    paddingVertical: 16,
+                    borderRadius: 14,
+                    marginBottom: 16,
+                  }}
+                  onPress={() => router.push('/find-properties')}
+                >
+                  <Search size={20} color="white" />
+                  <Text style={{ color: 'white', fontSize: 16, fontWeight: '700', fontFamily: 'Montserrat_700Bold' }}>Find Matching Properties</Text>
+                </TouchableOpacity>
+
+                {/* Active Connect Requests (Pending requests) */}
+                <View style={[styles.collabSectionCard, { padding: 18, marginBottom: 16 }]}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#1f2937', marginBottom: 12, fontFamily: 'Montserrat_700Bold' }}>Active Connect Requests</Text>
+                  {hasSentRequest ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' }}>
+                      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#6b7280', fontFamily: 'Montserrat_700Bold' }}>R</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>Ravi Sir</Text>
+                        <Text style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>Verified Broker · 50/50 Pending</Text>
+                      </View>
+                      <View style={{ backgroundColor: '#fffbeb', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: '#fef3c7' }}>
+                        <Text style={{ fontSize: 11, color: '#b45309', fontWeight: 'bold', fontFamily: 'Montserrat_700Bold' }}>Pending</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 13, color: '#9ca3af', fontFamily: 'Lato_400Regular' }}>Is client ke liye abhi koi request nahi.</Text>
+                  )}
+                </View>
+
+                {/* Active Collaboration Rooms (Accepted Rooms) */}
+                <View style={[styles.collabSectionCard, { padding: 18, marginBottom: 16 }]}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#1f2937', marginBottom: 12, fontFamily: 'Montserrat_700Bold' }}>Active Collaborations</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#6b7280', fontFamily: 'Montserrat_700Bold' }}>A</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>Amit Verma</Text>
+                      <Text style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>Verified Broker · 50/50 Split</Text>
+                    </View>
                     <TouchableOpacity 
-                      style={styles.openRoomBtn} 
                       onPress={() => {
-                        onClose(); // Close the client details sheet modal
-                        router.push('/collab-page'); // Navigate to the full-screen collab page
+                        onClose();
+                        router.push('/collab-page?roomId=1');
                       }}
+                      style={{ backgroundColor: '#635BFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
                     >
-                      <Text style={styles.openRoomBtnText}>Open room</Text>
+                      <Text style={{ fontSize: 11, color: 'white', fontWeight: 'bold', fontFamily: 'Montserrat_700Bold' }}>Open Room</Text>
                     </TouchableOpacity>
                   </View>
-
-                  <View style={styles.activeCollabBrokerCard}>
-                    <View style={styles.brokerAvatarCircle}>
-                      <Text style={styles.brokerAvatarInitial}>R</Text>
-                    </View>
-                    <View style={styles.brokerDetailsColumn}>
-                      <Text style={styles.activeCollabBrokerName}>Rahul Sharma</Text>
-                      <Text style={styles.activeCollabBrokerAgency}>Property-side broker • Verified</Text>
-                    </View>
-                    <View style={styles.activeCollabSplitBox}>
-                      <Text style={styles.activeCollabSplitValue}>50/50</Text>
-                      <Text style={styles.activeCollabSplitLabel}>Split</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.selectedPropertyDetails}>
-                    <Text style={styles.selectedPropertyLabel}>Selected Property:</Text>
-                    <Text style={styles.selectedPropertyValue}>Gokuldham Apartment • Vijay Nagar</Text>
-                    <Text style={styles.sharingStatusText}>Commission: 50/50 • Client phone: Not shared</Text>
-                  </View>
-
-                  {/* Collaboration Progress Pipeline stage */}
-                  <View style={styles.collabPipelineContainer}>
-                    <Text style={styles.pipelineTitleText}>Collaboration Pipeline Stage</Text>
-                    
-                    <View style={styles.pipelineProgressBarRow}>
-                      {[
-                        { label: 'Matched', done: true },
-                        { label: 'Accepted', done: true },
-                        { label: 'Visit', done: true, active: true },
-                        { label: 'Deal', done: false },
-                        { label: 'Paid', done: false }
-                      ].map((stage, idx) => (
-                        <View key={idx} style={styles.pipelineStepContainer}>
-                          <View style={styles.pipelineDotRow}>
-                            {idx > 0 && (
-                              <View style={[styles.pipelineLine, stage.done && styles.pipelineLineActive]} />
-                            )}
-                            <View style={[
-                              styles.pipelineDotCircle, 
-                              stage.done && styles.pipelineDotCircleDone,
-                              stage.active && styles.pipelineDotCircleActive
-                            ]}>
-                              {stage.done ? (
-                                <Text style={styles.pipelineDotCheck}>✓</Text>
-                              ) : (
-                                <View style={styles.pipelineDotInner} />
-                              )}
-                            </View>
-                          </View>
-                          <Text style={[
-                            styles.pipelineStepLabel,
-                            stage.active && styles.pipelineStepLabelActive
-                          ]}>{stage.label}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
                 </View>
-
-                {/* 3. Matching Properties (Page 15 in PDF) */}
-                <View style={styles.collabSectionCard}>
-                  <View style={styles.collabHeaderRow}>
-                    <Text style={styles.collabSectionTitle}>Matching Properties</Text>
-                    <Text style={styles.collabMatchesCount}>8 matches</Text>
-                  </View>
-
-                  <View style={styles.matchingPropertyItem}>
-                    <Image 
-                      source={{ uri: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&q=80' }} 
-                      style={styles.matchingPropertyImg} 
-                    />
-                    <View style={styles.matchingPropertyInfo}>
-                      <View style={styles.matchingPropertyHeader}>
-                        <Text style={styles.matchingPropertyTitle} numberOfLines={1}>Luxury 2 BHK • Nipania</Text>
-                        <View style={styles.matchingPercentBadge}>
-                          <Text style={styles.matchingPercentText}>94% Match</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.matchingPropertySubtitle}>₹52L • Broker: Amit Verma</Text>
-                      
-                      <TouchableOpacity 
-                        style={styles.matchingRequestCollabBtn}
-                        onPress={() => {
-                          showToast.success('Collaboration request sent to Amit Verma!');
-                        }}
-                      >
-                        <Text style={styles.matchingRequestCollabText}>Request Collab</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-
               </View>
             )}
 
@@ -873,11 +844,11 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
         </View>
 
         {/* Fixed Bottom Buttons - Show for Site Visit stage */}
-        {customer.stage === 'Site Visit' && (
+        {activeDetailTab === 'Overview' && customer.stage === 'Site Visit' && (
           <View style={styles.fixedBottomContainer}>
             {/* Show two buttons if there are interested properties */}
             {interestedPropertyIds.length > 0 ? (
-              <View style={styles.twoButtonRow}>
+               <View style={styles.twoButtonRow}>
                 <TouchableOpacity
                   style={[styles.halfWidthButton, styles.interestedButton]}
                   onPress={() => {
@@ -940,7 +911,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
         )}
 
         {/* Fixed Bottom Button - Show only for Interested stage */}
-        {customer.stage === 'Interested' && (
+        {activeDetailTab === 'Overview' && customer.stage === 'Interested' && (
           <View style={styles.fixedBottomContainer}>
             <TouchableOpacity
               style={styles.visitSitesButton}
@@ -998,6 +969,22 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
         customers={[customer]}
         properties={properties}
       />
+    </>
+  );
+
+  if (asScreen) {
+    return renderContent();
+  }
+
+  return (
+    <Modal
+      visible={true}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      {renderContent()}
     </Modal>
   );
 };
@@ -2466,6 +2453,16 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 11,
     fontFamily: 'Montserrat_700Bold',
+  },
+  screenContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  screenSheetContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    paddingBottom: 20,
+    paddingTop: Platform.OS === 'ios' ? 44 : 20,
   },
 });
 

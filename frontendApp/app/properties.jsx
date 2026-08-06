@@ -1,11 +1,11 @@
-import { useEffect, lazy, Suspense, useCallback } from 'react';
-import { StatusBar, View, ActivityIndicator, InteractionManager } from 'react-native';
+import { useEffect, useCallback } from 'react';
+import { StatusBar, View, InteractionManager } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
+import { router } from 'expo-router';
 
 // Components
 import AddModal from '../src/Modal and Sheets/AddModal.jsx';
-const PropertyDetailSheet = lazy(() => import('../src/Modal and Sheets/PropertyDetailSheet.jsx'));
 
 // Redux actions
 import { addDeal } from '@/src/store/slices/dealsSlice.js';
@@ -15,7 +15,6 @@ import {
   createProperty,
   updatePropertyAPI,
   deleteProperty,
-  clearSelectedProperty,
   setSelectedProperty
 } from '../src/store/slices/propertiesSlice.js';
 import {
@@ -32,7 +31,7 @@ export default function Properties() {
   const dispatch = useDispatch();
 
   // Redux state
-  const { properties, selectedProperty, loading } = useSelector(state => state.properties);
+  const { properties, loading } = useSelector(state => state.properties);
   const { customers } = useSelector(state => state.customers);
   const { modalOpen, modalType, editItem } = useSelector(state => state.ui);
 
@@ -179,7 +178,10 @@ export default function Properties() {
       {/* Main Content - Using basic version without className */}
       <InventoryPageBasic
         properties={properties}
-        onSelect={(property) => dispatch(setSelectedProperty(property))}
+        onSelect={(property) => {
+          dispatch(setSelectedProperty(property));
+          router.push('/property-detail');
+        }}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onAddProperty={handleFABClick}
@@ -197,20 +199,6 @@ export default function Properties() {
         properties={properties}
         customers={customers}
       />
-
-      {/* Detail Bottom Sheet */}
-      {selectedProperty && (
-        <Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color="#A78BFA" /></View>}>
-          <PropertyDetailSheet
-            property={selectedProperty}
-            onClose={() => dispatch(clearSelectedProperty())}
-            onEdit={handleEdit}
-            customers={customers}
-            properties={properties}
-            onCreateDeal={handleCreateDeal}
-          />
-        </Suspense>
-      )}
     </View>
   );
 }

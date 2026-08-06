@@ -11,7 +11,14 @@ const followUpsSlice = createSlice({
   },
   reducers: {
     setFollowUps: (state, action) => {
-      state.followUps = action.payload;
+      const localCollab = state.followUps.filter(f => f.note?.includes('[Collaborated]') || f.id?.toString().startsWith('collab_'));
+      const combined = [...action.payload];
+      localCollab.forEach(task => {
+        if (!combined.some(c => c.id === task.id)) {
+          combined.unshift(task);
+        }
+      });
+      state.followUps = combined;
     },
     addFollowUp: (state, action) => {
       state.followUps.unshift(action.payload);

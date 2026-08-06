@@ -9,6 +9,7 @@ const uiSlice = createSlice({
     collabOpen: false,
     loading: false,
     error: null,
+    sentConnectRequests: [],
   },
   reducers: {
     setModalOpen: (state, action) => {
@@ -50,6 +51,11 @@ const uiSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    addSentConnectRequest: (state, action) => {
+      if (!state.sentConnectRequests.includes(action.payload)) {
+        state.sentConnectRequests.push(action.payload);
+      }
+    },
   },
 });
 
@@ -66,6 +72,7 @@ export const {
   setLoading,
   setError,
   clearError,
+  addSentConnectRequest,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

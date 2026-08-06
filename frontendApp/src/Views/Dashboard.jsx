@@ -110,11 +110,18 @@ const TaskCard = memo(({ task, customers }) => {
         <Text style={styles.taskNote} numberOfLines={1}>
           {taskNote}
         </Text>
-        <View style={styles.timeRow}>
-          <Clock size={10} color="#9ca3af" />
-          <Text style={styles.timeText}>
-            {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+          <View style={styles.timeRow}>
+            <Clock size={10} color="#9ca3af" />
+            <Text style={styles.timeText}>
+              {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
+          {taskNote?.includes('[Collaborated]') && (
+            <View style={{ backgroundColor: '#BFB7FD', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+              <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#7c3aed' }}>COLLABORATED</Text>
+            </View>
+          )}
         </View>
       </View>
     </View>
@@ -214,7 +221,23 @@ const Dashboard = ({
     rejected: 0,
   };
 
-  const todaysTasks = dashboardData?.todays_focus || followUps.filter(f => f.status === 'Pending').slice(0, 3);
+  const todaysTasks = useMemo(() => {
+    const localPending = followUps.filter(f => f.status === 'Pending');
+    const combined = [...(dashboardData?.todays_focus || [])];
+    localPending.forEach(task => {
+      if (!combined.some(c => c.id === task.id)) {
+        const taskDate = new Date(task.date);
+        const today = new Date();
+        const isToday = taskDate.getDate() === today.getDate() &&
+                        taskDate.getMonth() === today.getMonth() &&
+                        taskDate.getFullYear() === today.getFullYear();
+        if (isToday || task.note?.includes('[Collaborated]')) {
+          combined.unshift(task);
+        }
+      }
+    });
+    return combined.slice(0, 5);
+  }, [dashboardData?.todays_focus, followUps]);
 
   const getStageBadgeStyle = useMemo(() => (stage) => {
     const colors = {
@@ -382,7 +405,7 @@ const Dashboard = ({
           {/* Stats */}
           <View style={styles.statsOuterBox}>
             <StatBlock label="Total Visitor" count={stats.total_visitor} />
-            <StatBlock label="Total Sale" count={stats.total_sale} />
+            <StatBlock label="Matches" count={stats.total_sale} />
             <StatBlock label="Pending" count={stats.pending} />
             <StatBlock label="Rejected" count={stats.rejected} />
           </View>
@@ -428,29 +451,28 @@ const Dashboard = ({
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingVertical: 4 }}>
-              {/* Card 1: YOUR PROPERTY */}
-              <View style={styles.matchOpportunityCard}>
-                <View style={[styles.matchCardTag, { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }]}>
-                  <Text style={[styles.matchCardTagText, { color: '#1d4ed8' }]}>YOUR PROPERTY</Text>
+              {[
+                { id: 1, name: 'Ravi Sir', compat: 91, price: '₹75-90 L', spec: '2 BHK Flat • Andheri East', tag: 'MATCHING PROPERTY', colorBg: '#f5f3ff', colorBorder: '#ddd6fe', colorText: '#7c3aed', btnStyle: styles.matchCardBtnPurple },
+                { id: 5, name: 'Sita Properties', compat: 84, price: '₹70-85 L', spec: 'Requires 2 BHK • Andheri West', tag: 'MATCHING CLIENT', colorBg: '#eff6ff', colorBorder: '#bfdbfe', colorText: '#1d4ed8', btnStyle: styles.matchCardBtnDark },
+                { id: 3, name: 'Gopal Realty', compat: 77, price: '₹78-92 L', spec: '2 BHK Flat • Andheri East', tag: 'MATCHING PROPERTY', colorBg: '#f5f3ff', colorBorder: '#ddd6fe', colorText: '#7c3aed', btnStyle: styles.matchCardBtnPurple }
+              ].map(item => (
+                <View key={item.id} style={styles.matchOpportunityCard}>
+                  <View style={[styles.matchCardTag, { backgroundColor: item.colorBg, borderColor: item.colorBorder, marginBottom: 6 }]}>
+                    <Text style={[styles.matchCardTagText, { color: item.colorText }]}>{item.tag} • {item.compat}%</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={styles.matchCardTitle}>{item.name}</Text>
+                    <Text style={[styles.matchCardTitle, { color: '#635BFF' }]}>{item.price}</Text>
+                  </View>
+                  <Text style={[styles.matchCardSubtitle, { marginBottom: 10 }]}>{item.spec}</Text>
+                  <TouchableOpacity 
+                    style={item.btnStyle} 
+                    onPress={() => onOpenCollab?.(null, item.id)}
+                  >
+                    <Text style={styles.matchCardBtnTextLight}>View Details</Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.matchCardTitle}>3 BHK - Vijay Nagar</Text>
-                <Text style={styles.matchCardSubtitle}>₹85L - 5 matching client requirements</Text>
-                <TouchableOpacity style={styles.matchCardBtnDark} onPress={onOpenCollab}>
-                  <Text style={styles.matchCardBtnTextLight}>View Matches</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Card 2: YOUR CLIENT */}
-              <View style={styles.matchOpportunityCard}>
-                <View style={[styles.matchCardTag, { backgroundColor: '#f5f3ff', borderColor: '#ddd6fe' }]}>
-                  <Text style={[styles.matchCardTagText, { color: '#7c3aed' }]}>YOUR CLIENT</Text>
-                </View>
-                <Text style={styles.matchCardTitle}>2 BHK - Nipania</Text>
-                <Text style={styles.matchCardSubtitle}>₹45-55L - 7 matching properties</Text>
-                <TouchableOpacity style={styles.matchCardBtnPurple} onPress={onOpenCollab}>
-                  <Text style={styles.matchCardBtnTextLight}>View Matches</Text>
-                </TouchableOpacity>
-              </View>
+              ))}
             </ScrollView>
           </View>
 
@@ -464,7 +486,7 @@ const Dashboard = ({
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.activeCollabCard} onPress={onOpenCollab} activeOpacity={0.9}>
+            <TouchableOpacity style={styles.activeCollabCard} onPress={() => onOpenCollab?.(1)} activeOpacity={0.9}>
               <View style={styles.collabAvatar}>
                 <Text style={styles.collabAvatarText}>R</Text>
               </View>
@@ -778,7 +800,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    gap: 8,
+    gap: 3,
   },
   matchCardTag: {
     paddingHorizontal: 8,

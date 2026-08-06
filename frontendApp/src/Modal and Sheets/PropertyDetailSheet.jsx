@@ -1,4 +1,4 @@
-import { Briefcase, Building, Edit3, Layout, MapPin, Phone, Search, Sofa, Users, X } from 'lucide-react-native';
+import { Briefcase, Building, Edit3, Layout, MapPin, Phone, Search, Sofa, Users, X, Shield, Lock, Unlock, Check, MessageSquare, Calendar } from 'lucide-react-native';
 import { useState, useMemo, useCallback } from 'react';
 import { 
   Image, 
@@ -15,8 +15,8 @@ import {
 import { useDispatch } from 'react-redux';
 import { router } from 'expo-router';
 import WhatsAppIcon from '../Components/WhatsAppIcon';
-import { getAmenitiesForType } from '../MockData/Mockdata';
 import { setSelectedDeal } from '../store/slices/dealsSlice';
+import { showToast } from '../utils/toast';
 
 const formatCurrency = (amount) =>
   new Intl.NumberFormat('en-IN', {
@@ -33,16 +33,45 @@ const PropertyDetailSheet = ({
   onCreateDeal,
 }) => {
   const dispatch = useDispatch();
+  const [activeTab, setActiveTab] = useState('Overview'); // 'Overview' | 'CRM Activity' | 'Matches' | 'Collaboration'
   const [showProposeModal, setShowProposeModal] = useState(false);
   const [customerSearchText, setCustomerSearchText] = useState('');
 
-  // Memoize filtered customers for better performance
+  // Local state for mocked CRM Activity
+  const [crmLogs, setCrmLogs] = useState([
+    { id: 1, type: 'Call', detail: 'Called owner regarding price flexibility.', date: 'Today, 11:30 AM' },
+    { id: 2, type: 'Update', detail: 'Updated property status to Available.', date: 'Yesterday' }
+  ]);
+  const [newLogText, setNewLogText] = useState('');
+
+  // Local state for mock collaboration
+  const [collabRequests, setCollabRequests] = useState([
+    { id: 401, name: 'Suresh Patel', phone: '9765432100', role: 'Client-side', split: '50/50', status: 'Pending' }
+  ]);
+  const [activePartner, setActivePartner] = useState(null);
+
+  // Memoize filtered customers for propose modal
   const filteredCustomers = useMemo(() => {
     if (!customerSearchText) return customers;
     return customers.filter((customer) =>
       customer.name.toLowerCase().includes(customerSearchText.toLowerCase())
     );
   }, [customers, customerSearchText]);
+
+  // Compute mock matches for this property based on configuration/type
+  const matchingRequirements = useMemo(() => {
+    return customers.map(c => {
+      // Basic compatibility logic
+      const sameBhk = c.bhk === property.configuration;
+      const budgetMatch = property.price >= (c.budgetMin || 0) && property.price <= (c.budgetMax || 99000000);
+      const compatibilityScore = (sameBhk ? 50 : 20) + (budgetMatch ? 42 : 15);
+      return {
+        ...c,
+        compatibility: compatibilityScore,
+        freshness: 'Fresh today'
+      };
+    }).sort((a, b) => b.compatibility - a.compatibility);
+  }, [customers, property]);
 
   const handleCall = useCallback(() => {
     if (property?.ownerPhone) {
@@ -51,9 +80,9 @@ const PropertyDetailSheet = ({
   }, [property?.ownerPhone]);
 
   const handleWhatsApp = useCallback(() => {
-     if (property?.ownerPhone) {
-        Linking.openURL(`whatsapp://send?phone=${property.ownerPhone}`);
-     }
+    if (property?.ownerPhone) {
+      Linking.openURL(`whatsapp://send?phone=${property.ownerPhone}`);
+    }
   }, [property?.ownerPhone]);
 
   const handleCustomerSelect = useCallback((customer) => {
@@ -74,29 +103,46 @@ const PropertyDetailSheet = ({
     router.push('/deal-page');
   }, [property, onCreateDeal, dispatch, onClose]);
 
+  const handleAddCrmLog = () => {
+    if (!newLogText.trim()) return;
+    const newLog = {
+      id: Date.now(),
+      type: 'Note',
+      detail: newLogText.trim(),
+      date: 'Just now'
+    };
+    setCrmLogs([newLog, ...crmLogs]);
+    setNewLogText('');
+    showToast.success('Activity logged successfully');
+  };
+
+  const handleSendCollabRequest = (clientReqName) => {
+    showToast.success(`Collaboration request sent to broker of ${clientReqName}!`);
+  };
+
   if (!property) return null;
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 justify-end bg-black/60">
+      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
 
-        <View className="bg-white w-full h-[85vh] rounded-t-[28px] overflow-hidden">
+        <View style={{ backgroundColor: 'white', width: '100%', height: '85%', borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden' }}>
           
           {/* Header Image */}
-          <View className="h-64 w-full relative">
+          <View style={{ height: 200, width: '100%', position: 'relative' }}>
             <Image 
               source={{ uri: property.image }} 
-              className="w-full h-full" 
+              style={{ width: '100%', height: '100%' }} 
               resizeMode="cover" 
             />
-            <View className="absolute inset-0 bg-black/30" />
-            <View className="absolute bottom-0 left-0 right-0 p-5">
-              <Text className="text-white text-3xl font-bold">
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.3)' }} />
+            <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20 }}>
+              <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>
                 {formatCurrency(property.price)}
               </Text>
-              <View className="flex-row items-center mt-1">
-                <MapPin size={14} color="white" />
-                <Text className="text-white text-xs ml-1">
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                <MapPin size={12} color="white" />
+                <Text style={{ color: 'white', fontSize: 12, marginLeft: 4 }}>
                   {property.location}
                 </Text>
               </View>
@@ -104,211 +150,359 @@ const PropertyDetailSheet = ({
 
             <TouchableOpacity
               onPress={onClose}
-              className="absolute top-6 right-6 bg-black/40 p-2 rounded-full z-10"
+              style={{ position: 'absolute', top: 20, right: 20, backgroundColor: 'rgba(0,0,0,0.4)', padding: 8, borderRadius: 20, zIndex: 10 }}
             >
-              <X size={20} color="white" />
+              <X size={18} color="white" />
             </TouchableOpacity>
           </View>
 
-          {/* Main Content ScrollView with paddingBottom for extra space */}
+          {/* Horizontal Scrollable Tabs */}
+          <View style={{ borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#f9fafb' }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 10 }}>
+              {['Overview', 'CRM Activity', 'Matches', 'Collaboration'].map((tab) => (
+                <TouchableOpacity
+                  key={tab}
+                  onPress={() => setActiveTab(tab)}
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: activeTab === tab ? '#BFB7FD' : 'white',
+                    borderWidth: 1,
+                    borderColor: activeTab === tab ? '#BFB7FD' : '#e5e7eb',
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    color: activeTab === tab ? 'white' : '#4b5563',
+                  }}>
+                    {tab}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Main Tab Content */}
           <ScrollView
-            className="flex-1 px-5 pt-6"
+            style={{ flex: 1, paddingHorizontal: 20, paddingTop: 16 }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 40 }} // ADDED EXTRA SPACE HERE
+            contentContainerStyle={{ paddingBottom: 40 }}
           >
-            {/* Title & Status */}
-            <View className="flex-row justify-between items-start mb-2">
-              <View className="flex-1 pr-4">
-                <Text className="text-xl font-bold text-gray-900 leading-tight">
-                  {property.title}
-                </Text>
-              </View>
-              {property.status && (
-                <View className={`px-3 py-1 rounded-full ${property.status === 'Available' ? 'bg-green-100' : 'bg-orange-100'}`}>
-                  <Text className={`text-[10px] font-bold uppercase ${property.status === 'Available' ? 'text-green-700' : 'text-orange-700'}`}>
-                    {property.status}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <View className="flex-row items-center mb-4">
-              <View className={`px-2 py-1 rounded ${property.listingType === 'Sell' ? 'bg-blue-100' : 'bg-purple-100'}`}>
-                <Text className={`text-[10px] font-bold uppercase ${property.listingType === 'Sell' ? 'text-blue-700' : 'text-purple-700'}`}>
-                  For {property.listingType}
-                </Text>
-              </View>
-              <Text className="text-xs text-gray-400 mx-2">•</Text>
-              <Text className="text-xs font-medium text-gray-500">
-                {property.category} • {property.type}
-              </Text>
-            </View>
-
-            {/* Location Details */}
-            {(property.city || property.state) && (
-              <View className="flex-row items-center mb-6">
-                <MapPin size={16} color="#6b7280" />
-                <Text className="text-sm text-gray-600 ml-1.5 flex-1">
-                  {[property.location, property.city, property.state].filter(Boolean).join(', ')}
-                </Text>
-              </View>
-            )}
-
-            {/* Compact Stats Grid */}
-            <View className="flex-row flex-wrap gap-3 mb-6">
-              {/* Area */}
-              <View className="flex-1 min-w-[30%] bg-gray-50 px-3 py-4 rounded-2xl border border-gray-100 items-center">
-                <Layout size={20} color="#374151" />
-                <Text className="text-[10px] font-semibold text-gray-400 uppercase mt-2 mb-1">
-                  Area
-                </Text>
-                <Text numberOfLines={1} className="text-sm font-bold text-gray-900 text-center">
-                  {property.size || 'N/A'}
-                </Text>
-              </View>
-
-              {/* Config */}
-              {property.configuration && (
-                <View className="flex-1 min-w-[30%] bg-gray-50 px-3 py-4 rounded-2xl border border-gray-100 items-center">
-                  <Building size={20} color="#374151" />
-                  <Text className="text-[10px] font-semibold text-gray-400 uppercase mt-2 mb-1">
-                    Config
-                  </Text>
-                  <Text numberOfLines={1} ellipsizeMode="tail" className="text-sm font-bold text-gray-900 text-center">
-                    {property.configuration}
-                  </Text>
-                </View>
-              )}
-
-              {/* Furnish */}
-              {property.furnishingStatus && (
-                <View className="flex-1 min-w-[30%] bg-gray-50 px-3 py-4 rounded-2xl border border-gray-100 items-center">
-                  <Sofa size={20} color="#374151" />
-                  <Text className="text-[10px] font-semibold text-gray-400 uppercase mt-2 mb-1">
-                    Furnish
-                  </Text>
-                  <Text numberOfLines={1} className="text-sm font-bold text-gray-900 text-center">
-                    {property.furnishingStatus}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Amenities Section */}
-            {property.amenities && property.amenities.length > 0 && (
-              <View className="mb-6">
-                <Text className="text-sm font-bold text-gray-900 mb-3">
-                  Amenities
-                </Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {property.amenities.map((amenity, index) => (
-                    <View key={index} className="bg-purple-50 px-3 py-2 rounded-lg border border-purple-100">
-                      <Text className="text-xs text-purple-700 font-medium">
-                        {amenity}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Owner Section */}
-            {(property.owner || property.ownerPhone) && (
-              <View className="bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6">
-                <View className="flex-row justify-between items-center">
-                  <View className="flex-1 pr-2">
-                    <Text className="text-[10px] font-bold text-gray-400 uppercase mb-1">
-                      Owner Details
+            {activeTab === 'Overview' && (
+              <View>
+                {/* Title & Status */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                  <View style={{ flex: 1, paddingRight: 16 }}>
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827', lineHeight: 22 }}>
+                      {property.title}
                     </Text>
-                    {property.owner && (
-                      <Text className="text-base font-bold text-gray-900 mb-0.5">
-                        {property.owner}
-                      </Text>
-                    )}
-                    {property.ownerPhone && (
-                      <Text className="text-sm font-medium text-gray-600">
-                        {property.ownerPhone}
-                      </Text>
-                    )}
                   </View>
-
-                  {property.ownerPhone && (
-                    <View className="flex-row gap-2">
-                      <TouchableOpacity
-                        onPress={handleCall}
-                        className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm"
-                      >
-                        <Phone size={18} color="#111827" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={handleWhatsApp}
-                        className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm"
-                      >
-                        <WhatsAppIcon size={18} color="#25D366" />
-                      </TouchableOpacity>
+                  {property.status && (
+                    <View style={{ borderRadius: 12, backgroundColor: property.status === 'Available' ? '#d1fae5' : '#ffedd5', paddingHorizontal: 10, paddingVertical: 4 }}>
+                      <Text style={{ fontSize: 10, fontWeight: 'bold', color: property.status === 'Available' ? '#047857' : '#c2410c' }}>
+                        {property.status}
+                      </Text>
                     </View>
                   )}
                 </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                  <View style={{ backgroundColor: property.listingType === 'Sell' ? '#dbeafe' : '#f3e8ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: property.listingType === 'Sell' ? '#1d4ed8' : '#7c3aed' }}>
+                      For {property.listingType}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: '#9ca3af', marginHorizontal: 8 }}>•</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#6b7280' }}>
+                    {property.category} • {property.type}
+                  </Text>
+                </View>
+
+                {/* Compact Stats Grid */}
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+                  <View style={{ flex: 1, backgroundColor: '#f9fafb', padding: 12, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6', alignItems: 'center' }}>
+                    <Layout size={18} color="#374151" />
+                    <Text style={{ fontSize: 9, fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', marginTop: 6, marginBottom: 2 }}>
+                      Area
+                    </Text>
+                    <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: 'bold', color: '#111827' }}>
+                      {property.size || 'N/A'}
+                    </Text>
+                  </View>
+
+                  {property.configuration && (
+                    <View style={{ flex: 1, backgroundColor: '#f9fafb', padding: 12, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6', alignItems: 'center' }}>
+                      <Building size={18} color="#374151" />
+                      <Text style={{ fontSize: 9, fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', marginTop: 6, marginBottom: 2 }}>
+                        Config
+                      </Text>
+                      <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: 'bold', color: '#111827' }}>
+                        {property.configuration}
+                      </Text>
+                    </View>
+                  )}
+
+                  {property.furnishingStatus && (
+                    <View style={{ flex: 1, backgroundColor: '#f9fafb', padding: 12, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6', alignItems: 'center' }}>
+                      <Sofa size={18} color="#374151" />
+                      <Text style={{ fontSize: 9, fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', marginTop: 6, marginBottom: 2 }}>
+                        Furnish
+                      </Text>
+                      <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: 'bold', color: '#111827' }}>
+                        {property.furnishingStatus}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Owner Section */}
+                {(property.owner || property.ownerPhone) && (
+                  <View style={{ backgroundColor: '#f9fafb', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6', marginBottom: 20 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+                          Owner Details
+                        </Text>
+                        {property.owner && (
+                          <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#111827', marginBottom: 2 }}>
+                            {property.owner}
+                          </Text>
+                        )}
+                        {property.ownerPhone && (
+                          <Text style={{ fontSize: 13, fontWeight: '500', color: '#4b5563' }}>
+                            {property.ownerPhone}
+                          </Text>
+                        )}
+                      </View>
+
+                      {property.ownerPhone && (
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <TouchableOpacity
+                            onPress={handleCall}
+                            style={{ backgroundColor: 'white', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' }}
+                          >
+                            <Phone size={16} color="#111827" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={handleWhatsApp}
+                            style={{ backgroundColor: 'white', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' }}
+                          >
+                            <WhatsAppIcon size={16} color="#25D366" />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                )}
+
+                {/* Action Buttons */}
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                  <TouchableOpacity
+                    onPress={() => onEdit?.(property, 'Property')}
+                    style={{ flex: 1, backgroundColor: '#f3f4f6', paddingVertical: 14, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: '#e5e7eb' }}
+                  >
+                    <Edit3 size={14} color="#111827" />
+                    <Text style={{ color: '#111827', fontWeight: 'bold', fontSize: 13, marginLeft: 8 }}>
+                      Edit Details
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setShowProposeModal(true)}
+                    style={{ flex: 1, backgroundColor: '#9A8CFC', paddingVertical: 14, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
+                  >
+                    <Users size={14} color="white" />
+                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13, marginLeft: 8 }}>
+                      Propose Deal
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
 
-            {/* Action Buttons */}
-            <View className="flex-row gap-3 mt-2">
-              <TouchableOpacity
-                onPress={() => onEdit?.(property, 'Property')}
-                className="flex-1 bg-gray-100 py-4 rounded-xl items-center flex-row justify-center border border-gray-200"
-              >
-                <Edit3 size={16} color="#111827" />
-                <Text className="text-gray-900 font-bold text-sm ml-2">
-                  Edit Details
-                </Text>
-              </TouchableOpacity>
+            {activeTab === 'CRM Activity' && (
+              <View>
+                {/* Log Activity Form */}
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 10 }}>Log CRM Activity</Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+                  <TextInput
+                    value={newLogText}
+                    onChangeText={setNewLogText}
+                    placeholder="Enter owner call notes or availability details..."
+                    style={{ flex: 1, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, paddingHorizontal: 12, fontSize: 13, height: 44 }}
+                  />
+                  <TouchableOpacity
+                    onPress={handleAddCrmLog}
+                    style={{ backgroundColor: '#9A8CFC', paddingHorizontal: 16, borderRadius: 12, justifyContent: 'center' }}
+                  >
+                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13 }}>Add</Text>
+                  </TouchableOpacity>
+                </View>
 
-              <TouchableOpacity
-                onPress={() => setShowProposeModal(true)}
-                className="flex-1 py-4 rounded-xl items-center flex-row justify-center shadow-sm"
-                style={{ backgroundColor: '#9A8CFC' }}
-              >
-                <Users size={16} color="white" />
-                <Text className="text-white font-bold text-sm ml-2">
-                  Propose Deal
-                </Text>
-              </TouchableOpacity>
-            </View>
+                {/* Activity Feed */}
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 12 }}>Activity History</Text>
+                {crmLogs.map((log) => (
+                  <View key={log.id} style={{ backgroundColor: 'white', padding: 14, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6', marginBottom: 10 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#9A8CFC', textTransform: 'uppercase' }}>
+                        {log.type}
+                      </Text>
+                      <Text style={{ fontSize: 10, color: '#9ca3af' }}>{log.date}</Text>
+                    </View>
+                    <Text style={{ fontSize: 13, color: '#4b5563' }}>{log.detail}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {activeTab === 'Matches' && (
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 12 }}>Ranked Client Matches</Text>
+                {matchingRequirements.map((match) => (
+                  <View key={match.id} style={{ backgroundColor: 'white', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6', marginBottom: 12 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        <View style={{ backgroundColor: '#d1fae5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#047857' }}>{match.compatibility}% MATCH</Text>
+                        </View>
+                        <View style={{ backgroundColor: '#f3e8ff', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#7c3aed' }}>{match.freshness}</Text>
+                        </View>
+                      </View>
+                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#111827' }}>
+                        {formatCurrency(match.budgetMax)} max
+                      </Text>
+                    </View>
+
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 4 }}>
+                      Client ID: req-{match.id} (Anonymous)
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
+                      Locality: {match.location || 'Anywhere'} • Preference: {match.bhk || 'Any BHK'} {match.type}
+                    </Text>
+
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <TouchableOpacity
+                        onPress={() => handleSendCollabRequest(match.name)}
+                        style={{ flex: 1, backgroundColor: '#9A8CFC', paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
+                      >
+                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>Request Collab</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {activeTab === 'Collaboration' && (
+              <View>
+                {/* Visibility Controls */}
+                <View style={{ backgroundColor: 'white', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6', marginBottom: 16 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <Shield size={16} color="#7c3aed" />
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827' }}>Network Settings</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 12, color: '#4b5563' }}>Network Visibility</Text>
+                    <View style={{ backgroundColor: '#eff6ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
+                      <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#1d4ed8' }}>Network (Public)</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Pending Requests */}
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 10 }}>Requests</Text>
+                {collabRequests.map((req) => (
+                  <View key={req.id} style={{ backgroundColor: 'white', padding: 14, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6', marginBottom: 12 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <View>
+                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#111827' }}>{req.name}</Text>
+                        <Text style={{ fontSize: 11, color: '#6b7280' }}>{req.role} • Split: {req.split}</Text>
+                      </View>
+                      <View style={{ backgroundColor: '#ffedd5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#c2410c' }}>{req.status}</Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setCollabRequests([]);
+                          setActivePartner({ name: req.name, split: req.split });
+                          showToast.success('Collaboration accepted!');
+                        }}
+                        style={{ flex: 1, backgroundColor: '#9A8CFC', paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}
+                      >
+                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 11 }}>Accept & Unlock</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => setCollabRequests([])}
+                        style={{ flex: 1, backgroundColor: '#f3f4f6', paddingVertical: 8, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb' }}
+                      >
+                        <Text style={{ color: '#ef4444', fontWeight: 'bold', fontSize: 11 }}>Decline</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+
+                {/* Active Partner */}
+                {activePartner ? (
+                  <View style={{ backgroundColor: 'white', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6' }}>
+                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#16a34a', textTransform: 'uppercase', marginBottom: 4 }}>Active Collaborator</Text>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 2 }}>{activePartner.name}</Text>
+                    <Text style={{ fontSize: 12, color: '#4b5563', marginBottom: 12 }}>Role: Client-side broker • Split: {activePartner.split}</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        onClose();
+                        router.push('/collab-page?roomId=1');
+                      }}
+                      style={{ backgroundColor: '#f3f4f6', paddingVertical: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb' }}
+                    >
+                      <Text style={{ color: '#9A8CFC', fontWeight: 'bold', fontSize: 12 }}>Open Room</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  collabRequests.length === 0 && (
+                    <Text style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>No active collaborations on this property</Text>
+                  )
+                )}
+              </View>
+            )}
           </ScrollView>
         </View>
       </View>
 
-      {/* Customer Selection Modal with KeyboardAvoidingView */}
+      {/* Propose Deal Modal */}
       {showProposeModal && (
         <Modal visible transparent animationType="slide">
           <KeyboardAvoidingView 
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            className="flex-1 justify-end bg-black/60"
+            style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}
           >
-            <View className="bg-white h-[75vh] rounded-t-[28px] p-6 pb-8">
+            <View style={{ backgroundColor: 'white', height: '75%', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 32 }}>
               
-              <View className="flex-row justify-between items-center mb-5">
-                  <Text className="text-xl font-bold text-gray-900">
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>
                     Select Customer
                   </Text>
-                  <TouchableOpacity onPress={() => setShowProposeModal(false)} className="p-2 bg-gray-100 rounded-full">
-                      <X size={20} color="#4b5563"/>
+                  <TouchableOpacity onPress={() => setShowProposeModal(false)} style={{ padding: 8, backgroundColor: '#f3f4f6', borderRadius: 20 }}>
+                      <X size={18} color="#4b5563"/>
                   </TouchableOpacity>
               </View>
 
-              <View className="flex-row items-center border border-gray-200 rounded-xl px-4 py-3 mb-4 bg-gray-50">
-                  <Search size={18} color="#9ca3af" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16, backgroundColor: '#f9fafb' }}>
+                  <Search size={16} color="#9ca3af" />
                   <TextInput
                     value={customerSearchText}
                     onChangeText={setCustomerSearchText}
                     placeholder="Search by name..."
-                    className="flex-1 ml-2 text-base"
+                    style={{ flex: 1, marginLeft: 8, fontSize: 15 }}
                     placeholderTextColor="#9ca3af"
                   />
                   {customerSearchText.length > 0 && (
                       <TouchableOpacity onPress={() => setCustomerSearchText('')}>
-                          <X size={16} color="#9ca3af" />
+                          <X size={14} color="#9ca3af" />
                       </TouchableOpacity>
                   )}
               </View>
@@ -318,12 +512,11 @@ const PropertyDetailSheet = ({
                 contentContainerStyle={{ paddingBottom: 20 }}
               >
                 {filteredCustomers.length === 0 ? (
-                    <View className="items-center justify-center py-10">
-                        <Text className="text-gray-400 font-medium">No customers found</Text>
+                    <View style={{ alignItems: 'center', justifycontent: 'center', paddingVertical: 40 }}>
+                        <Text style={{ color: '#9ca3af', fontWeight: '500' }}>No customers found</Text>
                     </View>
                 ) : (
                     filteredCustomers.map((customer) => {
-                      // Handle both budget formats: single budget or budgetMin/budgetMax
                       const budgetDisplay = customer.budgetMin && customer.budgetMax
                         ? `${formatCurrency(customer.budgetMin)} - ${formatCurrency(customer.budgetMax)}`
                         : customer.budget
@@ -334,32 +527,32 @@ const PropertyDetailSheet = ({
                         <TouchableOpacity
                           key={customer.id}
                           onPress={() => handleCustomerSelect(customer)}
-                          className="border border-gray-100 rounded-xl p-4 mb-3 bg-white flex-row justify-between items-center shadow-sm"
+                          style={{ borderWidth: 1, borderColor: '#f3f4f6', borderRadius: 12, padding: 16, marginBottom: 12, backgroundColor: 'white', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                         >
-                          <View className="flex-1 pr-3">
-                            <Text className="font-bold text-gray-900 text-base mb-1">
+                          <View style={{ flex: 1, paddingRight: 12 }}>
+                            <Text style={{ fontWeight: 'bold', color: '#111827', fontSize: 15, marginBottom: 2 }}>
                               {customer.name}
                             </Text>
-                            <Text className="text-xs font-medium text-gray-500 mb-1">
+                            <Text style={{ fontSize: 12, fontWeight: '500', color: '#6b7280', marginBottom: 4 }}>
                               {customer.phone}
                             </Text>
-                            <View className="flex-row items-center flex-wrap gap-2">
-                              <View className="px-2 py-1 rounded" style={{ backgroundColor: '#E9E6F7' }}>
-                                <Text className="text-xs font-semibold" style={{ color: '#9A8CFC' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                              <View style={{ borderRadius: 4, backgroundColor: '#E9E6F7', paddingHorizontal: 6, paddingVertical: 2 }}>
+                                <Text style={{ fontSize: 11, fontWeight: 'semibold', color: '#9A8CFC' }}>
                                   {budgetDisplay}
                                 </Text>
                               </View>
                               {customer.preferredLocation && (
-                                <View className="bg-gray-100 px-2 py-1 rounded">
-                                  <Text className="text-xs text-gray-600">
+                                <View style={{ backgroundColor: '#f3f4f6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                  <Text style={{ fontSize: 11, color: '#4b5563' }}>
                                     {customer.preferredLocation}
                                   </Text>
                                 </View>
                               )}
                             </View>
                           </View>
-                          <View className="p-2 rounded-full" style={{ backgroundColor: '#E9E6F7' }}>
-                            <ArrowRight size={16} color="#9A8CFC" />
+                          <View style={{ padding: 8, borderRadius: 20, backgroundColor: '#E9E6F7' }}>
+                            <ArrowRight size={14} color="#9A8CFC" />
                           </View>
                         </TouchableOpacity>
                       );
@@ -374,7 +567,6 @@ const PropertyDetailSheet = ({
   );
 };
 
-// Simple ArrowRight component for the customer list
 const ArrowRight = ({ size, color }) => (
     <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ color: color, fontSize: size - 2, fontWeight: 'bold' }}>→</Text>

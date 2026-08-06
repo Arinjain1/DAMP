@@ -6,8 +6,6 @@ import { useDispatch, useSelector } from "react-redux";
 import Dashboard from "../src/Views/Dashboard";
 import FAB from "../src/Components/FAB";
 import AddModal from "../src/Modal and Sheets/AddModal";
-import CustomerDetailSheet from "../src/Modal and Sheets/CustomerDetailSheet";
-import PropertyDetailSheet from "../src/Modal and Sheets/PropertyDetailSheet";
 import SubscriptionSheet from "../src/Modal and Sheets/SubscriptionSheet";
 import { propertiesAPI, customersAPI, dealsAPI, tasksAPI, visitsAPI } from "../src/config/api";
 import { showToast } from "../src/utils/toast";
@@ -17,6 +15,7 @@ import {
   clearSelectedCustomer,
   updateCustomerLocal,
   updateCustomerStage,
+  updateCustomerProperties,
 } from "../src/store/slices/customersSlice";
 import {
   addDeal,
@@ -113,6 +112,23 @@ export default function DashboardPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [dispatch]);
+
+  // Redirect to full-page route when customer is selected on dashboard
+  useEffect(() => {
+    if (selectedCustomer) {
+      const dealStages = ['In-Process', 'Negotiation', 'Token', 'Settlement', 'Agreement', 'Completed'];
+      const isInDealStage = dealStages.includes(selectedCustomer.stage);
+      const customerDeal = deals.find(d => d.customerId === selectedCustomer.id);
+
+      if (isInDealStage && customerDeal) {
+        dispatch(setSelectedDeal(customerDeal));
+        dispatch(clearSelectedCustomer());
+        router.push('/deal-page');
+      } else {
+        router.push('/customer-detail');
+      }
+    }
+  }, [selectedCustomer, deals, dispatch, router]);
 
   // Fetch tasks on component mount
   useEffect(() => {
@@ -429,6 +445,108 @@ export default function DashboardPage() {
     }
   };
 
+  const handleAddFollowUpFromCustomer = useCallback(async (taskData) => {
+    try {
+      if (taskData && taskData.customerId) {
+        if ((taskData.type === 'Site Visit' || taskData.type === 'Visit') && taskData.propertyIds?.length > 0) {
+          const visitResponse = await visitsAPI.create({
+            client_id: taskData.customerId,
+            property_ids: taskData.propertyIds,
+            scheduled_date: taskData.date.split('T')[0],
+            scheduled_time: taskData.date.split('T')[1]?.substring(0, 5) || '10:00'
+          });
+
+          if (visitResponse.data.success) {
+            showToast.success('Site visit scheduled!');
+            fetchTasks();
+          }
+        } else {
+          const taskResponse = await tasksAPI.create({
+            client_id: taskData.customerId,
+            property_id: taskData.propertyIds?.[0] || null,
+            task_type: taskData.type || 'Meeting',
+            schedule_date: taskData.date.split('T')[0],
+            schedule_time: taskData.date.split('T')[1]?.substring(0, 5) || '10:00',
+            notes: taskData.note || ''
+          });
+
+          if (taskResponse.data.success) {
+            showToast.success('Task created!');
+            const newTask = {
+              id: taskResponse.data.data.id,
+              customerId: taskData.customerId,
+              propertyIds: taskData.propertyIds || [],
+              type: taskData.type,
+              date: taskData.date,
+              note: taskData.note || '',
+              status: 'Pending'
+            };
+            dispatch(addFollowUp(newTask));
+          }
+        }
+      } else {
+        dispatch(setEditItem({ customerId: taskData?.id }));
+        dispatch(setModalType('FollowUp'));
+        dispatch(setModalOpen(true));
+      }
+    } catch (error) {
+      showToast.error(error.response?.data?.message || 'Failed to create task');
+    }
+  }, [dispatch, fetchTasks]);
+
+  const handleEditTask = useCallback((task) => {
+    dispatch(setEditItem(task));
+    dispatch(setModalType('FollowUp'));
+    dispatch(setModalOpen(true));
+  }, [dispatch]);
+
+  const handleDeleteTask = useCallback((taskId) => {
+    dispatch({ type: 'followUps/deleteFollowUp', payload: taskId });
+  }, [dispatch]);
+
+  const handleUpdateStage = useCallback(async (id, stage) => {
+    const previousStage = selectedCustomer?.stage || 'New';
+    dispatch(updateCustomerStage({ id, stage }));
+    try {
+      await customersAPI.updateStatus(id, stage);
+    } catch (error) {
+      dispatch(updateCustomerStage({ id, stage: previousStage }));
+      showToast.error('Failed to update stage');
+    }
+  }, [dispatch, selectedCustomer]);
+
+  const handleSelectProperties = useCallback(async (id, selectedProperties, interestedProperties, holdProperties) => {
+    try {
+      const updateData = { selectedProperties };
+      if (interestedProperties !== undefined) updateData.interestedProperties = interestedProperties;
+      if (holdProperties !== undefined) updateData.holdProperties = holdProperties;
+      
+      if (String(id).startsWith('mock-')) {
+        dispatch(updateCustomerProperties({ id, data: updateData }));
+        return;
+      }
+
+      await customersAPI.updateProperties(id, {
+        selected_properties: selectedProperties,
+        interested_properties: interestedProperties,
+        hold_properties: holdProperties
+      });
+      dispatch(updateCustomerProperties({ id, data: updateData }));
+    } catch (error) {
+      console.error('Error updating properties:', error);
+      showToast.error('Failed to update properties');
+    }
+  }, [dispatch]);
+
+  const handleOpenDealFromSheet = useCallback((deal) => {
+    dispatch(setSelectedDeal(deal));
+    router.push('/deal-page');
+  }, [dispatch, router]);
+
+  const handleCloseSheet = useCallback(() => {
+    dispatch(clearSelectedCustomer());
+  }, [dispatch]);
+
   // Subscription
   const handleSubscribe = (plan) => {
     dispatch(activateSubscription({ plan }));
@@ -444,7 +562,7 @@ export default function DashboardPage() {
         followUps={followUps}
         activeDeals={deals}
         unreadCount={unreadCount}
-        onOpenCollab={() => router.push('/collab-page')}
+        onOpenCollab={(roomId, matchId) => router.push(roomId ? `/collab-page?roomId=${roomId}` : (matchId ? `/collab-page?matchId=${matchId}` : '/collab-page'))}
         onOpenDeal={(deal) => {
           dispatch(setSelectedDeal(deal));
           router.push('/deal-page');
@@ -472,91 +590,6 @@ export default function DashboardPage() {
         onUpdate={handleUpdate}
         onClose={() => dispatch(setModalOpen(false))}
       />
-
-      {selectedProperty && (
-        <PropertyDetailSheet
-          property={selectedProperty}
-          onEdit={handleEdit}
-          onClose={() => dispatch(clearSelectedProperty())}
-        />
-      )}
-
-      {selectedCustomer && (
-        <CustomerDetailSheet
-          customer={selectedCustomer}
-          properties={properties}
-          onClose={() => dispatch(clearSelectedCustomer())}
-          onStartDeal={handleStartDeal}
-          onAddFollowUp={async (taskData) => {
-            try {
-              // Check if it's a site visit with multiple properties
-              if ((taskData.type === 'Site Visit' || taskData.type === 'Visit') && taskData.propertyIds?.length > 0) {
-                // Create site visit (this will also create task in backend)
-                const visitResponse = await visitsAPI.create({
-                  client_id: taskData.customerId,
-                  property_ids: taskData.propertyIds,
-                  scheduled_date: taskData.date.split('T')[0],
-                  scheduled_time: taskData.date.split('T')[1]?.substring(0, 5) || '10:00'
-                });
-
-                if (visitResponse.data.success) {
-                  showToast.success('Site visit scheduled!');
-                  await fetchTasks(); // Refresh tasks from backend
-                }
-              } else {
-                // Create regular task
-                const taskResponse = await tasksAPI.create({
-                  client_id: taskData.customerId,
-                  property_id: taskData.propertyIds?.[0] || null,
-                  task_type: taskData.type || 'Meeting',
-                  schedule_date: taskData.date.split('T')[0],
-                  schedule_time: taskData.date.split('T')[1]?.substring(0, 5) || '10:00',
-                  notes: taskData.note || ''
-                });
-
-                if (taskResponse.data.success) {
-                  showToast.success('Task created!');
-                  await fetchTasks(); // Refresh tasks from backend
-                }
-              }
-            } catch (error) {
-              console.error('Error creating task:', error);
-              showToast.error(error.response?.data?.message || 'Failed to create task');
-            }
-          }}
-          onEditTask={(task) => {
-            dispatch(setEditItem(task));
-            dispatch(setModalType('FollowUp'));
-            dispatch(setModalOpen(true));
-          }}
-          onDeleteTask={async (taskId) => {
-            try {
-              const response = await tasksAPI.delete(taskId);
-              if (response.data.success) {
-                showToast.success('Task deleted');
-                await fetchTasks(); // Refresh tasks from backend
-              }
-            } catch (error) {
-              console.error('Error deleting task:', error);
-              showToast.error('Failed to delete task');
-            }
-          }}
-          onUpdateStage={async (id, stage) => {
-            try {
-              const response = await customersAPI.updateStage(id, stage);
-              if (response.data.success) {
-                // Use the updateCustomerStage action to update Redux state
-                dispatch(updateCustomerStage({ id, stage }));
-                showToast.success(`Customer moved to ${stage} stage`);
-              }
-            } catch (error) {
-              console.error('Failed to update stage:', error);
-              showToast.error('Failed to update stage');
-            }
-          }}
-        />
-      )}
-
     </View>
   );
 }

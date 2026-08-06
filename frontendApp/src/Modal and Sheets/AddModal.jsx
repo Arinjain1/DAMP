@@ -315,6 +315,7 @@ const AddModal = ({
                                             PROPERTY_STRUCTURE={PROPERTY_STRUCTURE}
                                             budgetRange={budgetRange}
                                             setBudgetRange={setBudgetRange}
+                                            pickImage={pickImage}
                                         />
                                     )}
 

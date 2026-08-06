@@ -83,11 +83,17 @@ const TaskCard = memo(({
         activeOpacity={0.9}
         style={[styles.card, cardStyle]}
       >
-        {/* Card Header: Title & Action Buttons */}
         <View style={styles.cardHeader}>
-          <Text style={[styles.cardTitle, { color: textPrimary }]} numberOfLines={1}>
-            {task.type}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+            <Text style={[styles.cardTitle, { color: textPrimary, flex: 0 }]} numberOfLines={1}>
+              {task.type}
+            </Text>
+            {task.note?.includes('[Collaborated]') && (
+              <View style={{ backgroundColor: '#BFB7FD', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#7c3aed' }}>COLLABORATED</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.headerActions}>
             <TouchableOpacity onPress={(e) => {
               e.stopPropagation();
@@ -118,7 +124,7 @@ const TaskCard = memo(({
         </Text>
 
         {/* Properties List */}
-        {taskProperties.length > 0 && (
+        {taskProperties.length > 0 ? (
           <View>
             <View>
               <View style={styles.infoRow}>
@@ -140,6 +146,25 @@ const TaskCard = memo(({
               </Text>
             )}
           </View>
+        ) : (
+          task.propertyNameFallback ? (
+            <View>
+              <View>
+                <View style={styles.infoRow}>
+                  <Home size={12} color={iconColor} />
+                  <Text style={[styles.infoText, { color: textSecondary }]} numberOfLines={1}>
+                    {task.propertyNameFallback}
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <MapPin size={12} color={iconColor} />
+                  <Text style={[styles.infoText, { color: textSecondary }]} numberOfLines={1}>
+                    {task.propertyLocationFallback || 'No location set'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ) : null
         )}
 
         {/* Note */}
@@ -163,6 +188,8 @@ const TaskCard = memo(({
                     if (taskProperties.length === 1) {
                       const prop = taskProperties[0];
                       Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                    } else if (taskProperties.length === 0 && task.propertyNameFallback) {
+                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.propertyNameFallback + ', ' + (task.propertyLocationFallback || ''))}`);
                     } else {
                       handleStartVisit({
                         id: generateId(),
@@ -176,7 +203,7 @@ const TaskCard = memo(({
                 >
                   <Map size={12} color="#fbbf24" />
                   <Text style={styles.startVisitText}>
-                    {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
+                    {taskProperties.length === 1 ? 'Navigate' : (taskProperties.length === 0 ? 'Navigate to Site' : `Visit ${taskProperties.length} Sites`)}
                   </Text>
                 </TouchableOpacity>
                 <View style={[styles.contactButtonsRow, { marginTop: 8 }]}>
@@ -215,7 +242,7 @@ const TaskCard = memo(({
               </View>
             )
           ) : (
-            (task.type === 'Site Visit' || task.type === 'Visit') && filter === 'Pending' && taskProperties.length > 0 ? (
+            (task.type === 'Site Visit' || task.type === 'Visit') && filter === 'Pending' && (taskProperties.length > 0 || task.propertyNameFallback) ? (
               <View>
                 <TouchableOpacity
                   onPress={(e) => {
@@ -223,6 +250,8 @@ const TaskCard = memo(({
                     if (taskProperties.length === 1) {
                       const prop = taskProperties[0];
                       Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.location)}`);
+                    } else if (taskProperties.length === 0 && task.propertyNameFallback) {
+                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.propertyNameFallback + ', ' + (task.propertyLocationFallback || ''))}`);
                     } else {
                       handleStartVisit({
                         id: generateId(),
@@ -236,7 +265,7 @@ const TaskCard = memo(({
                 >
                   <Map size={12} color="#fbbf24" />
                   <Text style={styles.startVisitText}>
-                    {taskProperties.length === 1 ? 'Navigate' : `Visit ${taskProperties.length} Sites`}
+                    {taskProperties.length === 1 ? 'Navigate' : (taskProperties.length === 0 ? 'Navigate to Site' : `Visit ${taskProperties.length} Sites`)}
                   </Text>
                 </TouchableOpacity>
                 <View style={[styles.contactButtonsRow, { marginTop: 8 }]}>

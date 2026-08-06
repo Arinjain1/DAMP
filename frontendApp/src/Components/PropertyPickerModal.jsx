@@ -32,6 +32,7 @@ const PropertyPickerModal = memo(({
   }, [visible]);
 
   const filteredProperties = useMemo(() => {
+    if (!customer) return [];
     const query = searchQuery.trim().toLowerCase();
     return properties.filter(p => {
       const matchesSearch = !query || 
@@ -74,6 +75,8 @@ const PropertyPickerModal = memo(({
       );
     }
   };
+
+  if (!customer) return null;
 
   return (
     <Modal
