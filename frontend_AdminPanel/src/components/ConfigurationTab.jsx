@@ -40,4 +40,5 @@ const ConfigurationTab = ({ setToast }) => {
     </div>
   );
 };
+
 export default ConfigurationTab;

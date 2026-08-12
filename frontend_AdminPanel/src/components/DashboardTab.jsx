@@ -1,93 +1,205 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, Activity } from 'lucide-react';
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip } from 'recharts';
 import StatCard from './StatCard';
 import { MOCK_DATA } from '../Mockdata/mockdata';
+import api from '../utils/api';
 
-const DashboardTab = ({ setToast }) => (
-  <div className="space-y-8 animate-fade-in">
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-      <div>
-        <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Dashboard</h2>
-        <p className="text-slate-500 font-medium mt-1">Executive network snapshot and platform health.</p>
-      </div>
-      <div className="flex gap-3">
-        <select className="bg-white dark:bg-slate-900 border border-[#BFB7FD]/40 text-sm font-bold rounded-xl px-4 py-2 text-slate-700 dark:text-gray-300 shadow-sm outline-none focus:border-[#7c6ce0] transition-colors cursor-pointer">
-          <option>Global | All Cities</option>
-          <option>Indore</option>
-          <option>Bhopal</option>
-        </select>
-        <button 
-          onClick={() => setToast({ message: 'Report export initiated successfully', type: 'success' })}
-          className="bg-[#BFB7FD] hover:bg-[#a59cee] text-slate-900 p-2.5 rounded-xl transition-all shadow-md shadow-[#BFB7FD]/40 flex items-center justify-center"
-        >
-          <Download size={20} strokeWidth={2.5} />
-        </button>
-      </div>
-    </div>
+const DashboardTab = ({ setToast, setActiveTab }) => {
+  const [stats, setStats] = useState(null);
+  const [selectedCity, setSelectedCity] = useState('');
+  const [loading, setLoading] = useState(true);
 
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      {MOCK_DATA.dashboard.stats.map((stat, i) => (
-        <StatCard key={i} {...stat} />
-      ))}
-    </div>
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const url = selectedCity ? `/admin/stats?city=${encodeURIComponent(selectedCity)}` : '/admin/stats';
+        const response = await api.get(url);
+        if (response.data && response.data.success) {
+          setStats(response.data.data);
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard stats:', err);
+        setToast({ message: 'Failed to load live dashboard statistics', type: 'error' });
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-3xl border border-[#BFB7FD]/30 shadow-sm relative overflow-hidden">
-        <h3 className="text-lg font-black text-slate-800 dark:text-white mb-6">Broker activation and paid-plan trend</h3>
-        <div className="h-80 relative z-10">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={MOCK_DATA.dashboard.chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eeecff" vertical={false} />
-              <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} fontWeight={600} />
-              <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} fontWeight={600} />
-              <RechartsTooltip 
-                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '12px', color: '#f8fafc', fontWeight: 600, boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)' }}
-                itemStyle={{ color: '#e2e8f0' }}
-              />
-              <Line type="monotone" dataKey="active" stroke="#7c6ce0" strokeWidth={4} dot={{ r: 5, fill: '#7c6ce0', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} name="Active Users" />
-              <Line type="monotone" dataKey="paid" stroke="#BFB7FD" strokeWidth={4} dot={{ r: 5, fill: '#BFB7FD', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} name="Paid Users" />
-            </LineChart>
-          </ResponsiveContainer>
+    fetchStats();
+  }, [selectedCity, setToast]);
+
+  const statsCards = [
+    { 
+      title: "Registered Brokers", 
+      value: stats ? stats.totalBrokers.toLocaleString() : (loading ? "..." : "0"), 
+      change: "+8.2%", 
+      type: 'positive' 
+    },
+    { 
+      title: "Active 30D (Active Users)", 
+      value: stats ? stats.activeBrokers.toLocaleString() : (loading ? "..." : "0"), 
+      change: "65.5%", 
+      type: 'neutral', 
+      subtitle: "of registered" 
+    },
+    { 
+      title: "Paid Users", 
+      value: stats ? stats.activeProPlans.toLocaleString() : (loading ? "..." : "0"), 
+      change: "32.8%", 
+      type: 'neutral', 
+      subtitle: "of registered" 
+    },
+    { 
+      title: "Collaborated", 
+      value: MOCK_DATA.dashboard.stats[3].value, // Keep static as requested
+      change: MOCK_DATA.dashboard.stats[3].change, 
+      type: 'neutral', 
+      subtitle: "of active" 
+    }
+  ];
+
+  const attentionItems = [
+    { 
+      label: "Failed renewals", 
+      value: stats ? stats.failedRenewals : (loading ? "..." : 0), 
+      color: "text-red-500",
+      tab: "Plans & Billing"
+    },
+    { 
+      label: "Open disputes", 
+      value: stats ? stats.openDisputes : (loading ? "..." : 0), 
+      color: "text-red-500",
+      tab: "Trust & Disputes"
+    },
+    { 
+      label: "Security alerts", 
+      value: stats ? stats.securityAlerts : (loading ? "..." : 0), 
+      color: "text-amber-500",
+      tab: "Audit & Security"
+    }
+  ];
+
+  const chartData = stats && stats.chartData && stats.chartData.length > 0 ? stats.chartData : MOCK_DATA.dashboard.chartData;
+  const liveFeed = stats && stats.liveFeed && stats.liveFeed.length > 0 ? stats.liveFeed : MOCK_DATA.dashboard.liveFeed;
+  const cities = stats && stats.cities ? stats.cities : [];
+
+  return (
+    <div className="space-y-8 animate-fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Dashboard</h2>
+          <p className="text-slate-500 font-medium mt-1">Executive network snapshot and platform health.</p>
         </div>
-      </div>
-
-      <div className="space-y-6">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-[#BFB7FD]/30 shadow-sm hover:shadow-lg transition-shadow">
-          <h3 className="text-base font-black text-slate-800 dark:text-white mb-5 uppercase tracking-wide">Needs Attention</h3>
-          <div className="space-y-4">
-            {MOCK_DATA.dashboard.attention.map((item, i) => (
-              <div key={i} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                <span className="flex items-center text-sm font-semibold text-slate-600 dark:text-gray-300">
-                  <span className={`w-2.5 h-2.5 rounded-full mr-3 bg-current ${item.color}`}></span>
-                  {item.label}
-                </span>
-                <span className="font-black text-slate-900 dark:text-white">{item.value}</span>
-              </div>
+        <div className="flex gap-3">
+          <select 
+            value={selectedCity}
+            onChange={(e) => setSelectedCity(e.target.value)}
+            className="bg-white dark:bg-slate-900 border border-[#BFB7FD]/40 text-sm font-bold rounded-xl px-4 py-2 text-slate-700 dark:text-gray-300 shadow-sm outline-none focus:border-[#7c6ce0] transition-colors cursor-pointer"
+          >
+            <option value="">Global | All Cities</option>
+            {cities.map((city) => (
+              <option key={city} value={city}>{city}</option>
             ))}
-          </div>
-          <button className="w-full mt-6 py-2.5 bg-[#f4f2ff] hover:bg-[#eeecff] text-[#7c6ce0] rounded-xl text-sm font-bold transition-colors">
-            View Action Items
+          </select>
+          <button 
+            onClick={() => setToast({ message: 'Report export initiated successfully', type: 'success' })}
+            className="bg-[#BFB7FD] hover:bg-[#a59cee] text-slate-900 p-2.5 rounded-xl transition-all shadow-md shadow-[#BFB7FD]/40 flex items-center justify-center"
+          >
+            <Download size={20} strokeWidth={2.5} />
           </button>
         </div>
+      </div>
 
-        <div className="bg-gradient-to-br from-[#BFB7FD] to-[#7c6ce0] p-6 rounded-3xl shadow-lg shadow-[#BFB7FD]/30 text-white relative overflow-hidden">
-           <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-          <h3 className="text-base font-black mb-5 flex items-center tracking-wide">
-            <Activity size={20} className="mr-2" /> Live Platform Feed
-          </h3>
-          <div className="space-y-4 relative z-10">
-            {MOCK_DATA.dashboard.liveFeed.map((feed, i) => (
-              <div key={i} className="flex flex-col border-l-2 border-white/30 pl-3">
-                <span className="text-[11px] font-bold text-white/70 uppercase tracking-wider">{feed.time}</span>
-                <span className="text-sm font-medium mt-0.5">{feed.event}</span>
-              </div>
-            ))}
+      {/* Top Level Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statsCards.map((stat, i) => (
+          <StatCard key={i} {...stat} />
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Chart Card */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-3xl border border-[#BFB7FD]/30 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-black text-slate-800 dark:text-white">Broker activation and paid-plan trend</h3>
+            {stats && (
+              <span className="text-sm font-bold text-[#7c6ce0] bg-[#f4f2ff] px-3.5 py-1 rounded-full border border-[#BFB7FD]/20">
+                Monthly Rev: ₹{stats.monthlyRevenue.toLocaleString('en-IN')}
+              </span>
+            )}
+          </div>
+          <div className="h-80 relative z-10">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#eeecff" vertical={false} />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} fontWeight={600} />
+                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} fontWeight={600} />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '12px', color: '#f8fafc', fontWeight: 600, boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)' }}
+                  itemStyle={{ color: '#e2e8f0' }}
+                />
+                <Line type="monotone" dataKey="active" stroke="#7c6ce0" strokeWidth={4} dot={{ r: 5, fill: '#7c6ce0', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} name="Active Users" />
+                <Line type="monotone" dataKey="paid" stroke="#BFB7FD" strokeWidth={4} dot={{ r: 5, fill: '#BFB7FD', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} name="Paid Users" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Sidebar Actions & Feed */}
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-[#BFB7FD]/30 shadow-sm hover:shadow-lg transition-shadow">
+            <h3 className="text-base font-black text-slate-800 dark:text-white mb-5 uppercase tracking-wide">Needs Attention</h3>
+            <div className="space-y-4">
+              {attentionItems.map((item, i) => (
+                <div 
+                  key={i} 
+                  onClick={() => setActiveTab && setActiveTab(item.tab)}
+                  className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-[#7c6ce0] hover:bg-[#f8f7ff] cursor-pointer transition-all duration-200 group"
+                  title={`Navigate to ${item.tab}`}
+                >
+                  <span className="flex items-center text-sm font-semibold text-slate-600 dark:text-gray-300 group-hover:text-[#7c6ce0] transition-colors">
+                    <span className={`w-2.5 h-2.5 rounded-full mr-3 bg-current ${item.color}`}></span>
+                    {item.label}
+                  </span>
+                  <span className="font-black text-slate-900 dark:text-white group-hover:text-[#7c6ce0] transition-colors">{item.value}</span>
+                </div>
+              ))}
+            </div>
+            <button 
+              onClick={() => {
+                // Navigate to the first item with non-zero count, or Plans & Billing by default
+                const urgentItem = attentionItems.find(item => item.value > 0);
+                if (urgentItem && setActiveTab) {
+                  setActiveTab(urgentItem.tab);
+                } else if (setActiveTab) {
+                  setActiveTab('Plans & Billing');
+                }
+              }}
+              className="w-full mt-6 py-2.5 bg-[#f4f2ff] hover:bg-[#eeecff] text-[#7c6ce0] rounded-xl text-sm font-bold transition-colors"
+            >
+              View Action Items
+            </button>
+          </div>
+
+          <div className="bg-gradient-to-br from-[#BFB7FD] to-[#7c6ce0] p-6 rounded-3xl shadow-lg shadow-[#BFB7FD]/30 text-white relative overflow-hidden">
+            <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+            <h3 className="text-base font-black mb-5 flex items-center tracking-wide">
+              <Activity size={20} className="mr-2" /> Live Platform Feed
+            </h3>
+            <div className="space-y-4 relative z-10">
+              {liveFeed.map((feed, i) => (
+                <div key={i} className="flex flex-col border-l-2 border-white/30 pl-3">
+                  <span className="text-[11px] font-bold text-white/70 uppercase tracking-wider">{feed.time}</span>
+                  <span className="text-sm font-medium mt-0.5">{feed.event}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default DashboardTab;

@@ -23,10 +23,12 @@ import AnalyticsTab from './AnalyticsTab';
 import ConfigurationTab from './ConfigurationTab';
 import NotificationsTab from './NotificationsTab';
 import GenericTable from './GenericTable';
+import StatusBadge from './StatusBadge';
 import StatCard from './StatCard';
 import Toast from './Toast';
 import SidebarItem from './SidebarItem';
 import { MOCK_DATA } from '../Mockdata/mockdata';
+import api from '../utils/api';
 
 function BrokmateAdminApp({ user, onLogout }) {
   const getInitials = (fullName) => {
@@ -42,6 +44,19 @@ function BrokmateAdminApp({ user, onLogout }) {
   const [toast, setToast] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
 
+  // Dynamic Billing transactions and stats state
+  const [billingData, setBillingData] = useState([]);
+  const [billingStats, setBillingStats] = useState(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+
+  // Dynamic Audit logs state
+  const [auditData, setAuditData] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  // Dynamic row management modal state
+  const [selectedManageItem, setSelectedManageItem] = useState(null);
+  const [manageTabType, setManageTabType] = useState('');
+
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -50,7 +65,62 @@ function BrokmateAdminApp({ user, onLogout }) {
     }
   }, [theme]);
 
+  useEffect(() => {
+    if (activeTab === 'Plans & Billing') {
+      const fetchTransactions = async () => {
+        setBillingLoading(true);
+        try {
+          const response = await api.get('/admin/transactions');
+          if (response.data && response.data.success) {
+            const txns = response.data.data.transactions || [];
+            const stats = response.data.data.stats || null;
+            const formatted = txns.map(txn => ({
+              id: typeof txn.id === 'string' ? (txn.id.length > 8 ? `TXN-${txn.id.substring(0, 6).toUpperCase()}` : `TXN-${txn.id}`) : `TXN-${txn.id}`,
+              rawId: txn.id,
+              user: txn.user || 'Unknown Broker',
+              plan: txn.plan || 'Pro Monthly',
+              amount: `INR ${parseFloat(txn.amount).toLocaleString('en-IN')}`,
+              date: new Date(txn.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+              status: txn.status
+            }));
+            setBillingData(formatted);
+            setBillingStats(stats);
+          }
+        } catch (err) {
+          console.error('Error fetching transactions:', err);
+          setToast({ message: 'Failed to load live billing transaction logs', type: 'error' });
+        } finally {
+          setBillingLoading(false);
+        }
+      };
+      fetchTransactions();
+    }
+
+    if (activeTab === 'Audit & Security') {
+      const fetchAuditLogs = async () => {
+        setAuditLoading(true);
+        try {
+          const response = await api.get('/admin/audit-logs');
+          if (response.data && response.data.success) {
+            setAuditData(response.data.data);
+          }
+        } catch (err) {
+          console.error('Error fetching audit logs:', err);
+          setToast({ message: 'Failed to load live audit security logs', type: 'error' });
+        } finally {
+          setAuditLoading(false);
+        }
+      };
+      fetchAuditLogs();
+    }
+  }, [activeTab]);
+
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+
+  const handleManageClick = (row) => {
+    setSelectedManageItem(row);
+    setManageTabType(activeTab);
+  };
 
   const navItems = [
     { id: 'Dashboard', icon: LayoutDashboard },
@@ -67,19 +137,21 @@ function BrokmateAdminApp({ user, onLogout }) {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'Dashboard': return <DashboardTab setToast={setToast} />;
+      case 'Dashboard': return <DashboardTab setToast={setToast} setActiveTab={setActiveTab} />;
       case 'Network': return <NetworkTab setToast={setToast} />;
       case 'Collaborations': return (
         <div className="space-y-8 animate-fade-in">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-            {MOCK_DATA.collaborations.stats.map((s, i) => <StatCard key={i} {...s} />)}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+             <StatCard title="Total Collab Rooms" value="1,480" />
+             <StatCard title="Active Requests" value="192" />
           </div>
           <GenericTable 
             title="Collaborations" 
-            description="Read-only monitor: volume, participants, status and risk signals."
-            columns={[{label:'ID', key:'id'}, {label:'Broker A', key:'brokerA'}, {label:'Broker B', key:'brokerB'}, {label:'State', key:'state', isStatus: true}, {label:'Context', key:'context'}, {label:'Updated', key:'updated'}]}
-            data={MOCK_DATA.collaborations.list}
+            description="Active deals, chat logs, listings mapping and broker relationships."
+            columns={[{label:'Room ID', key:'id'}, {label:'Initiator', key:'initiator'}, {label:'Receiver', key:'receiver'}, {label:'Properties', key:'props'}, {label:'State', key:'state', isStatus:true}]}
+            data={MOCK_DATA.collaborations}
             setToast={setToast}
+            onManage={handleManageClick}
           />
         </div>
       );
@@ -90,6 +162,7 @@ function BrokmateAdminApp({ user, onLogout }) {
           columns={[{label:'Case', key:'id'}, {label:'Category', key:'category'}, {label:'Priority', key:'priority', isStatus:true}, {label:'User', key:'user'}, {label:'State', key:'state', isStatus:true}, {label:'Age', key:'age'}]}
           data={MOCK_DATA.trust}
           setToast={setToast}
+          onManage={handleManageClick}
         />
       );
       case 'Support': return (
@@ -99,39 +172,63 @@ function BrokmateAdminApp({ user, onLogout }) {
           columns={[{label:'Ticket', key:'id'}, {label:'Category', key:'category'}, {label:'Priority', key:'priority', isStatus:true}, {label:'User', key:'user'}, {label:'State', key:'state', isStatus:true}, {label:'Age', key:'age'}]}
           data={MOCK_DATA.support}
           setToast={setToast}
+          onManage={handleManageClick}
         />
       );
-      case 'Analytics': return <AnalyticsTab />;
+      case 'Analytics': return <AnalyticsTab setToast={setToast} />;
       case 'Plans & Billing': return (
         <div className="space-y-8 animate-fade-in">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-             <StatCard title="Total Paid Users" value="4,208" />
-             <StatCard title="Monthly Recurring Revenue" value="INR 4.16L" />
-             <StatCard title="Failed Renewals" value="61" />
+             <StatCard title="Total Paid Users" value={billingStats ? billingStats.totalPaidUsers.toLocaleString() : (billingLoading ? "..." : "0")} />
+             <StatCard title="Monthly Recurring Revenue" value={billingStats ? `INR ${parseFloat(billingStats.mrr).toLocaleString('en-IN')}` : (billingLoading ? "..." : "INR 0")} />
+             <StatCard title="Failed Renewals" value={billingStats ? billingStats.failedRenewals.toLocaleString() : (billingLoading ? "..." : "0")} />
           </div>
-          <GenericTable 
-            title="Plans & Billing" 
-            description="Subscription status, payments, invoices and entitlements (INR 99/user/month)."
-            columns={[{label:'Subscription', key:'id'}, {label:'User', key:'user'}, {label:'State', key:'state', isStatus:true}, {label:'Amount', key:'amount'}, {label:'Renewal', key:'renewal'}, {label:'Payment', key:'payment'}]}
-            data={[
-              {id: 'SUB-2102', user: 'Deepika Mall', state: 'Paid', amount: 'INR 99', renewal: '12 Aug', payment: 'Success'},
-              {id: 'SUB-2097', user: 'Rahul Sharma', state: 'Grace', amount: 'INR 99', renewal: '05 Aug', payment: 'Retry due'},
-              {id: 'SUB-2083', user: 'Amit Verma', state: 'Free', amount: 'INR 0', renewal: '-', payment: 'No plan'},
-            ]}
-            setToast={setToast}
-          />
+          {billingLoading ? (
+            <div className="bg-white dark:bg-slate-900 border border-[#BFB7FD]/30 rounded-3xl p-8 text-center text-slate-400 font-bold">
+              <div className="flex justify-center items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-[#7c6ce0] border-t-transparent rounded-full animate-spin"></div>
+                <span>Loading transaction logs from server...</span>
+              </div>
+            </div>
+          ) : (
+            <GenericTable 
+              title="Plans & Billing" 
+              description="Subscription status, payments, invoices and entitlements (INR 99/user/month)."
+              columns={[
+                {label:'Txn ID', key:'id'},
+                {label:'Broker / User', key:'user'},
+                {label:'Plan', key:'plan'},
+                {label:'Amount', key:'amount'},
+                {label:'Date', key:'date'},
+                {label:'Payment Status', key:'status', isStatus:true}
+              ]}
+              data={billingData}
+              setToast={setToast}
+              onManage={handleManageClick}
+            />
+          )}
         </div>
       );
       case 'Configuration': return <ConfigurationTab setToast={setToast} />;
       case 'Notifications': return <NotificationsTab setToast={setToast} />;
       case 'Audit & Security': return (
-        <GenericTable 
-          title="Audit & Security" 
-          description="Searchable audit trail, account sessions, security alerts and sensitive-action review."
-          columns={[{label:'Event', key:'id'}, {label:'Action', key:'action'}, {label:'Actor', key:'actor'}, {label:'Object', key:'object'}, {label:'Result', key:'result', isStatus:true}, {label:'Time', key:'time'}]}
-          data={MOCK_DATA.audit}
-          setToast={setToast}
-        />
+        auditLoading ? (
+          <div className="bg-white dark:bg-slate-900 border border-[#BFB7FD]/30 rounded-3xl p-8 text-center text-slate-400 font-bold">
+            <div className="flex justify-center items-center space-x-2">
+              <div className="w-4 h-4 border-2 border-[#7c6ce0] border-t-transparent rounded-full animate-spin"></div>
+              <span>Loading security audit logs from database...</span>
+            </div>
+          </div>
+        ) : (
+          <GenericTable 
+            title="Audit & Security" 
+            description="Searchable audit trail, account sessions, security alerts and sensitive-action review."
+            columns={[{label:'Event', key:'id'}, {label:'Action', key:'action'}, {label:'Actor', key:'actor'}, {label:'Object', key:'object'}, {label:'Result', key:'result', isStatus:true}, {label:'Time', key:'time'}]}
+            data={auditData}
+            setToast={setToast}
+            onManage={handleManageClick}
+          />
+        )
       );
       default: return <DashboardTab setToast={setToast} />;
     }
@@ -261,6 +358,184 @@ function BrokmateAdminApp({ user, onLogout }) {
           </div>
         </main>
       </div>
+
+      {/* Dynamic Action Management Modal */}
+      {selectedManageItem && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setSelectedManageItem(null)}>
+          <div 
+            className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-8 shadow-2xl border border-[#BFB7FD]/30 animate-scale-up space-y-6 relative"
+            onClick={e => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setSelectedManageItem(null)} 
+              className="absolute right-6 top-6 text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-[#eeecff] dark:bg-slate-800 dark:hover:bg-slate-700 p-2 rounded-full transition-all"
+            >
+              <X size={16} strokeWidth={2.5} />
+            </button>
+
+            <div>
+              <span className="text-[10px] font-black text-[#7c6ce0] bg-[#f4f2ff] px-3 py-1 rounded-full uppercase tracking-wider">
+                {manageTabType} Management
+              </span>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-3 tracking-tight">
+                Manage Details
+              </h3>
+            </div>
+
+            {/* Custom fields depending on type */}
+            {manageTabType === 'Plans & Billing' && (
+              <div className="space-y-4">
+                <div className="bg-[#f8f7ff] dark:bg-slate-800/40 p-4 rounded-2xl border border-[#BFB7FD]/20 space-y-3">
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">Transaction ID</span><span className="font-bold text-slate-800 dark:text-white">{selectedManageItem.id}</span></div>
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">Broker / User</span><span className="font-bold text-slate-800 dark:text-white">{selectedManageItem.user}</span></div>
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">Plan Level</span><span className="font-bold text-slate-800 dark:text-white">{selectedManageItem.plan}</span></div>
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">Amount Paid</span><span className="font-bold text-[#7c6ce0]">{selectedManageItem.amount}</span></div>
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">Date of Txn</span><span className="font-bold text-slate-800 dark:text-white">{selectedManageItem.date}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-xs font-semibold text-slate-400 uppercase">Payment Status</span><StatusBadge status={selectedManageItem.status} /></div>
+                </div>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => {
+                      setToast({ message: 'Downloading invoice PDF...', type: 'success' });
+                      setSelectedManageItem(null);
+                    }}
+                    className="flex-1 py-3 bg-slate-50 hover:bg-[#eeecff] dark:bg-slate-800 text-slate-700 dark:text-white rounded-xl text-sm font-bold transition-all border border-[#BFB7FD]/30"
+                  >
+                    Download Invoice
+                  </button>
+                  {selectedManageItem.status === 'Success' && (
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const response = await api.put(`/admin/transactions/${selectedManageItem.rawId}/refund`);
+                          if (response.data && response.data.success) {
+                            setToast({ message: 'Transaction refunded successfully!', type: 'success' });
+                            // Re-fetch transactions
+                            const refresh = await api.get('/admin/transactions');
+                            if (refresh.data && refresh.data.success) {
+                              const txns = refresh.data.data.transactions || [];
+                              const stats = refresh.data.data.stats || null;
+                              const formatted = txns.map(txn => ({
+                                id: typeof txn.id === 'string' ? (txn.id.length > 8 ? `TXN-${txn.id.substring(0, 6).toUpperCase()}` : `TXN-${txn.id}`) : `TXN-${txn.id}`,
+                                rawId: txn.id,
+                                user: txn.user || 'Unknown Broker',
+                                plan: txn.plan || 'Pro Monthly',
+                                amount: `INR ${parseFloat(txn.amount).toLocaleString('en-IN')}`,
+                                date: new Date(txn.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+                                status: txn.status
+                              }));
+                              setBillingData(formatted);
+                              setBillingStats(stats);
+                            }
+                            setSelectedManageItem(null);
+                          }
+                        } catch (err) {
+                          console.error('Error refunding transaction:', err);
+                          setToast({ message: 'Failed to process refund', type: 'error' });
+                        }
+                      }}
+                      className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold shadow-md shadow-rose-600/20 transition-all"
+                    >
+                      Refund Payment
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {manageTabType === 'Trust & Disputes' && (
+              <div className="space-y-4">
+                <div className="bg-[#f8f7ff] dark:bg-slate-800/40 p-4 rounded-2xl border border-[#BFB7FD]/20 space-y-3">
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">Case ID</span><span className="font-bold text-slate-800 dark:text-white">{selectedManageItem.id}</span></div>
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">Category</span><span className="font-bold text-slate-800 dark:text-white">{selectedManageItem.category}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-xs font-semibold text-slate-400 uppercase">Priority</span><StatusBadge status={selectedManageItem.priority} /></div>
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">User Involved</span><span className="font-bold text-slate-800 dark:text-white">{selectedManageItem.user}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-xs font-semibold text-slate-400 uppercase">Case State</span><StatusBadge status={selectedManageItem.state} /></div>
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">Case Age</span><span className="font-bold text-slate-800 dark:text-white">{selectedManageItem.age}</span></div>
+                </div>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => {
+                      setToast({ message: `Dispute Case ${selectedManageItem.id} marked as resolved`, type: 'success' });
+                      setSelectedManageItem(null);
+                    }}
+                    className="flex-1 py-3 bg-[#7c6ce0] hover:bg-[#6858d0] text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-[#7c6ce0]/20"
+                  >
+                    Resolve Dispute
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setToast({ message: `Sanctions initiated against ${selectedManageItem.user}`, type: 'error' });
+                      setSelectedManageItem(null);
+                    }}
+                    className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold shadow-md shadow-rose-600/20 transition-all"
+                  >
+                    Ban Account
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {manageTabType === 'Support' && (
+              <div className="space-y-4">
+                <div className="bg-[#f8f7ff] dark:bg-slate-800/40 p-4 rounded-2xl border border-[#BFB7FD]/20 space-y-3">
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">Ticket ID</span><span className="font-bold text-slate-800 dark:text-white">{selectedManageItem.id}</span></div>
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">Category</span><span className="font-bold text-slate-800 dark:text-white">{selectedManageItem.category}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-xs font-semibold text-slate-400 uppercase">Priority</span><StatusBadge status={selectedManageItem.priority} /></div>
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">User</span><span className="font-bold text-slate-800 dark:text-white">{selectedManageItem.user}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-xs font-semibold text-slate-400 uppercase">Ticket State</span><StatusBadge status={selectedManageItem.state} /></div>
+                </div>
+                <div className="space-y-2">
+                  <textarea 
+                    placeholder="Type support response message here..."
+                    className="w-full p-3 text-sm bg-white dark:bg-slate-800 border border-[#BFB7FD]/30 rounded-xl outline-none focus:border-[#7c6ce0] dark:text-white"
+                    rows={3}
+                  />
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => {
+                        setToast({ message: `Reply successfully sent to ${selectedManageItem.user}`, type: 'success' });
+                        setSelectedManageItem(null);
+                      }}
+                      className="flex-1 py-2.5 bg-slate-50 hover:bg-[#eeecff] dark:bg-slate-800 text-slate-700 dark:text-white rounded-xl text-sm font-bold border border-[#BFB7FD]/30 transition-all"
+                    >
+                      Send Message
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setToast({ message: `Ticket ${selectedManageItem.id} closed as resolved`, type: 'success' });
+                        setSelectedManageItem(null);
+                      }}
+                      className="flex-1 py-2.5 bg-[#7c6ce0] hover:bg-[#6858d0] text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-[#7c6ce0]/20"
+                    >
+                      Close Ticket
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {manageTabType === 'Audit & Security' && (
+              <div className="space-y-4">
+                <div className="bg-[#f8f7ff] dark:bg-slate-800/40 p-4 rounded-2xl border border-[#BFB7FD]/20 space-y-3 text-sm">
+                  <div><span className="text-xs font-semibold text-slate-400 uppercase">Audit Key</span><p className="font-bold text-slate-800 dark:text-white mt-0.5">{selectedManageItem.id}</p></div>
+                  <div><span className="text-xs font-semibold text-slate-400 uppercase">Action Triggered</span><p className="font-bold text-slate-800 dark:text-white mt-0.5">{selectedManageItem.action}</p></div>
+                  <div><span className="text-xs font-semibold text-slate-400 uppercase">Actor ID / Profile</span><p className="font-bold text-slate-800 dark:text-white mt-0.5">{selectedManageItem.actor}</p></div>
+                  <div><span className="text-xs font-semibold text-slate-400 uppercase">Affected Object</span><p className="font-bold text-[#7c6ce0] mt-0.5">{selectedManageItem.object}</p></div>
+                  <div className="flex justify-between items-center"><span className="text-xs font-semibold text-slate-400 uppercase">Action Result</span><StatusBadge status={selectedManageItem.result} /></div>
+                  <div className="flex justify-between"><span className="text-xs font-semibold text-slate-400 uppercase">Logged Time</span><span className="font-bold text-slate-800 dark:text-white">{selectedManageItem.time}</span></div>
+                </div>
+                <button 
+                  onClick={() => setSelectedManageItem(null)}
+                  className="w-full py-3 bg-[#f4f2ff] hover:bg-[#eeecff] text-[#7c6ce0] rounded-xl text-sm font-bold transition-all"
+                >
+                  Dismiss Log Details
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       
       {/* Global CSS Enhancements */}
       <style dangerouslySetInnerHTML={{__html: `
@@ -273,10 +548,12 @@ function BrokmateAdminApp({ user, onLogout }) {
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         
         .animate-fade-in-up { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         .animate-slide-in-right { animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-scale-up { animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}} />
     </div>
   );

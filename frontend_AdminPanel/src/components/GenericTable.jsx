@@ -1,7 +1,7 @@
 import React from 'react';
 import StatusBadge from './StatusBadge';
 
-const GenericTable = ({ title, description, columns, data, setToast }) => (
+const GenericTable = ({ title, description, columns, data, setToast, onManage }) => (
   <div className="space-y-6 animate-fade-in">
     <div>
       <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{title}</h2>
@@ -28,7 +28,13 @@ const GenericTable = ({ title, description, columns, data, setToast }) => (
                 ))}
                 <td className="px-6 py-4 text-right">
                    <button 
-                    onClick={() => setToast({ message: `Action taken on ${row.id}`, type: 'info' })}
+                    onClick={() => {
+                      if (onManage) {
+                        onManage(row);
+                      } else {
+                        setToast({ message: `Action taken on ${row.id}`, type: 'info' });
+                      }
+                    }}
                     className="text-sm font-bold text-[#7c6ce0] hover:text-[#5e4ac9] transition-colors"
                    >
                      Manage
