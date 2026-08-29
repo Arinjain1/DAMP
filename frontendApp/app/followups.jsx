@@ -88,7 +88,7 @@ const TaskCard = memo(({
             <Text style={[styles.cardTitle, { color: textPrimary, flex: 0 }]} numberOfLines={1}>
               {task.type}
             </Text>
-            {task.note?.includes('[Collaborated]') && (
+            {(task.collaborated || task.note?.includes('[Collaborated]')) && (
               <View style={{ backgroundColor: '#BFB7FD', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
                 <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#7c3aed' }}>COLLABORATED</Text>
               </View>
@@ -349,6 +349,8 @@ export default function FollowUps() {
             customerId: task.client_id,
             // Fallback for client name if redux lookup fails
             clientNameFallback: task.client?.name || task.client?.full_name || task.client_name,
+            propertyNameFallback: task.property_title,
+            propertyLocationFallback: task.property_address || task.property_locality,
             propertyIds: propertyIds,
             type: task.task_type || 'Meeting',
             date: task.due_date,
@@ -356,7 +358,8 @@ export default function FollowUps() {
             status: task.status === 'completed' ? 'Done' : 'Pending',
             siteVisitId: task.site_visit_id,
             propertyCount: task.site_visit_property_count || 0,
-            siteVisitProperties: task.site_visit_properties || []
+            siteVisitProperties: task.site_visit_properties || [],
+            collaborated: task.collaborated || false
           };
         });
         dispatch(setFollowUps(transformedTasks));

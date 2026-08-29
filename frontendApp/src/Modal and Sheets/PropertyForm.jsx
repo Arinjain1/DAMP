@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { ChevronDown, CloudUpload } from 'lucide-react-native';
 import * as LucideIcons from 'lucide-react-native';
 import { getAmenitiesForType } from '../MockData/Mockdata';
+import InlineMapPicker from '../Components/InlineMapPicker';
 
 // Helper function to render Lucide Icons dynamically
 const renderIcon = (iconName, size = 12, color = '#6b7280') => {
@@ -137,7 +138,8 @@ const PropertyForm = memo(({
   locationSuggestions,
   locationLoading,
   showLocationDropdown,
-  selectLocation
+  selectLocation,
+  onOpenMap
 }) => {
   return (
     <View style={styles.formContainer}>
@@ -166,27 +168,9 @@ const PropertyForm = memo(({
           <MemoizedRadioGroup label="Furnishing" name="furnishing" options={['Unfurnished', 'Semi', 'Furnished']} selectedValue={formData.furnishing} onChange={handleChange} isSmall styles={styles} />
       )}
 
-      {/* State Dropdown */}
-      <View style={styles.section}>
-        <Text style={styles.inputLabel}>State*</Text>
-        <TouchableOpacity style={styles.dropdownButton} onPress={() => setShowStateDropdown(!showStateDropdown)}>
-          <Text style={[styles.dropdownPlaceholder, formData.state && styles.dropdownSelected]}>{formData.state || 'Select state'}</Text>
-          <ChevronDown size={16} color="#9ca3af" />
-        </TouchableOpacity>
-        {showStateDropdown && (
-          <View style={styles.stateDropdown}>
-            <ScrollView style={styles.stateScrollView} nestedScrollEnabled={true} keyboardShouldPersistTaps="handled">
-              {INDIAN_STATES.map((state) => (
-                <TouchableOpacity key={state} style={styles.stateItem} onPress={() => { handleChange('state', state); setShowStateDropdown(false); }}>
-                  <Text style={styles.stateText}>{state}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-      </View>
-
-      <MemoizedTextInput label="City*" name="city" value={formData.city} onChange={handleChange} placeholder="Enter city" styles={styles} />
+      <MemoizedTextInput label="House No / Building Name*" name="house_no" value={formData.house_no} onChange={handleChange} placeholder="e.g. Flat 101, Block A" styles={styles} />
+      <MemoizedTextInput label="Landmark" name="landmark" value={formData.landmark} onChange={handleChange} placeholder="e.g. Near Central Park" styles={styles} />
+      <MemoizedTextInput label="Project or Society Name" name="title" value={formData.title} onChange={handleChange} placeholder="Name of project/society" styles={styles} />
 
       {/* Location Search */}
       <View style={[styles.section, { zIndex: 2000 }]}>
@@ -214,10 +198,37 @@ const PropertyForm = memo(({
             </View>
           )}
         </View>
+
+        <InlineMapPicker
+          value={formData.location}
+          city={formData.city}
+          state={formData.state}
+          onChangeLocation={(addr, details) => handleChange('location', addr, true, details)}
+        />
       </View>
 
-      <MemoizedTextInput label="Project or Society Name" name="title" value={formData.title} onChange={handleChange} placeholder="Name of project/society" styles={styles} />
-      <MemoizedTextInput label="Address*" name="owner" value={formData.owner} onChange={handleChange} placeholder="Complete address" styles={styles} />
+      <MemoizedTextInput label="City*" name="city" value={formData.city} onChange={handleChange} placeholder="Enter city" styles={styles} />
+      <MemoizedTextInput label="Pincode*" name="pincode" value={formData.pincode} onChange={handleChange} placeholder="Enter Pincode" keyboardType="numeric" styles={styles} />
+
+      {/* State Dropdown */}
+      <View style={styles.section}>
+        <Text style={styles.inputLabel}>State*</Text>
+        <TouchableOpacity style={styles.dropdownButton} onPress={() => setShowStateDropdown(!showStateDropdown)}>
+          <Text style={[styles.dropdownPlaceholder, formData.state && styles.dropdownSelected]}>{formData.state || 'Select state'}</Text>
+          <ChevronDown size={16} color="#9ca3af" />
+        </TouchableOpacity>
+        {showStateDropdown && (
+          <View style={styles.stateDropdown}>
+            <ScrollView style={styles.stateScrollView} nestedScrollEnabled={true} keyboardShouldPersistTaps="handled">
+              {INDIAN_STATES.map((state) => (
+                <TouchableOpacity key={state} style={styles.stateItem} onPress={() => { handleChange('state', state); setShowStateDropdown(false); }}>
+                  <Text style={styles.stateText}>{state}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
 
       {/* Price Input */}
       <View style={styles.section}>
@@ -294,7 +305,5 @@ const PropertyForm = memo(({
     </View>
   );
 });
-
-PropertyForm.displayName = 'PropertyForm';
 
 export default PropertyForm;

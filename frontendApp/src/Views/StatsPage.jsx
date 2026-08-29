@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, ScrollView } from 'react-native';
-import { Filter } from 'lucide-react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Filter, ArrowLeft } from 'lucide-react-native';
 
 // Helper for currency formatting
 const formatCurrency = (amount) => {
@@ -11,7 +11,7 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-const StatsPage = ({ properties, customers }) => {
+const StatsPage = ({ properties, customers, onBack }) => {
   // Calculations
   const totalValue = properties.reduce((sum, p) => sum + (p.status === 'Available' ? p.price : 0), 0);
   const availableCount = properties.filter(p => p.status === 'Available').length;
@@ -26,9 +26,21 @@ const StatsPage = ({ properties, customers }) => {
     <View className="flex-1 bg-gray-50">
       
       {/* Header */}
-      <View className="bg-white px-[6vw] pb-[4vw] pt-[12vw] border-b border-gray-200 shadow-sm">
-        <Text className="text-[6vw] font-black text-gray-900">Analytics</Text>
-        <Text className="text-[3.5vw] text-gray-500 mt-[1vw]">Business Performance Overview</Text>
+      <View className="bg-white px-4 pb-4 pt-12 border-b border-gray-200 shadow-sm flex-row items-center justify-between">
+        {onBack ? (
+          <TouchableOpacity onPress={onBack} className="p-2 z-10">
+            <ArrowLeft size={24} color="#111827" />
+          </TouchableOpacity>
+        ) : (
+          <View className="w-10" />
+        )}
+        
+        <View className="items-center flex-1">
+          <Text className="text-xl font-black text-gray-900">Analytics</Text>
+          <Text className="text-xs text-gray-500 mt-0.5">Business Performance Overview</Text>
+        </View>
+
+        <View className="w-10" />
       </View>
 
       {/* Main Content */}

@@ -1,14 +1,30 @@
-import { MapPin, X, Bell, CheckCircle, Clock } from 'lucide-react-native';
+import { MapPin, X, Bell, CheckCircle, Clock, Shield, ArrowLeft } from 'lucide-react-native';
 import { useEffect, useState, useMemo } from 'react';
 import { Image, Modal, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
-import { updateDeal, updateDealStageAPI } from '../src/store/slices/dealsSlice';
-import { completeAgreement } from '../src/store/slices/customersSlice';
+import { updateDeal, updateDealStageAPI, fetchDealById } from '../src/store/slices/dealsSlice';
+import { completeAgreement, fetchCustomers, updateCustomerStageAPI } from '../src/store/slices/customersSlice';
+import { showToast } from '../src/utils/toast';
 import * as Haptics from 'expo-haptics';
 import MeetingView from '../src/Views/MeetingView';
 import PaymentView from '../src/Views/PaymentView';
 import AgreementView from '../src/Views/AgreementView';
+
+const cleanAddress = (rawAddress) => {
+  if (!rawAddress) return '';
+  const parts = rawAddress.split(',').map(p => p.trim()).filter(Boolean);
+  if (parts.length > 2) {
+    return `${parts[0]}, ${parts[1]}`;
+  }
+  return rawAddress;
+};
+
+const formatCurrency = (val) => {
+  if (!val) return '0';
+  const num = Number(val);
+  return isNaN(num) ? String(val) : num.toLocaleString('en-IN');
+};
 
 export default function DealPage() {
   const router = useRouter();
@@ -24,81 +40,130 @@ export default function DealPage() {
   const { selectedDeal } = useSelector(state => state.deals);
   const { properties } = useSelector(state => state.properties);
   const { customers } = useSelector(state => state.customers);
-  const { profile } = useSelector(state => state.auth);
+  const { user } = useSelector(state => state.auth);
 
-  if (!selectedDeal) {
-    router.navigate('/dashboard');
-    return null;
-  }
+  // 1. Redirect if no selected deal is set (using setTimeout to ensure root layout is ready)
+  useEffect(() => {
+    if (!selectedDeal) {
+      const timer = setTimeout(() => {
+        router.navigate('/dashboard');
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedDeal, router]);
+
+  // Fetch fresh deal details on mount/focus
+  useEffect(() => {
+    if (selectedDeal?.id && selectedDeal.id !== 99 && selectedDeal.id !== '99') {
+      dispatch(fetchDealById(selectedDeal.id));
+      dispatch(fetchCustomers());
+    }
+  }, [selectedDeal?.id, dispatch]);
 
   // Use embedded data from deal first, fallback to finding in arrays
-  const property = selectedDeal.property_title ? {
-    id: selectedDeal.propertyId || selectedDeal.property_id,
-    title: selectedDeal.property_title,
-    location: selectedDeal.property_address || selectedDeal.city,
-    image: selectedDeal.cover_image_url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
-    price: selectedDeal.listing_price || selectedDeal.listingPrice || selectedDeal.finalPrice || selectedDeal.final_price
-  } : properties.find(p => p.id === (selectedDeal.propertyId || selectedDeal.property_id));
+  const property = useMemo(() => {
+    if (!selectedDeal) return null;
 
-  // Fallback check to enrich property object from store if price is missing
-  if (property && !property.price) {
-    const storeProperty = properties.find(p => p.id === property.id);
-    if (storeProperty) {
-      property.price = storeProperty.price;
-      if (!property.location) {
-        property.location = storeProperty.locality || storeProperty.address;
+    let prop = selectedDeal.property_title ? {
+      id: selectedDeal.propertyId || selectedDeal.property_id,
+      title: selectedDeal.property_title,
+      location: selectedDeal.property_address || selectedDeal.city,
+      image: selectedDeal.cover_image_url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
+      price: selectedDeal.listing_price || selectedDeal.listingPrice || selectedDeal.expected_price || selectedDeal.expectedPrice || selectedDeal.finalPrice || selectedDeal.final_price
+    } : properties.find(p => p.id === (selectedDeal.propertyId || selectedDeal.property_id));
+
+
+
+    // Fallback: If prop is found, always override/enrich with the deal's price and metadata
+    if (prop) {
+      // Prefer deal's prices first
+      const dealPrice = selectedDeal.listing_price || selectedDeal.listingPrice || selectedDeal.expected_price || selectedDeal.expectedPrice || selectedDeal.finalPrice || selectedDeal.final_price;
+
+      if (dealPrice) {
+        prop = { ...prop, price: dealPrice };
+      } else if (!prop.price) {
+        const storeProperty = properties.find(p => p.id === prop.id);
+        if (storeProperty) {
+          prop = { ...prop, price: storeProperty.price };
+        }
+      }
+      
+      // Ensure location is populated
+      if (!prop.location) {
+        const storeProperty = properties.find(p => p.id === prop.id);
+        prop.location = storeProperty?.locality || storeProperty?.address || selectedDeal.property_address || selectedDeal.city;
+      }
+      
+      // Ensure image is populated
+      if (!prop.image) {
+        const storeProperty = properties.find(p => p.id === prop.id);
+        prop.image = storeProperty?.image || storeProperty?.cover_image_url || selectedDeal.cover_image_url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80';
       }
     }
-  }
 
-  const customer = selectedDeal.client_name ? {
-    id: selectedDeal.customerId || selectedDeal.client_id,
-    name: selectedDeal.client_name,
-    phone: selectedDeal.client_phone
-  } : customers.find(c => c.id === (selectedDeal.customerId || selectedDeal.client_id));
+    return prop;
+  }, [selectedDeal, properties]);
+
+  const customer = useMemo(() => {
+    if (!selectedDeal) return null;
+    const targetId = selectedDeal.customerId || selectedDeal.client_id;
+    const foundCustomer = customers.find(c => c.id === targetId);
+    if (foundCustomer) return foundCustomer;
+
+    return {
+      id: targetId,
+      name: selectedDeal.client_name,
+      phone: selectedDeal.client_phone
+    };
+  }, [selectedDeal, customers]);
 
   // Get meetings from deal
-  const meetings = selectedDeal.meetings || [];
+  const meetings = selectedDeal?.meetings || [];
 
   // Load reminder preference from deal
   useEffect(() => {
-    if (selectedDeal.reminderEnabled !== undefined) {
+    if (selectedDeal?.reminderEnabled !== undefined) {
       setReminderEnabled(selectedDeal.reminderEnabled);
     }
   }, [selectedDeal]);
 
-  // Auto-open Payment tab if deal status is Token or beyond
+  // Auto-open correct tab based on deal stage/status
   useEffect(() => {
-    if (selectedDeal.stage === 'Token' || selectedDeal.stage === 'Completed') {
+    const currentStage = selectedDeal?.stage || selectedDeal?.status;
+    if (currentStage === 'Negotiation' || currentStage === 'Token' || currentStage === 'Completed') {
       setActiveTab('Payment');
+    } else if (currentStage === 'Agreement') {
+      setActiveTab('Agreement');
     }
-  }, [selectedDeal.stage]);
+  }, [selectedDeal?.stage, selectedDeal?.status]);
 
-  // Sync Deal Stage in database when active tab changes
-  useEffect(() => {
+  const handleTabChange = (tabName) => {
+    setActiveTab(tabName);
+    
     if (!selectedDeal?.id) return;
-
     let outcome;
-    if (activeTab === 'Meeting') {
+    if (tabName === 'Meeting') {
       outcome = 'meeting';
-    } else if (activeTab === 'Payment') {
-      // Only sync if the deal is not already closed or at token stage
+    } else if (tabName === 'Payment') {
       const currentStatus = selectedDeal.status || selectedDeal.stage;
-      if (currentStatus !== 'Token' && currentStatus !== 'Closed') {
+      if (currentStatus !== 'Token' && currentStatus !== 'Closed' && currentStatus !== 'Completed') {
         outcome = 'negotiation';
       }
-    } else if (activeTab === 'Agreement') {
-      outcome = 'agreement';
+    } else if (tabName === 'Agreement') {
+      const currentStatus = selectedDeal.status || selectedDeal.stage;
+      if (currentStatus !== 'Completed') {
+        outcome = 'agreement';
+      }
     }
 
     if (outcome) {
       dispatch(updateDealStageAPI({ dealId: selectedDeal.id, outcome }));
     }
-  }, [activeTab, selectedDeal?.id, dispatch]);
+  };
 
   // Check for upcoming meetings and show reminder with alarm sound
   useEffect(() => {
-    if (!reminderEnabled || meetings.length === 0) return;
+    if (!reminderEnabled || meetings.length === 0 || !selectedDeal) return;
 
     const triggerAlarm = async (meeting) => {
       // Trigger vibration pattern
@@ -144,7 +209,7 @@ export default function DealPage() {
     checkReminders(); // Check immediately
 
     return () => clearInterval(interval);
-  }, [reminderEnabled, meetings]);
+  }, [reminderEnabled, meetings, selectedDeal]);
 
   const handleClose = () => {
     router.navigate('/dashboard');
@@ -166,17 +231,22 @@ export default function DealPage() {
   };
 
   const handleMarkAgreementDone = async () => {
-    if (customer && customer.stage === 'In-Process') {
+    if (customer && customer.stage !== 'Completed') {
       // Trigger haptic feedback
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (error) {}
+
+      try {
+        await dispatch(updateCustomerStageAPI({ id: customer.id, stage: 'Completed' })).unwrap();
+        if (selectedDeal?.id) {
+          dispatch(fetchDealById(selectedDeal.id));
+        }
+        dispatch(fetchCustomers());
+        showToast.success('Agreement marked as completed!');
       } catch (error) {
+        showToast.error('Failed to complete agreement');
       }
-
-      // Dispatch action to complete agreement
-      dispatch(completeAgreement(customer.id));
-
-
     }
   };
 
@@ -193,27 +263,27 @@ export default function DealPage() {
 
   // Get client details from deal
   const [simulatedRole, setSimulatedRole] = useState('ClientBroker');
-  const visibilitySetting = selectedDeal.roomId ? 'basic' : 'full';
+  const visibilitySetting = selectedDeal?.roomId ? 'basic' : 'full';
 
   const displayClientName = useMemo(() => {
     if (!customer) return 'Unknown Client';
-    if (selectedDeal.roomId && simulatedRole === 'PropertyBroker') {
+    if (selectedDeal?.roomId && simulatedRole === 'PropertyBroker') {
       if (visibilitySetting === 'basic') return 'Hidden (Basic Visibility)';
     }
-    return customer.name;
-  }, [customer, selectedDeal.roomId, simulatedRole, visibilitySetting]);
+    return customer.name || 'Unknown Client';
+  }, [customer, selectedDeal?.roomId, simulatedRole, visibilitySetting]);
 
   const displayClientPhone = useMemo(() => {
     if (!customer) return '';
-    if (selectedDeal.roomId && simulatedRole === 'PropertyBroker') {
+    if (selectedDeal?.roomId && simulatedRole === 'PropertyBroker') {
       if (visibilitySetting === 'basic') return 'Manual sharing only';
       if (visibilitySetting === 'partial') return '••••••••' + (customer.phone?.slice(-2) || '00');
     }
-    return customer.phone;
-  }, [customer, selectedDeal.roomId, simulatedRole, visibilitySetting]);
+    return customer.phone || '';
+  }, [customer, selectedDeal?.roomId, simulatedRole, visibilitySetting]);
 
-  const userName = profile?.name || customer?.name || 'User';
-  const userAvatar = profile?.avatar;
+  const userName = user?.name || user?.full_name || customer?.name || 'User';
+  const userAvatar = user?.avatar;
 
   const getRandomColor = (char) => {
     const colors = ['#e0f2fe', '#fce7f3', '#dcfce7', '#fef3c7', '#f3e8ff'];
@@ -221,29 +291,36 @@ export default function DealPage() {
     const index = char.charCodeAt(0) % colors.length;
     return { bg: colors[index], text: textColors[index] };
   };
+  
+  const colorTheme = getRandomColor((userName || 'User').charAt(0));
 
-  const colorTheme = getRandomColor(userName.charAt(0));
+  // Early conditional return (must be placed after all hooks have been declared)
+  if (!selectedDeal) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Header with Profile and Close Button */}
+      {/* Header with Back Button and Profile */}
       <View style={styles.header}>
-        <View style={styles.profileSection}>
-          <View style={[styles.profileAvatar, { backgroundColor: colorTheme.bg }]}>
-            <Text style={[styles.profileAvatarText, { color: colorTheme.text }]}>
-              {displayClientName.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-          <View style={{ marginLeft: 8 }}>
-            <Text style={styles.profileName}>{displayClientName}</Text>
-            <Text style={{ fontSize: 11, color: '#6b7280' }}>{displayClientPhone}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity style={{ padding: 4, marginRight: 8 }} onPress={handleClose}>
+            <ArrowLeft size={24} color="#1f2937" />
+          </TouchableOpacity>
+          <View style={styles.profileSection}>
+            <View style={[styles.profileAvatar, { backgroundColor: colorTheme.bg }]}>
+              <Text style={[styles.profileAvatarText, { color: colorTheme.text }]}>
+                {displayClientName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={{ marginLeft: 8 }}>
+              <Text style={styles.profileName}>{displayClientName}</Text>
+              <Text style={{ fontSize: 11, color: '#6b7280' }}>{displayClientPhone}</Text>
+            </View>
           </View>
         </View>
-        <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-          <X size={20} color="#1f2937" />
-        </TouchableOpacity>
       </View>
 
       {/* Simulated Collaboration Visibility Banner */}
@@ -306,7 +383,7 @@ export default function DealPage() {
             <TouchableOpacity
               key={tab}
               style={[styles.tab, activeTab === tab && styles.activeTab]}
-              onPress={() => setActiveTab(tab)}
+              onPress={() => handleTabChange(tab)}
             >
               <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
                 {tab}
@@ -318,19 +395,21 @@ export default function DealPage() {
         {/* Property Card - Only show in Meeting tab */}
         {activeTab === 'Meeting' && property && (
           <View style={styles.propertyCard}>
-            <View style={{ flexDirection: 'row' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Image source={{ uri: property.image }} style={styles.propertyImage} />
               <View style={styles.propertyInfo}>
-                <Text style={styles.propertyTitle}>{property.title}</Text>
+                <Text style={styles.propertyTitle} numberOfLines={2}>{property.title}</Text>
                 <View style={styles.locationRow}>
-                  <MapPin size={12} color="#6b7280" />
+                  <MapPin size={12} color="#6b7280" style={{ marginTop: 2 }} />
                   <Text style={styles.locationText}>{property.location}</Text>
                 </View>
-                <Text style={styles.propertyPrice}>₹{property.price?.toLocaleString('en-IN')}</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <Text style={styles.propertyPrice}>₹{formatCurrency(property.price)}</Text>
+                  <View style={styles.dealBadge}>
+                    <Text style={styles.dealBadgeText}>DEAL STARTED</Text>
+                  </View>
+                </View>
               </View>
-            </View>
-            <View style={styles.dealBadge}>
-              <Text style={styles.dealBadgeText}>DEAL STARTED</Text>
             </View>
           </View>
         )}
@@ -541,13 +620,14 @@ const styles = StyleSheet.create({
   },
   locationRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 3,
     marginBottom: 4,
   },
   locationText: {
     fontSize: 12,
     color: '#6b7280',
+    flex: 1,
   },
   propertyPrice: {
     fontSize: 14,
@@ -555,9 +635,6 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   dealBadge: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
     backgroundColor: '#000000',
     paddingHorizontal: 10,
     paddingVertical: 4,

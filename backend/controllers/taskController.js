@@ -27,12 +27,28 @@ export const getTasks = async (req, res, next) => {
         ))
         FROM site_visit_items svi
         JOIN properties prop ON svi.property_id = prop.id
-        WHERE svi.site_visit_id = sv.id AND prop.is_deleted = false) as site_visit_properties
+        WHERE svi.site_visit_id = sv.id AND prop.is_deleted = false) as site_visit_properties,
+        CASE 
+          WHEN EXISTS (
+            SELECT 1 FROM collab_rooms cr 
+            WHERE cr.client_id = t.client_id AND cr.property_id = t.property_id 
+              AND cr.is_active = true AND NOT (cr.stage = 'Closed' AND cr.updated_at < NOW() - INTERVAL '7 days')
+          ) THEN true 
+          ELSE false 
+        END as collaborated
       FROM tasks t
       LEFT JOIN contacts c ON t.client_id = c.id
       LEFT JOIN properties p ON t.property_id = p.id 
       LEFT JOIN site_visits sv ON t.site_visit_id = sv.id
-      WHERE t.broker_id = $1 
+      WHERE (
+        t.broker_id = $1 
+        OR EXISTS (
+          SELECT 1 FROM collab_rooms cr
+          WHERE cr.client_id = t.client_id AND cr.property_id = t.property_id
+            AND (cr.broker_1_id = $1 OR cr.broker_2_id = $1) AND cr.is_active = true 
+            AND NOT (cr.stage = 'Closed' AND cr.updated_at < NOW() - INTERVAL '7 days')
+        )
+      )
       AND t.is_deleted = false
       AND (c.id IS NULL OR c.is_deleted = false)
       AND (p.id IS NULL OR p.is_deleted = false)
@@ -117,7 +133,16 @@ export const toggleTaskStatus = async (req, res, next) => {
       `UPDATE tasks 
        SET status = CASE WHEN status = 'pending' THEN 'completed' ELSE 'pending' END,
            updated_at = NOW() 
-       WHERE id = $1 AND broker_id = $2 AND is_deleted = false
+       WHERE id = $1 AND is_deleted = false
+         AND (
+           broker_id = $2
+           OR EXISTS (
+             SELECT 1 FROM collab_rooms cr
+             JOIN tasks t ON cr.client_id = t.client_id AND cr.property_id = t.property_id
+             WHERE t.id = $1 AND (cr.broker_1_id = $2 OR cr.broker_2_id = $2) AND cr.is_active = true 
+               AND NOT (cr.stage = 'Closed' AND cr.updated_at < NOW() - INTERVAL '7 days')
+           )
+         )
        RETURNING *`,
       [taskId, brokerId]
     );

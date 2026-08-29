@@ -33,11 +33,16 @@ import {
   KeyboardAvoidingView, 
   Platform,
   StatusBar,
-  SafeAreaView
+  SafeAreaView,
+  ActivityIndicator
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
 import WhatsAppIcon from '../src/Components/WhatsAppIcon';
+import { getAmenitiesForType } from '../src/MockData/Mockdata';
+import * as LucideIcons from 'lucide-react-native';
+import { collabAPI } from '../src/config/api';
 import { setSelectedDeal } from '../src/store/slices/dealsSlice';
 import { clearSelectedProperty } from '../src/store/slices/propertiesSlice';
 import { showToast } from '../src/utils/toast';
@@ -52,6 +57,7 @@ const formatCurrency = (amount) =>
 export default function PropertyDetailPage() {
   const router = useRouter();
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   const [showProposeModal, setShowProposeModal] = useState(false);
   const [showCollabSheet, setShowCollabSheet] = useState(false);
   const [customerSearchText, setCustomerSearchText] = useState('');
@@ -63,6 +69,47 @@ export default function PropertyDetailPage() {
   const { customers } = useSelector(state => state.customers);
   const sentConnectRequests = useSelector((state) => state.ui.sentConnectRequests);
   const hasSentRequest = property ? sentConnectRequests.includes(property.id) : false;
+
+  const allTypeAmenities = useMemo(() => {
+    return getAmenitiesForType(property?.type || '');
+  }, [property?.type]);
+
+  const selectedAmenities = useMemo(() => {
+    if (!property?.amenities || !Array.isArray(property.amenities)) return [];
+    return property.amenities.map(amenityId => {
+      const found = allTypeAmenities.find(a => a.id === amenityId);
+      if (found) return found;
+      const name = amenityId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      return { id: amenityId, name, icon: 'Check' };
+    });
+  }, [property?.amenities, allTypeAmenities]);
+
+  const user = useSelector(state => state.auth.user);
+  const myId = user?.id;
+  const [activeCollabs, setActiveCollabs] = useState([]);
+  const [loadingCollabs, setLoadingCollabs] = useState(false);
+
+  const fetchActiveCollabs = async () => {
+    if (!property?.id) return;
+    try {
+      setLoadingCollabs(true);
+      const res = await collabAPI.getActiveRooms();
+      if (res.data.success) {
+        const rooms = res.data.data.filter(r => r.property_id === property.id && r.stage !== 'Matched');
+        setActiveCollabs(rooms);
+      }
+    } catch (err) {
+      console.error('Error fetching active collabs:', err);
+    } finally {
+      setLoadingCollabs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showCollabSheet) {
+      fetchActiveCollabs();
+    }
+  }, [showCollabSheet]);
 
   // Auto-go-back if no property is selected
   useEffect(() => {
@@ -131,22 +178,14 @@ export default function PropertyDetailPage() {
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" backgroundColor="white" />
       
-      {/* 1. Header Bar matching visual PRD */}
-      <View 
-        style={{ paddingTop: STATUSBAR_HEIGHT, height: 56 + STATUSBAR_HEIGHT }}
-        className="flex-row items-center justify-between px-4 border-b border-gray-100 bg-white"
-      >
-        <TouchableOpacity onPress={handleBack} className="p-2">
+      {/* 1. Header Navigation */}
+      <View className="px-5 py-4 flex-row items-center border-b border-gray-100 bg-white z-10" style={{ marginTop: STATUSBAR_HEIGHT }}>
+        <TouchableOpacity onPress={() => router.back()} className="p-2 z-10">
           <ArrowLeft size={20} color="#111827" />
         </TouchableOpacity>
-        <View className="flex-row items-center gap-1.5">
-          <TouchableOpacity onPress={handleShare} className="p-2">
-            <Share2 size={20} color="#111827" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setIsFavorite(!isFavorite)} className="p-2">
-            <Heart size={20} color={isFavorite ? '#ef4444' : '#111827'} fill={isFavorite ? '#ef4444' : 'none'} />
-          </TouchableOpacity>
-        </View>
+        <Text style={{ position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 16, fontWeight: 'bold', color: '#111827', zIndex: 0 }}>
+          Property Details
+        </Text>
       </View>
 
       {/* 2. Main Image Section */}
@@ -200,9 +239,11 @@ export default function PropertyDetailPage() {
               <Text className="text-2xl font-black text-gray-900">
                 {formatCurrency(property.price)}
               </Text>
-              <Text className="text-xs text-gray-400 font-semibold">
-                ₹5,655 / sq.ft
-              </Text>
+              {property.size ? (
+                <Text className="text-xs text-gray-400 font-semibold">
+                  ₹{Math.round(property.price / property.size).toLocaleString('en-IN')} / {property.sizeUnit || 'sq.ft'}
+                </Text>
+              ) : null}
             </View>
 
             {/* Location row */}
@@ -221,7 +262,7 @@ export default function PropertyDetailPage() {
                     Area
                   </Text>
                   <Text numberOfLines={1} className="text-sm font-bold text-gray-900">
-                    {property.size || '1450 sq.ft'}
+                    {property.size ? `${property.size} ${property.sizeUnit || 'Sq. Ft.'}` : '1450 sq.ft'}
                   </Text>
                 </View>
 
@@ -260,16 +301,21 @@ export default function PropertyDetailPage() {
             {/* Amenities Section */}
             <View className="mb-6">
               <Text className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Amenities</Text>
-              <View className="flex-row flex-wrap gap-2">
-                {['Private Garden', 'Clubhouse Access', 'Swimming Pool', 'Gym', 'Children Play Area'].map((amenity) => (
-                  <View key={amenity} className="bg-purple-50/70 border border-purple-100 px-3 py-1.5 rounded-full">
-                    <Text className="text-purple-700 text-xs font-bold">{amenity}</Text>
-                  </View>
-                ))}
-                <View className="bg-gray-100 px-3 py-1.5 rounded-full">
-                  <Text className="text-gray-600 text-xs font-bold">+4 more</Text>
+              {selectedAmenities.length > 0 ? (
+                <View className="flex-row flex-wrap gap-2">
+                  {selectedAmenities.map((amenity) => {
+                    const IconComponent = LucideIcons[amenity.icon] || LucideIcons.Check;
+                    return (
+                      <View key={amenity.id} className="bg-purple-50/70 border border-purple-100 px-3 py-1.5 rounded-full flex-row items-center gap-1.5">
+                        <IconComponent size={12} color="#7c3aed" />
+                        <Text className="text-purple-700 text-xs font-bold">{amenity.name}</Text>
+                      </View>
+                    );
+                  })}
                 </View>
-              </View>
+              ) : (
+                <Text className="text-xs font-bold text-gray-500 italic">No amenities specified</Text>
+              )}
             </View>
 
             {/* Owner Details matching visual PRD */}
@@ -278,11 +324,13 @@ export default function PropertyDetailPage() {
               <View className="bg-white p-4 rounded-xl border border-gray-200 flex-row justify-between items-center shadow-sm">
                 <View className="flex-row items-center gap-3">
                   <View className="w-10 h-10 rounded-full bg-purple-100 items-center justify-center">
-                    <Text className="text-purple-700 font-bold text-base">A</Text>
+                    <Text className="text-purple-700 font-bold text-base">
+                      {property.ownerName ? property.ownerName.charAt(0).toUpperCase() : 'A'}
+                    </Text>
                   </View>
                   <View>
-                    <Text className="text-sm font-bold text-gray-900">Amit Verma</Text>
-                    <Text className="text-xs font-medium text-gray-500">98765 43212</Text>
+                    <Text className="text-sm font-bold text-gray-900">{property.ownerName || 'Amit Verma'}</Text>
+                    <Text className="text-xs font-medium text-gray-500">{property.ownerPhone || '98765 43212'}</Text>
                   </View>
                 </View>
 
@@ -305,7 +353,7 @@ export default function PropertyDetailPage() {
           </View>
       </ScrollView>
 
-      <View className="px-5 py-4 border-t border-gray-100 bg-white flex-row gap-3">
+      <View style={{ paddingBottom: insets.bottom > 0 ? insets.bottom + 12 : 16 }} className="px-5 pt-4 border-t border-gray-100 bg-white flex-row gap-3">
         <TouchableOpacity
           onPress={() => setShowProposeModal(true)}
           className="flex-1 bg-white py-3.5 rounded-xl items-center justify-center border border-gray-300"
@@ -438,7 +486,7 @@ export default function PropertyDetailPage() {
                     <Text style={{ fontSize: 16, fontWeight: '700', color: '#7c3aed', fontFamily: 'Montserrat_700Bold' }}>Anonymous Listing</Text>
                   </View>
                   <Text style={{ fontSize: 12, color: '#6b7280', lineHeight: 18, marginBottom: 16, fontFamily: 'Lato_400Regular' }}>
-                    Jab aap match dhundoge, dusre brokers ko sirf property specifications dikhegi - exact address aur owner name nahi.
+                    When you search for matches, other brokers will only see the property specifications - not the exact address or owner name.
                   </Text>
                   
                   <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 14, gap: 10 }}>
@@ -451,6 +499,11 @@ export default function PropertyDetailPage() {
                     <Text style={{ fontSize: 13, color: '#4b5563', fontFamily: 'Lato_400Regular' }}>
                       Specs: <Text style={{ fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{property.title}</Text>
                     </Text>
+                    {property.furnishing && (
+                      <Text style={{ fontSize: 13, color: '#4b5563', fontFamily: 'Lato_400Regular' }}>
+                        Furnishing: <Text style={{ fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{property.furnishing}</Text>
+                      </Text>
+                    )}
                   </View>
                 </View>
 
@@ -499,24 +552,39 @@ export default function PropertyDetailPage() {
                 {/* Active Collaboration Rooms (Accepted Rooms) */}
                 <View style={{ backgroundColor: 'white', borderColor: '#e5e7eb', borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16 }}>
                   <Text style={{ fontSize: 15, fontWeight: '700', color: '#1f2937', marginBottom: 12, fontFamily: 'Montserrat_700Bold' }}>Active Collaborations</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' }}>
-                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#6b7280', fontFamily: 'Montserrat_700Bold' }}>A</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>Amit Verma</Text>
-                      <Text style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>Verified Broker · 50/50 Split</Text>
-                    </View>
-                    <TouchableOpacity 
-                      onPress={() => {
-                        setShowCollabSheet(false);
-                        router.push('/collab-page?roomId=1');
-                      }}
-                      style={{ backgroundColor: '#635BFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
-                    >
-                      <Text style={{ fontSize: 11, color: 'white', fontWeight: 'bold', fontFamily: 'Montserrat_700Bold' }}>Open Room</Text>
-                    </TouchableOpacity>
-                  </View>
+                  {loadingCollabs ? (
+                    <ActivityIndicator size="small" color="#635BFF" />
+                  ) : activeCollabs.length > 0 ? (
+                    activeCollabs.map((room) => {
+                      const isBroker1 = room.broker_1_id === myId;
+                      const partnerName = isBroker1 ? room.broker_2_name : room.broker_1_name;
+                      const splitVal = room.commission_split || '50/50';
+                      return (
+                        <View key={room.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 8 }}>
+                          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#f3f4f6', alignItems: 'center', justify: 'center' }}>
+                            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#6b7280', fontFamily: 'Montserrat_700Bold' }}>
+                              {partnerName ? partnerName.charAt(0).toUpperCase() : 'P'}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{partnerName}</Text>
+                            <Text style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>Verified Broker · {splitVal} Split</Text>
+                          </View>
+                          <TouchableOpacity 
+                            onPress={() => {
+                              setShowCollabSheet(false);
+                              router.push(`/collab-page?roomId=${room.id}`);
+                            }}
+                            style={{ backgroundColor: '#635BFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
+                          >
+                            <Text style={{ fontSize: 11, color: 'white', fontWeight: 'bold', fontFamily: 'Montserrat_700Bold' }}>Open Room</Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <Text style={{ fontSize: 13, color: '#9ca3af', fontFamily: 'Lato_400Regular' }}>Is property ke liye koi active collaboration nahi hai.</Text>
+                  )}
                 </View>
               </ScrollView>
             </View>

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { CancelToken, isCancel } from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
@@ -53,6 +53,16 @@ export const clearAuthToken = () => {
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
+    // Public endpoints that don't need a token
+    const isPublicEndpoint = config.url && config.url.startsWith('/auth/');
+    
+    if (!isPublicEndpoint && !authToken) {
+      // Cancel the request locally since it's guaranteed to fail with 401
+      const cancelTokenSource = CancelToken.source();
+      config.cancelToken = cancelTokenSource.token;
+      cancelTokenSource.cancel('No auth token available. Request blocked.');
+    }
+    
     if (authToken) {
       config.headers.Authorization = `Bearer ${authToken}`;
     }
@@ -84,6 +94,10 @@ export const setSubscriptionErrorCallback = (callback) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (isCancel(error)) {
+      // Silently ignore locally cancelled requests to prevent error logs and toasts
+      return new Promise(() => {});
+    }
     if (error.response) {
       // Check for authentication errors (401 Unauthorized or 403 Forbidden)
       if (error.response.status === 401 || error.response.status === 403) {
@@ -110,6 +124,7 @@ api.interceptors.response.use(
           if (navigationRef && navigationRef.replace) {
             navigationRef.replace('/login');
           }
+          return new Promise(() => {});
         }
       } else {
         // Server responded with other error
@@ -202,7 +217,33 @@ export const visitsAPI = {
 export const collabAPI = {
   searchBrokers: (query) => api.get('/collab/search', { params: { q: query } }),
   sendRequest: (receiverId) => api.post('/collab/request', { receiver_id: receiverId }),
-  getMyNetwork: () => api.get('/collab/network'),
+  getMyNetwork: () => api.get('/collab/my-network'),
+  getLegacyRequests: () => api.get('/collab/requests-legacy'),
+  updateLegacyStatus: (reqId, status) => api.put(`/collab/requests-legacy/${reqId}`, { status }),
+  
+  // Matchmaking
+  getMatchingProperties: (clientId) => api.get('/collab/match/properties', { params: { client_id: clientId } }),
+  getMatchingClients: (propertyId) => api.get('/collab/match/clients', { params: { property_id: propertyId } }),
+  getMatchOpportunities: () => api.get('/collab/match/opportunities'),
+  
+  // Rooms / Workspaces
+  getActiveRooms: () => api.get('/collab/rooms'),
+  sendProposal: (data) => api.post('/collab/requests', data),
+  updateSplitProposal: (roomId, data) => api.put(`/collab/rooms/${roomId}/split`, data),
+  closeRoom: (roomId) => api.post(`/collab/rooms/${roomId}/close`),
+  startDeal: (roomId) => api.post(`/collab/rooms/${roomId}/start-deal`),
+  settleSplit: (roomId) => api.post(`/collab/rooms/${roomId}/settle-split`),
+  
+  // Room Tasks
+  getRoomTasks: (roomId) => api.get(`/collab/rooms/${roomId}/tasks`),
+  createRoomTask: (roomId, data) => api.post(`/collab/rooms/${roomId}/tasks`, data),
+  updateRoomTask: (roomId, taskId, data) => api.put(`/collab/rooms/${roomId}/tasks/${taskId}`, data),
+  deleteRoomTask: (roomId, taskId) => api.delete(`/collab/rooms/${roomId}/tasks/${taskId}`),
+  
+  // Room Visits
+  getRoomVisits: (roomId) => api.get(`/collab/rooms/${roomId}/visits`),
+  scheduleRoomVisit: (roomId, data) => api.post(`/collab/rooms/${roomId}/visits`, data),
+  updateRoomVisit: (roomId, visitId, data) => api.put(`/collab/rooms/${roomId}/visits/${visitId}`, data),
 };
 
 export default api;

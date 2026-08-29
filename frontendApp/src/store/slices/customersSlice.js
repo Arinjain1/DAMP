@@ -23,10 +23,21 @@ export const fetchCustomers = createAsyncThunk(
           budgetMin: client.budget_min,
           budgetMax: client.budget_max,
           preferredLocation: client.preferred_location,
+          city: client.city,
+          state: client.state,
+          pincode: client.pincode,
           notes: client.notes,
           selectedProperties: client.selectedProperties || [],
           interestedProperties: client.interestedProperties || [],
           holdProperties: client.holdProperties || [],
+          image: client.profile_image || null,
+          collaborated: client.collaborated || false,
+          collaborationRoomId: client.collaboration_room_id || null,
+          commissionStatus: client.commission_status || 'Pending',
+          broker1Id: client.broker_1_id || null,
+          broker2Id: client.broker_2_id || null,
+          broker1Settled: client.broker_1_settled || false,
+          broker2Settled: client.broker_2_settled || false,
           activeDealCount: client.active_deal_count || 0,
           nextTask: client.next_task,
           createdAt: client.created_at,
@@ -56,7 +67,11 @@ export const createCustomer = createAsyncThunk(
         budget_min: customerData.budgetMin,
         budget_max: customerData.budgetMax,
         preferred_location: customerData.preferredLocation,
-        notes: customerData.notes
+        notes: customerData.notes,
+        profile_image: customerData.profile_image || null,
+        city: customerData.city,
+        state: customerData.state,
+        pincode: customerData.pincode
       });
       if (response.data.success) {
         const client = response.data.data;
@@ -73,10 +88,14 @@ export const createCustomer = createAsyncThunk(
           budgetMin: client.budget_min,
           budgetMax: client.budget_max,
           preferredLocation: client.preferred_location,
+          city: client.city,
+          state: client.state,
+          pincode: client.pincode,
           notes: client.notes,
           selectedProperties: [],
           interestedProperties: [],
           holdProperties: [],
+          image: client.profile_image || null,
           createdAt: client.created_at
         };
       }
@@ -105,7 +124,11 @@ export const updateCustomer = createAsyncThunk(
         notes: data.notes,
         selected_properties: data.selectedProperties,
         interested_properties: data.interestedProperties,
-        hold_properties: data.holdProperties
+        hold_properties: data.holdProperties,
+        profile_image: data.profile_image || null,
+        city: data.city,
+        state: data.state,
+        pincode: data.pincode
       });
       if (response.data.success) {
         const client = response.data.data;
@@ -122,10 +145,14 @@ export const updateCustomer = createAsyncThunk(
           budgetMin: client.budget_min,
           budgetMax: client.budget_max,
           preferredLocation: client.preferred_location,
+          city: client.city,
+          state: client.state,
+          pincode: client.pincode,
           notes: client.notes,
           selectedProperties: client.selected_properties || [],
           interestedProperties: client.interested_properties || [],
-          holdProperties: client.hold_properties || []
+          holdProperties: client.hold_properties || [],
+          image: client.profile_image || null
         };
       }
     } catch (error) {
@@ -312,76 +339,7 @@ const customersSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchCustomers.fulfilled, (state, action) => {
-        const loadedCustomers = action.payload || [];
-        
-        // Ensure mock collaboration clients are present for testing
-        const hasManas = loadedCustomers.some(c => c.name === 'Manas');
-        const hasRahul = loadedCustomers.some(c => c.name === 'Rahul Sharma');
-        const hasRohan = loadedCustomers.some(c => c.name === 'Rohan');
-        
-        const mockClients = [];
-        if (!hasManas) {
-          mockClients.push({
-            id: 'mock-manas',
-            name: 'Manas',
-            phone: '9876543210',
-            stage: 'Interested',
-            requirementType: 'Buy',
-            propertyCategory: 'Residential',
-            propertyType: 'Apartment',
-            configuration: '2 BHK',
-            furnishingStatus: 'Semi-Furnished',
-            budgetMin: 4000000,
-            budgetMax: 6000000,
-            preferredLocation: 'Vijay Nagar',
-            notes: 'Looking for a premium 2 BHK apartment near Vijay Nagar Indore.',
-            selectedProperties: [2],
-            interestedProperties: [],
-            holdProperties: []
-          });
-        }
-        if (!hasRahul) {
-          mockClients.push({
-            id: 'mock-rahul',
-            name: 'Rahul Sharma',
-            phone: '9988776655',
-            stage: 'Site Visit',
-            requirementType: 'Buy',
-            propertyCategory: 'Residential',
-            propertyType: 'Apartment',
-            configuration: '3 BHK',
-            furnishingStatus: 'Unfurnished',
-            budgetMin: 7000000,
-            budgetMax: 9000000,
-            preferredLocation: 'Nipania',
-            notes: 'Client looking for a 3 BHK in Nipania with high compatibility.',
-            selectedProperties: [],
-            interestedProperties: [],
-            holdProperties: []
-          });
-        }
-        if (!hasRohan) {
-          mockClients.push({
-            id: 'mock-rohan',
-            name: 'Rohan',
-            phone: '9123456789',
-            stage: 'New',
-            requirementType: 'Buy',
-            propertyCategory: 'Residential',
-            propertyType: 'Apartment',
-            configuration: '2 BHK',
-            furnishingStatus: 'Fully-Furnished',
-            budgetMin: 5000000,
-            budgetMax: 7000000,
-            preferredLocation: 'Shalimar Township',
-            notes: 'Ready buyer looking for immediate registry.',
-            selectedProperties: [],
-            interestedProperties: [],
-            holdProperties: []
-          });
-        }
-        
-        state.customers = [...mockClients, ...loadedCustomers];
+        state.customers = action.payload || [];
         state.loading = false;
       })
       .addCase(fetchCustomers.rejected, (state, action) => {
@@ -508,6 +466,12 @@ const customersSlice = createSlice({
       })
       .addCase(deleteCustomer.rejected, (state, action) => {
         state.error = action.payload;
+      })
+      .addCase('auth/logout', (state) => {
+        state.customers = [];
+        state.selectedCustomer = null;
+        state.loading = false;
+        state.error = null;
       });
   },
 });

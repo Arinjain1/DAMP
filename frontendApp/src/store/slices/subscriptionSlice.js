@@ -55,6 +55,19 @@ const subscriptionSlice = createSlice({
       state.error = action.payload;
     },
   },
+  extraReducers: (builder) => {
+    builder.addCase('auth/logout', (state) => {
+      state.subscription = {
+        active: false,
+        plan: null,
+        expiry: null,
+        price: 0,
+      };
+      state.showPaywall = false;
+      state.loading = false;
+      state.error = null;
+    });
+  },
 });
 
 export const {

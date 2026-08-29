@@ -185,7 +185,7 @@ const transactionSlice = createSlice({
             state.transactionsByDeal[dealId][index] = transaction;
             
             // Update current deal summary if it's the active deal
-            if (state.currentDealSummary.dealId === parseInt(dealId)) {
+            if (state.currentDealSummary.dealId === dealId) {
               const summaryIndex = state.currentDealSummary.transactions.findIndex(t => t.id === transactionId);
               if (summaryIndex !== -1) {
                 state.currentDealSummary.transactions[summaryIndex] = transaction;

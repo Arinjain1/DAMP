@@ -1,6 +1,7 @@
-import { memo, useState, useEffect, useRef, useCallback } from 'react';
+import { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Dimensions, PanResponder, Image } from 'react-native';
 import * as LucideIcons from 'lucide-react-native';
+import InlineMapPicker from '../Components/InlineMapPicker';
 
 // Helper to format budget text
 const formatBudget = (amount) => {
@@ -45,6 +46,43 @@ const MemoizedRadioGroup = memo(function MemoizedRadioGroup({ label, name, optio
           const isSelected = selectedValue === option;
           return (
             <TouchableOpacity key={option} onPress={() => onChange(name, option)} style={[styles.radioOption, isSelected && styles.radioOptionSelected]}>
+              <View style={[isSmall ? styles.radioButtonSmall : styles.radioButton, isSelected ? styles.radioButtonSelected : styles.radioButtonUnselected]}>
+                {isSelected && <View style={styles.radioButtonInner} />}
+              </View>
+              <Text style={[isSmall ? styles.radioTextSmall : styles.radioText, isSelected ? styles.radioTextSelected : styles.radioTextUnselected]}>{option}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+});
+
+// Memoized Multi Select Group Component
+const MemoizedMultiSelectGroup = memo(function MemoizedMultiSelectGroup({ label, name, options, selectedValue, onChange, isSmall, styles }) {
+  // selectedValue is a comma-separated string, e.g. "2 BHK, 3 BHK"
+  const selectedItems = useMemo(() => {
+    return selectedValue ? selectedValue.split(',').map(s => s.trim()).filter(Boolean) : [];
+  }, [selectedValue]);
+
+  const handleToggle = useCallback((option) => {
+    let newItems;
+    if (selectedItems.includes(option)) {
+      newItems = selectedItems.filter(item => item !== option);
+    } else {
+      newItems = [...selectedItems, option];
+    }
+    onChange(name, newItems.join(', '));
+  }, [selectedItems, onChange, name]);
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={isSmall ? styles.bhkScrollContainer : styles.listingTypeScrollContainer}>
+        {options.map((option) => {
+          const isSelected = selectedItems.includes(option);
+          return (
+            <TouchableOpacity key={option} onPress={() => handleToggle(option)} style={[styles.radioOption, isSelected && styles.radioOptionSelected]}>
               <View style={[isSmall ? styles.radioButtonSmall : styles.radioButton, isSelected ? styles.radioButtonSelected : styles.radioButtonUnselected]}>
                 {isSelected && <View style={styles.radioButtonInner} />}
               </View>
@@ -180,15 +218,25 @@ const MemoizedBudgetSlider = memo(function MemoizedBudgetSlider({ minLimit, maxL
   );
 });
 
-const CustomerForm = memo(({
+const CustomerForm = memo(function CustomerForm({
   formData,
   handleChange,
   styles,
   PROPERTY_STRUCTURE,
   budgetRange,
   setBudgetRange,
-  pickImage
-}) => {
+  pickImage,
+  locationSuggestions = [],
+  locationLoading = false,
+  showLocationDropdown = false,
+  selectLocation,
+  locationSearchText = '',
+  removeLocation
+}) {
+  const locations = useMemo(() => {
+    return formData.preferredLocation ? formData.preferredLocation.split(';').map(l => l.trim()).filter(Boolean) : [];
+  }, [formData.preferredLocation]);
+
   return (
     <View style={styles.formContainer}>
       <View style={{ alignItems: 'center', marginBottom: 16 }}>
@@ -221,11 +269,11 @@ const CustomerForm = memo(({
       <MemoizedPropertyTypeGroup category={formData.category} selectedValue={formData.type} onChange={handleChange} styles={styles} PROPERTY_STRUCTURE={PROPERTY_STRUCTURE} />
 
       {formData.category === 'Residential' && ['Apartment/Flats', 'Builder Floor', 'House/Villa'].includes(formData.type) && (
-        <MemoizedRadioGroup label="Configuration" name="bhk" options={['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK']} selectedValue={formData.bhk} onChange={handleChange} isSmall styles={styles} />
+        <MemoizedMultiSelectGroup label="Configuration" name="bhk" options={['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK']} selectedValue={formData.bhk} onChange={handleChange} isSmall styles={styles} />
       )}
 
       {formData.category === 'Commercial' && (
-        <MemoizedRadioGroup label="Configuration" name="commercialConfig" selectedValue={formData.commercialConfig} onChange={handleChange} isSmall styles={styles}
+        <MemoizedMultiSelectGroup label="Configuration" name="commercialConfig" selectedValue={formData.commercialConfig} onChange={handleChange} isSmall styles={styles}
           options={
             formData.type === 'Office' ? ['Co-working Space', 'Bareshell Office', 'Ready to Move Office'] :
             formData.type === 'Shop/Showroom' ? ['Shop', 'Showroom', 'Retail Space'] :
@@ -238,12 +286,106 @@ const CustomerForm = memo(({
 
       {((formData.category === 'Residential' && !['Plot', 'Farmhouse'].includes(formData.type)) ||
         (formData.category === 'Commercial' && ['Office', 'Shop/Showroom'].includes(formData.type) && formData.commercialConfig !== 'Bareshell Office')) && (
-          <MemoizedRadioGroup label="Furnishing" name="furnishing" options={['Unfurnished', 'Semi', 'Furnished']} selectedValue={formData.furnishing} onChange={handleChange} isSmall styles={styles} />
+          <MemoizedMultiSelectGroup label="Furnishing" name="furnishing" options={['Unfurnished', 'Semi', 'Furnished']} selectedValue={formData.furnishing} onChange={handleChange} isSmall styles={styles} />
       )}
 
       <MemoizedTextInput label="Customer Name" name="name" value={formData.name} onChange={handleChange} placeholder="Enter customer name" styles={styles} />
       <MemoizedTextInput label="Contact Number" name="phone" value={formData.phone} onChange={handleChange} placeholder="Enter contact number" keyboardType="phone-pad" styles={styles} />
-      <MemoizedTextInput label="Preferred Location" name="preferredLocation" value={formData.preferredLocation} onChange={handleChange} placeholder="Select preferred location" styles={styles} />
+      <View style={[styles.section, { zIndex: 2000 }]}>
+        <Text style={styles.inputLabel}>Preferred Location</Text>
+        
+        {/* Render Location Chips */}
+        {locations.length > 0 && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+            {locations.map((loc, idx) => (
+              <View 
+                key={idx} 
+                style={{ 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  backgroundColor: '#e0f2fe', 
+                  paddingLeft: 12, 
+                  paddingRight: 6, 
+                  paddingVertical: 6, 
+                  borderRadius: 20, 
+                  borderWidth: 1, 
+                  borderColor: '#bae6fd',
+                  maxWidth: '100%',
+                  marginBottom: 4
+                }}
+              >
+                <Text 
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={{ 
+                    fontSize: 11, 
+                    color: '#0369a1', 
+                    fontWeight: '600', 
+                    fontFamily: 'Montserrat_500Medium',
+                    flexShrink: 1
+                  }}
+                >
+                  {loc}
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => removeLocation && removeLocation(loc)} 
+                  style={{ 
+                    marginLeft: 6, 
+                    padding: 4,
+                    backgroundColor: '#bae6fd',
+                    borderRadius: 10,
+                    width: 20,
+                    height: 20,
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }}
+                >
+                  {renderIcon('X', 10, '#0369a1')}
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={styles.locationContainer}>
+          <TextInput
+            value={locationSearchText}
+            onChangeText={(text) => handleChange('preferredLocation', text)}
+            placeholder="Search and add locations..."
+            style={styles.textInputStyled}
+          />
+
+          {locationLoading && (
+            <View style={styles.locationDropdown}>
+              <Text style={{ padding: 12, color: '#6b7280', fontSize: 14 }}>Searching...</Text>
+            </View>
+          )}
+
+          {showLocationDropdown && locationSuggestions.length > 0 && !locationLoading && (
+            <View style={styles.locationDropdown}>
+              {locationSuggestions.map((loc) => (
+                <TouchableOpacity key={loc.id} onPress={() => selectLocation(loc)} style={styles.locationItem}>
+                  <View style={styles.locationIcon}><LucideIcons.MapPin size={16} color="#6b7280" /></View>
+                  <View style={styles.locationDetails}>
+                    <Text style={styles.locationMainText}>{loc.main_text}</Text>
+                    {loc.secondary_text && <Text style={styles.locationSecondaryText}>{loc.secondary_text}</Text>}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+        <InlineMapPicker
+          value={formData.preferredLocation}
+          city={formData.city}
+          state={formData.state}
+          onChangeLocation={(addr, details) => handleChange('preferredLocation', addr, true, details)}
+        />
+      </View>
+
+      <MemoizedTextInput label="City" name="city" value={formData.city} onChange={handleChange} placeholder="Preferred City" styles={styles} />
+      <MemoizedTextInput label="Pincode" name="pincode" value={formData.pincode} onChange={handleChange} placeholder="Preferred Pincode" keyboardType="numeric" styles={styles} />
+      <MemoizedTextInput label="State" name="state" value={formData.state} onChange={handleChange} placeholder="Preferred State" styles={styles} />
 
       {/* Budget Range - Optimized */}
       <View style={styles.section}>
@@ -262,7 +404,5 @@ const CustomerForm = memo(({
     </View>
   );
 });
-
-CustomerForm.displayName = 'CustomerForm';
 
 export default CustomerForm;

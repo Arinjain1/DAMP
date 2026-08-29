@@ -9,7 +9,7 @@ import {
   StatusBar,
   StyleSheet
 } from 'react-native';
-import { Briefcase, ChevronRight, X } from 'lucide-react-native';
+import { Briefcase, ChevronRight, X, ArrowLeft } from 'lucide-react-native';
 
 // Helper for currency formatting
 const formatCurrency = (amount) => {
@@ -35,19 +35,22 @@ const DealsManagerPage = ({ deals, properties, customers, onOpenDeal, onBack }) 
 
          {/* ===== HEADER ===== */}
          <View style={styles.header}>
-            {/* Title */}
-            <View style={styles.headerContent}>
-               <Text style={styles.headerTitle}>Deals Manager</Text>
-               <Text style={styles.headerSubtitle}>Track your property pipeline</Text>
-            </View>
-
-            {/* Close Button */}
+            {/* Back Button */}
             <TouchableOpacity 
                onPress={onBack}
-               style={styles.closeButton}
+               style={styles.backButton}
             >
-               <X size={24} color="#6b7280" />
+               <ArrowLeft size={24} color="#111827" />
             </TouchableOpacity>
+
+            {/* Title */}
+            <View style={styles.headerContentCentered}>
+               <Text style={styles.headerTitleCentered}>Deals Manager</Text>
+               <Text style={styles.headerSubtitleCentered}>Track your property pipeline</Text>
+            </View>
+
+            {/* Spacer to balance back button */}
+            <View style={{ width: 40 }} />
          </View>
 
          <ScrollView 
@@ -188,13 +191,15 @@ const styles = StyleSheet.create({
    header: {
       backgroundColor: 'white',
       paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 60,
-      paddingHorizontal: 20,
-      paddingBottom: 24,
+      paddingHorizontal: 16,
+      paddingBottom: 20,
       flexDirection: 'row',
+      alignItems: 'center',
       justifyContent: 'space-between',
-      alignItems: 'flex-start',
+      borderBottomWidth: 1,
+      borderBottomColor: '#f3f4f6',
    },
-   closeButton: {
+   backButton: {
       width: 40,
       height: 40,
       borderRadius: 20,
@@ -202,20 +207,23 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       justifyContent: 'center',
    },
-   headerContent: {
+   headerContentCentered: {
       flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
    },
-   headerTitle: {
-      fontSize: 28,
+   headerTitleCentered: {
+      fontSize: 18,
       fontWeight: '700',
-      color: '#3E3E3E',
-      letterSpacing: -0.5,
+      color: '#111827',
+      textAlign: 'center',
    },
-   headerSubtitle: {
-      fontSize: 14,
+   headerSubtitleCentered: {
+      fontSize: 12,
       color: '#9ca3af',
       fontWeight: '500',
-      marginTop: 4,
+      marginTop: 2,
+      textAlign: 'center',
    },
 
    // Main Body

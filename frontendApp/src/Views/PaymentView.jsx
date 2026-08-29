@@ -11,6 +11,12 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { showToast } from '../utils/toast';
 import { dealsAPI, customersAPI } from '../config/api';
 
+const formatCurrency = (val) => {
+  if (val === undefined || val === null) return '0';
+  const num = Math.round(Number(val));
+  return isNaN(num) ? String(val) : num.toLocaleString('en-IN');
+};
+
 export default function PaymentView() {
   const dispatch = useDispatch();
   const { selectedDeal } = useSelector(state => state.deals);
@@ -18,12 +24,17 @@ export default function PaymentView() {
   const { currentDealSummary, loading: transactionLoading } = useSelector(state => state.transactions);
   const [activeTab, setActiveTab] = useState('Negotiation');
 
-  // Auto-open Token tab if deal stage is Token or beyond
+  // Auto-open correct sub-tab based on deal stage/status
   useEffect(() => {
-    if (selectedDeal?.stage === 'Token' || selectedDeal?.stage === 'Completed') {
+    const currentStage = selectedDeal?.stage || selectedDeal?.status;
+    if (currentStage === 'Token') {
       setActiveTab('Token');
+    } else if (currentStage === 'Completed') {
+      setActiveTab('Full Settlement');
+    } else if (currentStage === 'Negotiation') {
+      setActiveTab('Negotiation');
     }
-  }, [selectedDeal?.stage]);
+  }, [selectedDeal?.stage, selectedDeal?.status]);
 
   // Form states
   const [expectedPrice, setExpectedPrice] = useState('');
@@ -78,13 +89,18 @@ export default function PaymentView() {
   const property = properties.find(p => p.id === selectedDeal?.propertyId);
   const propertyPrice = property?.price || 0;
 
-  // Deal Amount - Priority: transaction summary > history final_price > negotiation final_price > dealAmount > property price
-  const dealAmount = currentDealSummary.finalPrice || historyData?.final_price || selectedDeal?.negotiation?.finalPrice || selectedDeal?.dealAmount || propertyPrice;
+  // Base price fallback: check expectedPrice, listing_price, final Price
+  const basePrice = Number(selectedDeal?.expectedPrice || selectedDeal?.expected_price || selectedDeal?.listing_price || propertyPrice || 0);
 
-  // Use transaction slice data for paid/pending amounts
-  const paidAmount = currentDealSummary.totalPaid || 0;
+  // Deal Amount - Priority: transaction summary > history final_price > negotiation final_price > selectedDeal final price > dealAmount > basePrice
+  const dealAmount = currentDealSummary.finalPrice || historyData?.final_price || selectedDeal?.negotiation?.finalPrice || selectedDeal?.finalPrice || selectedDeal?.final_price || selectedDeal?.dealAmount || basePrice;
+
+  // Use transaction slice data for paid/pending amounts (fallback to selectedDeal token amount if no transactions recorded yet)
+  const paidAmount = currentDealSummary.totalPaid > 0 
+    ? currentDealSummary.totalPaid 
+    : Number(selectedDeal?.tokenAmount || selectedDeal?.token_amount || 0);
   const pendingAmount = currentDealSummary.totalPending || 0;
-  const remainingAmount = dealAmount - paidAmount - pendingAmount;
+  const remainingAmount = dealAmount - paidAmount;
 
   // Fetch negotiation data and transaction history when deal changes
   useEffect(() => {
@@ -156,16 +172,34 @@ export default function PaymentView() {
 
     fetchNegotiation();
 
-    if (propertyPrice > 0) {
-      if (propertyPrice >= 10000000) {
-        setExpectedPrice((propertyPrice / 10000000).toString()); setExpectedUnit('Crore');
-      } else if (propertyPrice >= 100000) {
-        setExpectedPrice((propertyPrice / 100000).toString()); setExpectedUnit('Lakh');
+    if (basePrice > 0) {
+      if (basePrice >= 10000000) {
+        const val = (basePrice / 10000000).toString();
+        setExpectedPrice(val);
+        setExpectedUnit('Crore');
+        if (!finalPrice) {
+          setFinalPrice(val);
+          setFinalUnit('Crore');
+        }
+      } else if (basePrice >= 100000) {
+        const val = (basePrice / 100000).toString();
+        setExpectedPrice(val);
+        setExpectedUnit('Lakh');
+        if (!finalPrice) {
+          setFinalPrice(val);
+          setFinalUnit('Lakh');
+        }
       } else {
-        setExpectedPrice((propertyPrice / 1000).toString()); setExpectedUnit('Thousands');
+        const val = (basePrice / 1000).toString();
+        setExpectedPrice(val);
+        setExpectedUnit('Thousands');
+        if (!finalPrice) {
+          setFinalPrice(val);
+          setFinalUnit('Thousands');
+        }
       }
     }
-  }, [selectedDeal?.id, propertyPrice]);
+  }, [selectedDeal?.id, basePrice]);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -314,7 +348,7 @@ export default function PaymentView() {
   const handleTokenSubmit = async () => {
     const tokenValue = parseFloat(tokenAmount) * getMultiplier(tokenUnit);
     if (!isNaN(tokenValue) && tokenValue > 0) {
-      if (tokenValue > remainingAmount) return showToast.error(`Cannot exceed remaining ₹${remainingAmount.toLocaleString('en-IN')}`);
+      if (tokenValue > remainingAmount) return showToast.error(`Cannot exceed remaining ₹${formatCurrency(remainingAmount)}`);
       if (paymentMode !== 'Cash' && !tokenTransactionId.trim()) return showToast.error('Transaction ID is required');
 
       Alert.alert('Confirm Transaction', 'Are you sure this transaction is done?', [
@@ -345,7 +379,7 @@ export default function PaymentView() {
   const handleAddTransaction = () => {
     const settlementValue = parseFloat(settlementAmount) * getMultiplier(settlementUnit);
     if (!isNaN(settlementValue) && settlementValue > 0) {
-      if (settlementValue > remainingAmount) return showToast.error(`Cannot exceed remaining ₹${remainingAmount.toLocaleString('en-IN')}`);
+      if (settlementValue > remainingAmount) return showToast.error(`Cannot exceed remaining ₹${formatCurrency(remainingAmount)}`);
       if (transactionStatus === 'Paid' && settlementMode !== 'Cash' && !transactionId.trim()) return showToast.error('Transaction ID is required');
 
       if (transactionStatus === 'Paid') {
@@ -414,11 +448,34 @@ export default function PaymentView() {
     if (fullSettlementMode !== 'Cash' && !fullSettlementTransactionId.trim()) return showToast.error('Transaction ID is required');
     Alert.alert('Confirm Full Settlement', 'Are you sure this transaction is done?', [
       { text: 'No', style: 'cancel' },
-      { text: 'Yes', onPress: () => {
-          const newTransaction = { id: Date.now(), amount: remainingAmount, unit: 'Rupees', paymentMode: fullSettlementMode, transactionId: fullSettlementMode !== 'Cash' ? fullSettlementTransactionId : null, remark: fullSettlementRemark, dueDate: new Date().toISOString(), date: new Date().toISOString(), status: 'Completed', completedDate: new Date().toISOString() };
-          dispatch(updateDeal({ ...selectedDeal, paidAmount: dealAmount, settlements: [...(selectedDeal?.settlements || []), newTransaction] }));
-          setFullSettlementMode('UPI'); setFullSettlementTransactionId(''); setFullSettlementRemark(''); setShowFullSettlementModal(false);
-          showToast.success('Full settlement completed successfully!');
+      { text: 'Yes', onPress: async () => {
+          try {
+            const result = await dispatch(addTransaction({
+              dealId: selectedDeal.id,
+              transactionData: { 
+                transaction_type: 'Settlement', 
+                amount: remainingAmount, 
+                payment_mode: fullSettlementMode, 
+                transaction_ref: fullSettlementMode !== 'Cash' ? fullSettlementTransactionId : null, 
+                status: 'Completed', 
+                remark: fullSettlementRemark 
+              }
+            })).unwrap();
+
+            if (result) {
+              dispatch(fetchTransactionHistory(selectedDeal.id));
+              if (selectedDeal.customerId) {
+                try { 
+                  await customersAPI.updateStage(selectedDeal.customerId, 'Agreement'); 
+                  dispatch(updateCustomerStage({ id: selectedDeal.customerId, stage: 'Agreement' })); 
+                } catch (error) {}
+              }
+              setFullSettlementMode('UPI'); setFullSettlementTransactionId(''); setFullSettlementRemark(''); setShowFullSettlementModal(false);
+              showToast.success('Full settlement completed successfully!');
+            }
+          } catch (error) {
+            showToast.error('Failed to complete full settlement');
+          }
         }
       }
     ]);
@@ -583,7 +640,7 @@ export default function PaymentView() {
                     <View className="flex-row justify-between items-end">
                       <View>
                         <Text className="text-sm text-gray-500 mb-1">Amount</Text>
-                        <Text className="text-xl font-bold text-gray-800">₹{transaction.amount.toLocaleString('en-IN')}</Text>
+                        <Text className="text-xl font-bold text-gray-800">₹{formatCurrency(transaction.amount)}</Text>
                       </View>
                       <View className="items-end">
                         <Text className="text-sm text-gray-500 mb-1">Due Date</Text>
@@ -666,7 +723,7 @@ export default function PaymentView() {
                       <View className="flex-row justify-between items-end mb-3">
                         <View>
                           <Text className="text-sm text-gray-500 mb-1">Amount</Text>
-                          <Text className="text-xl font-bold text-gray-800">₹{transaction.amount.toLocaleString('en-IN')}</Text>
+                          <Text className="text-xl font-bold text-gray-800">₹{formatCurrency(transaction.amount)}</Text>
                         </View>
                         <View className="items-end">
                           <Text className="text-sm text-gray-500 mb-1">{transaction.completed_on ? 'Completed On' : 'Due Date'}</Text>
@@ -690,7 +747,7 @@ export default function PaymentView() {
                   {historyData.final_price && (
                     <View className="bg-purple-50 rounded-2xl border border-purple-200 p-4 mt-4">
                       <Text className="text-sm text-gray-600 mb-1">Final Deal Amount</Text>
-                      <Text className="text-2xl font-bold text-purple-600">₹{historyData.final_price.toLocaleString('en-IN')}</Text>
+                      <Text className="text-2xl font-bold text-purple-600">₹{formatCurrency(historyData.final_price)}</Text>
                     </View>
                   )}
                 </>
@@ -916,7 +973,7 @@ export default function PaymentView() {
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 <View className="bg-purple-50 rounded-2xl p-4 mb-4">
                   <Text className="text-sm text-gray-600 mb-1">Remaining Amount</Text>
-                  <Text className="text-2xl font-bold text-[#9A8CFC]">₹{remainingAmount.toLocaleString('en-IN')}</Text>
+                  <Text className="text-2xl font-bold text-[#9A8CFC]">₹{formatCurrency(remainingAmount)}</Text>
                 </View>
 
                 <Text className="text-sm font-semibold text-[#3E3E3E] mb-2">Payment Mode</Text>

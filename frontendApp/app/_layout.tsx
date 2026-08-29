@@ -2,10 +2,10 @@ import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect, useState } from "react";
 import { LogBox, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Provider, useSelector } from 'react-redux';
 
-import { Stack, Tabs } from 'expo-router'; // Removed unused 'router'
+import { Stack, Tabs, useRouter } from 'expo-router';
 import { Briefcase, Calendar, Home, User, Users } from 'lucide-react-native';
 import "../global.css";
 import { store } from '../src/store/store';
@@ -53,13 +53,17 @@ LogBox.ignoreLogs([
 function AppNavigator() {
   const { isAuthenticated, user } = useSelector((state: any) => state.auth);
   const hasValidSession = isAuthenticated && !!user?.token;
+  const insets = useSafeAreaInsets();
 
-  // Set token when user is authenticated (for app rehydration)
+  const router = useRouter();
+
+  // Set navigation ref & token when user is authenticated (for app rehydration)
   useEffect(() => {
+    setNavigationRef(router);
     if (user?.token) {
       setAuthToken(user.token);
     }
-  }, [user?.token]);
+  }, [user?.token, router]);
 
   if (!hasValidSession) {
     return (
@@ -85,17 +89,17 @@ function AppNavigator() {
           backgroundColor: 'white',
           borderTopColor: '#e5e7eb',
           borderTopWidth: 1,
-          paddingBottom: 10,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
           paddingTop: 8,
-          
-          height: 75,
+
+          height: 60 + (insets.bottom > 0 ? insets.bottom : 15),
           elevation: 5,
           paddingHorizontal: 10,
           paddingVertical: 8,
         },
         tabBarActiveTintColor: '#111827',
         tabBarInactiveTintColor: '#9ca3af',
-         
+
       }}
     >
       <Tabs.Screen
@@ -145,6 +149,7 @@ function AppNavigator() {
       <Tabs.Screen name="property-detail" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="notifications" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="collab-page" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="match-opportunities" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="stats" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="legal" options={{ href: null, tabBarStyle: { display: 'none' } }} />
 

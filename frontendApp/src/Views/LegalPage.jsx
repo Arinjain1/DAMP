@@ -6,9 +6,9 @@ import {
   TouchableOpacity, 
   Image 
 } from 'react-native';
-import { Scale, FileText } from 'lucide-react-native';
+import { Scale, FileText, ArrowLeft } from 'lucide-react-native';
 
-const LegalPage = () => {
+const LegalPage = ({ onBack }) => {
   
   const documents = [
     'Sale Agreement', 
@@ -22,12 +22,24 @@ const LegalPage = () => {
   return (
     <View className="flex-1 bg-gray-50">
       {/* Header */}
-      <View className="bg-white px-[6vw] pb-[4vw] pt-[12vw] border-b border-gray-200">
-        <View className="flex-row items-center gap-[2vw]">
-          <Scale size={28} color="#4f46e5" />
-          <Text className="text-[6vw] font-black text-gray-900">Legal Desk</Text>
+      <View className="bg-white px-4 pb-4 pt-12 border-b border-gray-200 flex-row items-center justify-between">
+        {onBack ? (
+          <TouchableOpacity onPress={onBack} className="p-2 z-10">
+            <ArrowLeft size={24} color="#111827" />
+          </TouchableOpacity>
+        ) : (
+          <View className="w-10" />
+        )}
+        
+        <View className="items-center flex-1">
+          <View className="flex-row items-center gap-2">
+            <Scale size={24} color="#4f46e5" />
+            <Text className="text-xl font-black text-gray-900">Legal Desk</Text>
+          </View>
+          <Text className="text-xs text-gray-500 mt-0.5">Generate & Manage Documents</Text>
         </View>
-        <Text className="text-[3.5vw] text-gray-500 mt-[1vw]">Generate & Manage Documents</Text>
+
+        <View className="w-10" />
       </View>
 
       <ScrollView 

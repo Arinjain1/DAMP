@@ -1,14 +1,22 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, StyleSheet, ActivityIndicator } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { ArrowLeft, Search, Shield, ChevronRight, Check, Send, MapPin } from 'lucide-react-native';
 import { addSentConnectRequest } from '../src/store/slices/uiSlice';
 import { showToast } from '../src/utils/toast';
+import { collabAPI } from '../src/config/api';
 
 export default function FindPropertiesScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
+  const params = useLocalSearchParams();
+
+  // View state management: 'list' | 'detail' | 'request'
+  const [step, setStep] = useState(params.initialStep || 'list');
+  const [selectedBrokerMatch, setSelectedBrokerMatch] = useState(null);
+  const [selectedSplit, setSelectedSplit] = useState('50-50');
+  const [requestMessage, setRequestMessage] = useState('');
   
   // Get active selected customer from Redux
   const { selectedCustomer } = useSelector((state) => state.customers);
@@ -18,51 +26,63 @@ export default function FindPropertiesScreen() {
   const { properties } = useSelector((state) => state.properties);
   const allProperties = properties || [];
 
-  const matchedBrokerProperties = useMemo(() => {
-    if (!customer) return [];
-    return allProperties
-      .map(prop => {
-        // Calculate dynamic compatibility score
-        const sameBhk = prop.bhk === customer.bhk || prop.configuration === customer.bhk || prop.bhk === customer.configuration;
-        const budgetMatch = prop.price >= (customer.budgetMin || 0) && prop.price <= (customer.budgetMax || 990000000);
-        const locMatch = prop.location?.toLowerCase().includes(customer.preferredLocation?.toLowerCase() || customer.location?.toLowerCase() || '') || 
-                         (customer.preferredLocation || customer.location || '').toLowerCase().includes(prop.location?.toLowerCase() || '');
-        
-        let compat = 20; // base score
-        if (sameBhk) compat += 30;
-        if (budgetMatch) compat += 30;
-        if (locMatch) compat += 20;
-        
-        const ownerName = prop.owner || prop.ownerName || 'Property Broker';
-        const initials = ownerName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  const [matchedBrokerProperties, setMatchedBrokerProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-        return {
-          id: prop.id,
-          name: ownerName,
-          compat: compat,
-          bhk: prop.bhk || prop.configuration || '2 BHK',
-          price: prop.price >= 10000000 
-            ? `₹${(prop.price / 10000000).toFixed(1)} Cr` 
-            : `₹${(prop.price / 100000).toFixed(0)} L`,
-          loc: prop.location || 'Mumbai',
-          initial: initials || 'PB',
-          property: prop
-        };
-      })
-      .sort((a, b) => b.compat - a.compat);
-  }, [allProperties, customer]);
+  useEffect(() => {
+    const fetchMatches = async () => {
+      setLoading(true);
+      try {
+        const res = await collabAPI.getMatchingProperties(customer.id);
+        if (res.data.success) {
+          const mapped = res.data.data.map(item => {
+            const ownerName = item.broker_name || 'Property Broker';
+            const initials = ownerName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+            return {
+              id: item.id,
+              name: ownerName,
+              compat: Math.round(item.compatibility || 50),
+              bhk: item.configuration || '2 BHK',
+              price: item.price >= 10000000 
+                ? `₹${(item.price / 10000000).toFixed(1)} Cr` 
+                : `₹${(item.price / 100000).toFixed(0)} L`,
+              loc: item.locality || item.city || 'Mumbai',
+              initial: initials || 'PB',
+              requestStatus: item.request_status,
+              property: item
+            };
+          });
+          setMatchedBrokerProperties(mapped);
 
-  // View state management: 'list' | 'detail' | 'request'
-  const [step, setStep] = useState('list');
-  const [selectedBrokerMatch, setSelectedBrokerMatch] = useState(null);
-  const [selectedSplit, setSelectedSplit] = useState('50-50');
-  const [requestMessage, setRequestMessage] = useState('');
+          if (params.initialStep === 'detail' && params.matchedId) {
+            const matchedItem = mapped.find(item => String(item.id) === String(params.matchedId));
+            if (matchedItem) {
+              setSelectedBrokerMatch(matchedItem);
+            } else {
+              setStep('list');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching matching properties:', err);
+        showToast.error('Failed to load matching properties');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (customer?.id) {
+      fetchMatches();
+    }
+  }, [customer?.id, params.initialStep, params.matchedId]);
+
+  // Screen body logic below
 
   if (!customer) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>No Client Selected</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/dashboard')}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -77,10 +97,26 @@ export default function FindPropertiesScreen() {
     return `${min}-${max} L`;
   };
 
-  const handleConfirmSend = () => {
-    dispatch(addSentConnectRequest(customer.id));
-    showToast.success(`Request sent to ${selectedBrokerMatch?.name || 'Ravi Sir'}!`);
-    router.back();
+  const handleConfirmSend = async () => {
+    try {
+      const payload = {
+        property_id: selectedBrokerMatch.property.id,
+        client_id: customer.id,
+        role: 'Client-side',
+        proposed_split: selectedSplit.replace('-', '/'),
+        message: requestMessage || `Hi, I have a client interested in your property: ${selectedBrokerMatch.property.title}. Let's collaborate!`
+      };
+      
+      const res = await collabAPI.sendProposal(payload);
+      if (res.data.success) {
+        dispatch(addSentConnectRequest(customer.id));
+        showToast.success(`Request sent to ${selectedBrokerMatch?.name || 'Broker'}!`);
+        router.replace('/dashboard');
+      }
+    } catch (err) {
+      console.error('Error sending collaboration proposal:', err);
+      showToast.error(err.response?.data?.message || 'Failed to send collaboration request');
+    }
   };
 
   return (
@@ -90,34 +126,42 @@ export default function FindPropertiesScreen() {
         <View style={{ flex: 1 }}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+            <TouchableOpacity onPress={() => router.replace('/dashboard')} style={styles.iconButton}>
               <ArrowLeft size={24} color="#111827" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Find Matching Properties</Text>
+            <View style={{ width: 32 }} />
           </View>
 
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Client Requirement Card */}
             <View style={styles.requirementCard}>
               <Text style={styles.requirementTag}>CLIENT REQUIREMENT</Text>
-              <Text style={styles.requirementTitle}>{customer.name} • {customer.configuration || '3 BHK'} chahiye</Text>
-              <Text style={styles.requirementSubtitle}>₹{formatBudget(customer.budgetMin, customer.budgetMax)} • {customer.location || 'Bandra'}</Text>
+              <Text style={styles.requirementTitle}>{customer.name} • Requires {customer.configuration || '3 BHK'}</Text>
+              <Text style={styles.requirementSubtitle}>₹{formatBudget(customer.budgetMin, customer.budgetMax)} • {customer.preferredLocation || 'Bandra'}</Text>
             </View>
 
             {/* Shield Warning */}
             <View style={styles.warningBanner}>
               <Shield size={20} color="#d97706" />
               <Text style={styles.warningText}>
-                Property ka exact address aur owner hidden hai. Accept hone ke baad unlock hoga.
+                Property's exact address and owner are hidden. They will unlock after the request is accepted.
               </Text>
             </View>
 
             {/* Match Heading */}
-            <Text style={styles.sectionHeading}>{matchedBrokerProperties.length} properties mili aapke client ke liye</Text>
+            <Text style={styles.sectionHeading}>
+              {loading ? 'Finding properties...' : `${matchedBrokerProperties.length} matching properties found for your client`}
+            </Text>
 
             {/* Matches Cards */}
             <View style={{ gap: 12 }}>
-              {matchedBrokerProperties.length === 0 ? (
+              {loading ? (
+                <View style={{ padding: 40, alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color="#635BFF" />
+                  <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 12, fontFamily: 'Montserrat_500Medium' }}>Finding matching properties...</Text>
+                </View>
+              ) : matchedBrokerProperties.length === 0 ? (
                 <View style={{ padding: 24, alignItems: 'center', backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' }}>
                   <Text style={{ color: '#6b7280', fontSize: 14, fontFamily: 'Montserrat_500Medium' }}>No matching properties found in inventory.</Text>
                 </View>
@@ -140,6 +184,13 @@ export default function FindPropertiesScreen() {
                         <View style={styles.scoreBadge}>
                           <Text style={styles.scoreText}>{item.compat}% Match</Text>
                         </View>
+                        {item.requestStatus && (
+                          <View style={{ backgroundColor: item.requestStatus === 'Matched' ? '#FEF3C7' : '#D1FAE5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 0.5, borderColor: item.requestStatus === 'Matched' ? '#FCD34D' : '#A7F3D0' }}>
+                            <Text style={{ fontSize: 9, fontWeight: '700', color: item.requestStatus === 'Matched' ? '#B45309' : '#065F46', fontFamily: 'Montserrat_700Bold' }}>
+                              {item.requestStatus === 'Matched' ? 'SENT' : 'ACTIVE'}
+                            </Text>
+                          </View>
+                        )}
                       </View>
                       <Text style={styles.matchDetails}>{item.bhk} • {item.price}</Text>
                       <Text style={styles.matchLocality}>{item.loc}</Text>
@@ -158,10 +209,20 @@ export default function FindPropertiesScreen() {
         <View style={{ flex: 1 }}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => setStep('list')} style={styles.iconButton}>
+            <TouchableOpacity 
+              onPress={() => {
+                if (params.initialStep === 'detail') {
+                  router.replace('/dashboard');
+                } else {
+                  setStep('list');
+                }
+              }} 
+              style={styles.iconButton}
+            >
               <ArrowLeft size={24} color="#111827" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Property Details</Text>
+            <View style={{ width: 32 }} />
           </View>
 
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -173,14 +234,16 @@ export default function FindPropertiesScreen() {
                 </View>
                 <View>
                   <Text style={styles.brokerNameText}>{selectedBrokerMatch?.name}</Text>
-                  <Text style={styles.brokerAgencyText}>Verified Broker • Mumbai</Text>
+                  <Text style={styles.brokerAgencyText}>
+                    {`Verified Broker • ${selectedBrokerMatch?.loc ? selectedBrokerMatch.loc.split(',').pop().trim() : 'Mumbai'}`}
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.lockInfoBox}>
                 <Shield size={16} color="#7c3aed" />
                 <Text style={styles.lockInfoText}>
-                  Contact details request accept hone ke baad unlock honge.
+                  Contact details will be unlocked after the request is accepted.
                 </Text>
               </View>
             </View>
@@ -217,14 +280,26 @@ export default function FindPropertiesScreen() {
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${selectedBrokerMatch?.compat || 91}%` }]} />
               </View>
-              <Text style={styles.scoreSubtext}>Budget, locality, BHK sab match karte hain</Text>
+              <Text style={styles.scoreSubtext}>Budget, locality, and BHK all match</Text>
             </View>
 
             {/* Send Request Button */}
-            <TouchableOpacity style={styles.submitButton} onPress={() => setStep('request')}>
-              <Text style={styles.submitButtonText}>Send Request</Text>
-              <Send size={18} color="white" />
-            </TouchableOpacity>
+            {selectedBrokerMatch?.requestStatus ? (
+              <TouchableOpacity 
+                style={[styles.submitButton, { backgroundColor: '#10B981', opacity: 0.9 }]} 
+                disabled={true}
+              >
+                <Text style={styles.submitButtonText}>
+                  {selectedBrokerMatch.requestStatus === 'Matched' ? 'Request Sent (Pending)' : 'Already Active in Collab'}
+                </Text>
+                <Check size={18} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.submitButton} onPress={() => setStep('request')}>
+                <Text style={styles.submitButtonText}>Proceed to Split Details</Text>
+                <Send size={18} color="white" />
+              </TouchableOpacity>
+            )}
           </ScrollView>
         </View>
       )}
@@ -238,6 +313,7 @@ export default function FindPropertiesScreen() {
               <ArrowLeft size={24} color="#111827" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Send Request</Text>
+            <View style={{ width: 32 }} />
           </View>
 
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -333,22 +409,27 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 50,
     paddingBottom: 16,
     paddingHorizontal: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderColor: '#e5e7eb',
-    gap: 12,
   },
   iconButton: {
     padding: 4,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
     fontFamily: 'Montserrat_700Bold',
+    textAlign: 'center',
   },
   scrollContent: {
     padding: 16,
@@ -517,17 +598,22 @@ const styles = StyleSheet.create({
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    width: '100%',
   },
   detailLabel: {
     fontSize: 13,
     color: '#6b7280',
     fontFamily: 'Lato_400Regular',
+    width: '30%',
   },
   detailValue: {
     fontSize: 13,
     fontWeight: 'bold',
     color: '#111827',
     fontFamily: 'Montserrat_700Bold',
+    width: '70%',
+    textAlign: 'right',
   },
   scoreBarCard: {
     backgroundColor: 'white',

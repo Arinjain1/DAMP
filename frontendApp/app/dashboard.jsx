@@ -16,6 +16,7 @@ import {
   updateCustomerLocal,
   updateCustomerStage,
   updateCustomerProperties,
+  setSelectedCustomer,
 } from "../src/store/slices/customersSlice";
 import {
   addDeal,
@@ -34,6 +35,7 @@ import {
   setProperties,
   setLoading,
   setError,
+  setSelectedProperty,
 } from "../src/store/slices/propertiesSlice";
 import { activateSubscription } from "../src/store/slices/subscriptionSlice";
 import {
@@ -148,11 +150,14 @@ export default function DashboardPage() {
           customerName: task.client_name,
           propertyId: task.property_id,
           propertyIds: task.property_id ? [task.property_id] : [],
+          propertyNameFallback: task.property_title,
+          propertyLocationFallback: task.property_address || task.property_locality,
           type: task.task_type,
           date: `${task.due_date}T${task.due_time || '10:00'}`,
           note: task.description || task.notes || '',
           status: task.status,
           siteVisitId: task.site_visit_id,
+          collaborated: task.collaborated || false
         }));
         dispatch(setFollowUps(mappedTasks));
       }
@@ -199,7 +204,7 @@ export default function DashboardPage() {
           city: data.city || '',
           locality: data.location || '',
           project_name: data.title || '',
-          address: data.owner || '',
+          address: data.house_no || data.owner || '',
           price: calculatePrice(data.priceValue, data.priceUnit),
           size: parseFloat(data.sizeValue) || 0,
           size_unit: data.sizeUnit || 'Sq. Ft.',
@@ -210,6 +215,9 @@ export default function DashboardPage() {
           amenities: data.amenities || [],
           bond: data.bond ? parseFloat(data.bond) : null,
           image_url: data.image || null,
+          house_no: data.house_no || '',
+          landmark: data.landmark || '',
+          pincode: data.pincode || '',
         };
 
         const response = await propertiesAPI.create(apiPayload);
@@ -233,6 +241,10 @@ export default function DashboardPage() {
           budget_max: data.budgetMax || 0,
           preferred_location: data.preferredLocation || '',
           notes: data.details || '',
+          profile_image: data.image || null,
+          city: data.city || '',
+          state: data.state || '',
+          pincode: data.pincode || '',
         };
 
         const response = await customersAPI.create(apiPayload);
@@ -244,6 +256,7 @@ export default function DashboardPage() {
             name: response.data.data.name,
             phone: response.data.data.phone,
             status: response.data.data.status,
+            stage: response.data.data.status,
             requirement: response.data.data.requirement_type,
             category: response.data.data.property_category,
             type: response.data.data.property_type,
@@ -252,7 +265,11 @@ export default function DashboardPage() {
             budgetMin: response.data.data.budget_min,
             budgetMax: response.data.data.budget_max,
             location: response.data.data.preferred_location,
+            city: response.data.data.city,
+            state: response.data.data.state,
+            pincode: response.data.data.pincode,
             notes: response.data.data.notes,
+            image: response.data.data.profile_image || null,
           };
 
           dispatch(addCustomer(mappedCustomer));
@@ -309,7 +326,7 @@ export default function DashboardPage() {
           city: data.city || '',
           locality: data.location || '',
           project_name: data.title || '',
-          address: data.owner || '',
+          address: data.house_no || data.owner || '',
           price: calculatePrice(data.priceValue, data.priceUnit),
           size: parseFloat(data.sizeValue) || 0,
           size_unit: data.sizeUnit || 'Sq. Ft.',
@@ -320,6 +337,9 @@ export default function DashboardPage() {
           amenities: data.amenities || [],
           bond: data.bond ? parseFloat(data.bond) : null,
           image_url: data.image || null,
+          house_no: data.house_no || '',
+          landmark: data.landmark || '',
+          pincode: data.pincode || '',
         };
 
         const response = await propertiesAPI.update(data.id, apiPayload);
@@ -372,6 +392,10 @@ export default function DashboardPage() {
           budget_max: data.budgetMax || 0,
           preferred_location: data.preferredLocation || '',
           notes: data.details || '',
+          profile_image: data.image || null,
+          city: data.city || '',
+          state: data.state || '',
+          pincode: data.pincode || '',
         };
 
         const response = await customersAPI.update(data.id, apiPayload);
@@ -392,7 +416,11 @@ export default function DashboardPage() {
             budgetMin: response.data.data.budget_min,
             budgetMax: response.data.data.budget_max,
             location: response.data.data.preferred_location,
+            city: response.data.data.city,
+            state: response.data.data.state,
+            pincode: response.data.data.pincode,
             notes: response.data.data.notes,
+            image: response.data.data.profile_image || null,
           };
 
           dispatch(updateCustomerLocal(mappedCustomer));
@@ -552,6 +580,22 @@ export default function DashboardPage() {
     dispatch(activateSubscription({ plan }));
   };
 
+  const handleOpenMatchDetails = useCallback((tag, localId, matchedId) => {
+    if (tag === 'MATCHING PROPERTY') {
+      const cust = customers.find(c => c.id === localId);
+      if (cust) {
+        dispatch(setSelectedCustomer(cust));
+        router.push(`/find-properties?initialStep=detail&matchedId=${matchedId}`);
+      }
+    } else {
+      const prop = properties.find(p => p.id === localId);
+      if (prop) {
+        dispatch(setSelectedProperty(prop));
+        router.push(`/find-clients?initialStep=detail&matchedId=${matchedId}`);
+      }
+    }
+  }, [customers, properties, dispatch, router]);
+
   return (
     <View className="flex-1 bg-gray-50">
       <StatusBar style="dark" backgroundColor="white" />
@@ -562,7 +606,19 @@ export default function DashboardPage() {
         followUps={followUps}
         activeDeals={deals}
         unreadCount={unreadCount}
-        onOpenCollab={(roomId, matchId) => router.push(roomId ? `/collab-page?roomId=${roomId}` : (matchId ? `/collab-page?matchId=${matchId}` : '/collab-page'))}
+        onOpenCollab={(roomId, matchId, tab) => {
+          if (roomId && typeof roomId === 'string') {
+            router.push(`/collab-page?roomId=${roomId}`);
+          } else if (matchId && typeof matchId === 'string') {
+            router.push(`/collab-page?matchId=${matchId}`);
+          } else if (tab && typeof tab === 'string') {
+            router.push(`/collab-page?tab=${tab}`);
+          } else {
+            router.push('/collab-page?tab=requests');
+          }
+        }}
+        onOpenMatchDetails={handleOpenMatchDetails}
+        onOpenAllMatchOpportunities={() => router.push('/match-opportunities')}
         onOpenDeal={(deal) => {
           dispatch(setSelectedDeal(deal));
           router.push('/deal-page');

@@ -18,10 +18,11 @@ import {
   RefreshControl,
   Dimensions,
   InteractionManager,
+  ActivityIndicator,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
-import { dashboardAPI } from '../config/api';
+import { dashboardAPI, collabAPI } from '../config/api';
 import {
   INITIAL_PROFILE,
 } from '../MockData/Mockdata';
@@ -117,7 +118,7 @@ const TaskCard = memo(({ task, customers }) => {
               {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </View>
-          {taskNote?.includes('[Collaborated]') && (
+          {(task.collaborated || taskNote?.includes('[Collaborated]')) && (
             <View style={{ backgroundColor: '#BFB7FD', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
               <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#7c3aed' }}>COLLABORATED</Text>
             </View>
@@ -133,7 +134,10 @@ const Dashboard = ({
   properties = [], 
   customers = [], 
   followUps = [], 
+  activeDeals = [],
   onOpenCollab, 
+  onOpenMatchDetails,
+  onOpenAllMatchOpportunities,
   onOpenDeal, 
   onNavigate, 
   onOpenModal 
@@ -150,8 +154,96 @@ const Dashboard = ({
   const { user, isAuthenticated } = useSelector(state => state.auth);
   const hasValidSession = isAuthenticated && !!user?.token;
 
-  const activeDeals = dashboardData?.active_deals || [];
+  const activeDealsList = dashboardData?.active_deals || [];
   const unreadCount = 2;
+
+  const [opportunities, setOpportunities] = useState([]);
+  const [loadingOpp, setLoadingOpp] = useState(true);
+
+  const [activeRooms, setActiveRooms] = useState([]);
+  const [loadingActive, setLoadingActive] = useState(true);
+  const [incomingRequestsCount, setIncomingRequestsCount] = useState(0);
+
+  const fetchActiveRooms = useCallback(async () => {
+    if (!hasValidSession) return;
+    try {
+      setLoadingActive(true);
+      const res = await collabAPI.getActiveRooms();
+      if (res.data.success) {
+        const allRooms = res.data.data;
+        const accepted = allRooms.filter(room => room.stage !== 'Matched' && room.stage !== 'Closed');
+        setActiveRooms(accepted);
+        
+        // Calculate incoming pending requests (stage === 'Matched' and last_proposed_by !== user?.id)
+        const incomingPending = allRooms.filter(room => 
+          room.stage === 'Matched' && room.last_proposed_by !== user?.id
+        );
+        setIncomingRequestsCount(incomingPending.length);
+      }
+    } catch (err) {
+      console.error('Error loading active rooms on dashboard:', err);
+    } finally {
+      setLoadingActive(false);
+    }
+  }, [hasValidSession, user?.id]);
+
+  useEffect(() => {
+    fetchActiveRooms();
+  }, [fetchActiveRooms]);
+
+  const fetchOpportunities = useCallback(async () => {
+    if (!hasValidSession) return;
+    try {
+      setLoadingOpp(true);
+      const res = await collabAPI.getMatchOpportunities();
+      if (res.data.success) {
+        const formatOpportunityPrice = (price) => {
+          const num = Number(price);
+          if (isNaN(num) || num <= 0) return '₹0';
+          if (num >= 10000000) return `₹${(num / 10000000).toFixed(1)} Cr`;
+          if (num >= 100000) return `₹${(num / 100000).toFixed(1)} L`;
+          if (num >= 1000) return `₹${(num / 1000).toFixed(0)} K`;
+          return `₹${num}`;
+        };
+
+        const mapped = res.data.data.map((item, idx) => {
+          const isProp = item.tag === 'MATCHING PROPERTY';
+          
+          const formattedPrice = isProp 
+            ? formatOpportunityPrice(item.price_min)
+            : `${formatOpportunityPrice(item.price_min)}-${formatOpportunityPrice(item.price_max)}`;
+
+          const specText = isProp 
+            ? `${item.configuration || '2 BHK'} Flat • ${item.loc_text || 'Mumbai'}`
+            : `Requires ${item.configuration || '2 BHK'} • ${item.loc_text || 'Mumbai'}`;
+
+          return {
+            id: item.property_id || item.client_id || idx,
+            name: item.broker_name || 'Ravi Sir',
+            compat: Math.round(item.compatibility || 50),
+            price: formattedPrice,
+            spec: specText,
+            tag: item.tag,
+            colorBg: isProp ? '#f5f3ff' : '#eff6ff',
+            colorBorder: isProp ? '#ddd6fe' : '#bfdbfe',
+            colorText: isProp ? '#7c3aed' : '#1d4ed8',
+            btnStyle: isProp ? styles.matchCardBtnPurple : styles.matchCardBtnDark,
+            localId: isProp ? item.client_id : item.property_id,
+            matchedId: isProp ? item.property_id : item.client_id
+          };
+        });
+        setOpportunities(mapped);
+      }
+    } catch (err) {
+      console.error('Error loading match opportunities:', err);
+    } finally {
+      setLoadingOpp(false);
+    }
+  }, [hasValidSession]);
+
+  useEffect(() => {
+    fetchOpportunities();
+  }, []);
 
   // FIX: isBackground add kiya taaki skeleton bar bar na aaye
   const fetchDashboardData = useCallback(async (isBackground = false) => {
@@ -198,19 +290,18 @@ const Dashboard = ({
         return;
       }
 
-      // Agar data pehle se hai, toh background refresh karo
-      if (dashboardData !== null) {
-        const task = InteractionManager.runAfterInteractions(() => {
-          fetchDashboardData(true);
-        });
-        return () => task.cancel();
-      }
-    }, [fetchDashboardData, dashboardData, hasValidSession])
+      const task = InteractionManager.runAfterInteractions(() => {
+        fetchDashboardData(true);
+        fetchOpportunities();
+        fetchActiveRooms();
+      });
+      return () => task.cancel();
+    }, [hasValidSession])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchDashboardData(true); // Pull-to-refresh pe native spinner chalega, skeleton nahi
+    await Promise.all([fetchDashboardData(true), fetchOpportunities(), fetchActiveRooms()]);
     setRefreshing(false);
   };
 
@@ -222,16 +313,27 @@ const Dashboard = ({
   };
 
   const todaysTasks = useMemo(() => {
+    const today = new Date();
+    const isSameDay = (d1, d2) => {
+      return d1.getDate() === d2.getDate() &&
+             d1.getMonth() === d2.getMonth() &&
+             d1.getFullYear() === d2.getFullYear();
+    };
+
+    // Filter backend focus tasks strictly for today
+    const backendToday = (dashboardData?.todays_focus || []).filter(task => {
+      const taskDate = new Date(task.due_date || task.date);
+      return isSameDay(taskDate, today);
+    });
+
+    const combined = [...backendToday];
+
+    // Filter local pending tasks strictly for today
     const localPending = followUps.filter(f => f.status === 'Pending');
-    const combined = [...(dashboardData?.todays_focus || [])];
     localPending.forEach(task => {
       if (!combined.some(c => c.id === task.id)) {
         const taskDate = new Date(task.date);
-        const today = new Date();
-        const isToday = taskDate.getDate() === today.getDate() &&
-                        taskDate.getMonth() === today.getMonth() &&
-                        taskDate.getFullYear() === today.getFullYear();
-        if (isToday || task.note?.includes('[Collaborated]')) {
+        if (isSameDay(taskDate, today)) {
           combined.unshift(task);
         }
       }
@@ -249,6 +351,7 @@ const Dashboard = ({
       Interested: { bg: '#FEF3C7', text: '#D97706' },
       'In-Process': { bg: '#F3F1FF', text: '#5B4DFF' },
       Closed: { bg: '#DCFCE7', text: '#047857' },
+      Completed: { bg: '#DCFCE7', text: '#047857' },
       Lost: { bg: '#FEE2E2', text: '#DC2626' },
     };
     return colors[stage] || { bg: '#F3F4F6', text: '#374151' };
@@ -405,7 +508,7 @@ const Dashboard = ({
           {/* Stats */}
           <View style={styles.statsOuterBox}>
             <StatBlock label="Total Visitor" count={stats.total_visitor} />
-            <StatBlock label="Matches" count={stats.total_sale} />
+            <StatBlock label="Collab" count={stats.total_sale} />
             <StatBlock label="Pending" count={stats.pending} />
             <StatBlock label="Rejected" count={stats.rejected} />
           </View>
@@ -430,7 +533,7 @@ const Dashboard = ({
 
           <TouchableOpacity 
             style={styles.collabBannerButton}
-            onPress={onOpenCollab}
+            onPress={() => onOpenCollab?.(null, null, 'requests')}
             activeOpacity={0.8}
           >
             <Image
@@ -438,87 +541,149 @@ const Dashboard = ({
               style={styles.collabBannerImage}
               contentFit="contain"
             />
+            {incomingRequestsCount > 0 && (
+              <View style={{
+                position: 'absolute',
+                top: -6,
+                right: -6,
+                backgroundColor: '#ef4444',
+                borderRadius: 14,
+                minWidth: 24,
+                height: 24,
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingHorizontal: 6,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 2,
+                elevation: 4,
+              }}>
+                <Text style={{ color: 'white', fontSize: 11, fontWeight: 'bold', fontFamily: 'Montserrat_700Bold' }}>
+                  {incomingRequestsCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           {/* ================= MATCH OPPORTUNITIES (Page 7/8 in PDF) ================= */}
           <View style={{ marginTop: 24 }}>
             <View style={styles.focusHeader}>
               <Text style={styles.sectionTitle}>Match Opportunities</Text>
-              <TouchableOpacity style={styles.viewAll} onPress={onOpenCollab}>
+              <TouchableOpacity style={styles.viewAll} onPress={onOpenAllMatchOpportunities}>
                 <Text style={styles.viewAllText}>View All</Text>
                 <ArrowRight size={14} color="#968CE4" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingVertical: 4 }}>
-              {[
-                { id: 1, name: 'Ravi Sir', compat: 91, price: '₹75-90 L', spec: '2 BHK Flat • Andheri East', tag: 'MATCHING PROPERTY', colorBg: '#f5f3ff', colorBorder: '#ddd6fe', colorText: '#7c3aed', btnStyle: styles.matchCardBtnPurple },
-                { id: 5, name: 'Sita Properties', compat: 84, price: '₹70-85 L', spec: 'Requires 2 BHK • Andheri West', tag: 'MATCHING CLIENT', colorBg: '#eff6ff', colorBorder: '#bfdbfe', colorText: '#1d4ed8', btnStyle: styles.matchCardBtnDark },
-                { id: 3, name: 'Gopal Realty', compat: 77, price: '₹78-92 L', spec: '2 BHK Flat • Andheri East', tag: 'MATCHING PROPERTY', colorBg: '#f5f3ff', colorBorder: '#ddd6fe', colorText: '#7c3aed', btnStyle: styles.matchCardBtnPurple }
-              ].map(item => (
-                <View key={item.id} style={styles.matchOpportunityCard}>
-                  <View style={[styles.matchCardTag, { backgroundColor: item.colorBg, borderColor: item.colorBorder, marginBottom: 6 }]}>
-                    <Text style={[styles.matchCardTagText, { color: item.colorText }]}>{item.tag} • {item.compat}%</Text>
+            {loadingOpp ? (
+              <View style={{ height: 120, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#635BFF" />
+                <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 8, fontFamily: 'Montserrat_500Medium' }}>Loading match opportunities...</Text>
+              </View>
+            ) : opportunities.length === 0 ? (
+              <View style={{ padding: 24, alignItems: 'center', backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' }}>
+                <Text style={{ color: '#6b7280', fontSize: 14, fontFamily: 'Montserrat_500Medium' }}>No match opportunities at the moment.</Text>
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingVertical: 4 }}>
+                {opportunities.slice(0, 3).map(item => (
+                  <View key={item.id} style={styles.matchOpportunityCard}>
+                    <View style={[styles.matchCardTag, { backgroundColor: item.colorBg, borderColor: item.colorBorder, marginBottom: 6 }]}>
+                      <Text style={[styles.matchCardTagText, { color: item.colorText }]}>{item.tag} • {item.compat}%</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <Text style={styles.matchCardTitle}>{item.name}</Text>
+                      <Text style={[styles.matchCardTitle, { color: '#635BFF' }]}>{item.price}</Text>
+                    </View>
+                    <Text style={[styles.matchCardSubtitle, { marginBottom: 10 }]}>{item.spec}</Text>
+                    <TouchableOpacity 
+                      style={item.btnStyle} 
+                      onPress={() => onOpenMatchDetails?.(item.tag, item.localId, item.matchedId)}
+                    >
+                      <Text style={styles.matchCardBtnTextLight}>View Details</Text>
+                    </TouchableOpacity>
                   </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <Text style={styles.matchCardTitle}>{item.name}</Text>
-                    <Text style={[styles.matchCardTitle, { color: '#635BFF' }]}>{item.price}</Text>
-                  </View>
-                  <Text style={[styles.matchCardSubtitle, { marginBottom: 10 }]}>{item.spec}</Text>
-                  <TouchableOpacity 
-                    style={item.btnStyle} 
-                    onPress={() => onOpenCollab?.(null, item.id)}
-                  >
-                    <Text style={styles.matchCardBtnTextLight}>View Details</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
+                ))}
+              </ScrollView>
+            )}
           </View>
 
           {/* ================= ACTIVE COLLABORATIONS ================= */}
           <View style={{ marginTop: 24 }}>
             <View style={styles.focusHeader}>
               <Text style={styles.sectionTitle}>Active Collaborations</Text>
-              <TouchableOpacity style={styles.viewAll} onPress={onOpenCollab}>
+              <TouchableOpacity style={styles.viewAll} onPress={() => onOpenCollab?.(null, null, 'active')}>
                 <Text style={styles.viewAllText}>View All</Text>
                 <ArrowRight size={14} color="#968CE4" />
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.activeCollabCard} onPress={() => onOpenCollab?.(1)} activeOpacity={0.9}>
-              <View style={styles.collabAvatar}>
-                <Text style={styles.collabAvatarText}>R</Text>
+            {loadingActive ? (
+              <View style={{ height: 100, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#635BFF" />
               </View>
-              <View style={styles.collabInfo}>
-                <Text style={styles.collabName}>Rahul Sharma</Text>
-                <Text style={styles.collabDetails}>Gokuldham • Client for 2 BHK</Text>
-                <View style={styles.collabBadge}>
-                  <Text style={styles.collabBadgeText}>Site Visit Scheduled</Text>
-                </View>
+            ) : activeRooms.length === 0 ? (
+              <View style={{ padding: 24, alignItems: 'center', backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' }}>
+                <Text style={{ color: '#6b7280', fontSize: 14, fontFamily: 'Montserrat_500Medium' }}>No active collaborations at the moment.</Text>
               </View>
-              <View style={styles.collabProgressBox}>
-                <Text style={styles.collabProgressText}>50 / 50</Text>
-                <Text style={styles.openRoomLink}>Open room ›</Text>
-              </View>
-            </TouchableOpacity>
+            ) : (
+              activeRooms.map((room) => {
+                const isBroker1 = room.broker_1_id === user?.id;
+                const partnerName = isBroker1 ? room.broker_2_name : room.broker_1_name;
+                const initial = (partnerName || 'P').charAt(0).toUpperCase();
+                
+                return (
+                  <TouchableOpacity 
+                    key={room.id}
+                    style={styles.activeCollabCard} 
+                    onPress={() => {
+                      if (room.deal_id) {
+                        onOpenDeal?.({ id: room.deal_id, status: room.deal_status || 'Negotiation', propertyId: room.property_id, customerId: room.client_id });
+                      } else {
+                        onOpenCollab?.(room.id);
+                      }
+                    }}
+                    activeOpacity={0.9}
+                  >
+                    <View style={styles.collabAvatar}>
+                      <Text style={styles.collabAvatarText}>{initial}</Text>
+                    </View>
+                    <View style={styles.collabInfo}>
+                      <Text style={styles.collabName}>{partnerName}</Text>
+                      <Text style={styles.collabDetails}>{room.property_title} • Client: {room.client_name}</Text>
+                      <View style={styles.collabBadge}>
+                        <Text style={styles.collabBadgeText}>Pipeline: {room.deal_status || room.client_stage || room.stage}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.collabProgressBox}>
+                      <Text style={styles.collabProgressText}>{room.commission_split || '50/50'}</Text>
+                      <Text style={styles.openRoomLink}>Open room ›</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </View>
 
           {/* Active Deals */}
-          {activeDeals.length > 0 && (
+          {activeDealsList.length > 0 && (
             <View style={{ marginTop: 24 }}>
               <Text style={styles.sectionTitle}>Active Deals</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {activeDeals.map((deal) => (
-                  <DealCard
-                    key={deal.id}
-                    deal={deal}
-                    properties={properties}
-                    customers={customers}
-                    getStageBadgeStyle={getStageBadgeStyle}
-                    onOpenDeal={onOpenDeal}
-                  />
-                ))}
+                {activeDealsList.map((deal) => {
+                  const realDeal = activeDeals.find(d => d.id === deal.id) || deal;
+                  return (
+                    <DealCard
+                      key={deal.id}
+                      deal={realDeal}
+                      properties={properties}
+                      customers={customers}
+                      getStageBadgeStyle={getStageBadgeStyle}
+                      onOpenDeal={onOpenDeal}
+                    />
+                  );
+                })}
               </ScrollView>
             </View>
           )}
@@ -527,7 +692,7 @@ const Dashboard = ({
           <View style={{ marginTop: 24 }}>
             <View style={styles.focusHeader}>
               <Text style={styles.sectionTitle}>Today’s Focus</Text>
-              <TouchableOpacity style={styles.viewAll}>
+              <TouchableOpacity style={styles.viewAll} onPress={() => onNavigate?.('/followups')}>
                 <Text style={styles.viewAllText}>View All</Text>
                 <ArrowRight size={14} color="#968CE4" />
               </TouchableOpacity>

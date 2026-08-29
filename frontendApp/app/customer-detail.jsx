@@ -10,10 +10,10 @@ import {
   updateCustomerProperties 
 } from '../src/store/slices/customersSlice';
 import { addDeal, setSelectedDeal } from '../src/store/slices/dealsSlice';
-import { deleteFollowUp, addFollowUp } from '../src/store/slices/followUpsSlice';
+import { deleteFollowUp, addFollowUp, setFollowUps } from '../src/store/slices/followUpsSlice';
 import { setEditItem, setModalOpen, setModalType } from '../src/store/slices/uiSlice';
 import { showToast } from '../src/utils/toast';
-import { dealsAPI, tasksAPI, visitsAPI, customersAPI } from '../src/config/api';
+import { dealsAPI, tasksAPI, visitsAPI, customersAPI, collabAPI } from '../src/config/api';
 
 export default function CustomerDetailPage() {
   const router = useRouter();
@@ -40,6 +40,22 @@ export default function CustomerDetailPage() {
 
           if (visitResponse.data.success) {
             showToast.success('Site visit scheduled!');
+            const tasksResponse = await tasksAPI.getAll({ status: 'All' });
+            if (tasksResponse.data.success) {
+              const transformedTasks = tasksResponse.data.data.map(task => ({
+                id: task.id,
+                customerId: task.client_id,
+                propertyIds: task.property_id ? [task.property_id] : [],
+                type: task.task_type || 'Meeting',
+                date: task.due_date,
+                note: task.description || '',
+                status: task.status === 'completed' ? 'Done' : 'Pending',
+                siteVisitId: task.site_visit_id,
+                propertyCount: task.site_visit_property_count || 0,
+                collaborated: task.collaborated || false
+              }));
+              dispatch(setFollowUps(transformedTasks));
+            }
           }
         } else {
           const taskResponse = await tasksAPI.create({
@@ -108,6 +124,26 @@ export default function CustomerDetailPage() {
         dispatch(updateCustomerStage({ id: selectedCustomer.id, stage: 'In-Process' }));
         showToast.success('Deal started successfully!');
         router.push('/deal-page');
+        return;
+      }
+
+      const roomId = selectedCustomer.collaborationRoomId || selectedCustomer.collaboration_room_id;
+      if (selectedCustomer.collaborated && roomId) {
+        const response = await collabAPI.startDeal(roomId);
+        if (response.data.success) {
+          showToast.success('Deal started successfully!');
+          const newDeal = {
+            id: response.data.data.dealId,
+            customerId: selectedCustomer.id,
+            propertyId: selectedProperty.id,
+            stage: 'Negotiation',
+            startedAt: new Date().toISOString(),
+            meetings: []
+          };
+          dispatch(addDeal(newDeal));
+          dispatch(setSelectedDeal(newDeal));
+          router.push('/deal-page');
+        }
         return;
       }
 

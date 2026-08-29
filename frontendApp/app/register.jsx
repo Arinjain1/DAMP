@@ -66,26 +66,37 @@ export default function Register() {
 
       // 2. Get Coordinates
       let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude, longitude } = location.coords;
 
-      // 3. Reverse Geocode (Native Device Method - Free & Fast)
-      let address = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude
-      });
+      // 3. Call Google Geocoding API to extract city name
+      const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDiYnY4FG1juihWvHEgM-NSz2aEKUsKing';
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${API_KEY}`;
+      const response = await fetch(url);
+      const data = await response.json();
 
-      if (address.length > 0) {
-        const addr = address[0];
-        // Construct smart string: e.g., "Indore, Madhya Pradesh"
-        const city = addr.city || addr.subregion || addr.district; // Fallbacks
-        const region = addr.region || addr.country;
-
-        const locationString = [city, region].filter(Boolean).join(', ');
-        handleChange('location', locationString);
+      if (data.results && data.results.length > 0) {
+        let cityVal = '';
+        for (const component of data.results[0].address_components) {
+          const types = component.types;
+          if (types.includes('locality')) {
+            cityVal = component.long_name;
+            break;
+          } else if (types.includes('administrative_area_level_2') && !cityVal) {
+            cityVal = component.long_name;
+          }
+        }
+        
+        if (cityVal) {
+          handleChange('location', cityVal);
+        } else {
+          showToast.warn('Could not detect city name from Google Maps.');
+        }
       } else {
-        showToast.warn('Could not detect city name automatically.');
+        showToast.warn('Could not detect location from Google Maps.');
       }
 
     } catch (error) {
+      console.error('Location detection error:', error);
       showToast.error('Make sure Location/GPS is enabled on your device.');
     } finally {
       setLocationLoading(false);
@@ -210,7 +221,7 @@ export default function Register() {
                 style={styles.locationInput}
                 value={formData.location}
                 onChangeText={(v) => handleChange('location', v)}
-                placeholder="City, State"
+                placeholder="City"
                 placeholderTextColor="#9CA3AF"
               />
               <TouchableOpacity

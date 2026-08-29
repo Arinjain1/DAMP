@@ -14,9 +14,9 @@ export const getDashboardOverview = async (req, res, next) => {
       networkCount // RESTORED: The network count variable
     ] = await Promise.all([
       query('SELECT COUNT(*) FROM contacts WHERE broker_id = $1 AND is_deleted = false', [brokerId]),
-      query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status = 'Closed' AND is_deleted = false", [brokerId]),
-      query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status NOT IN ('Closed', 'Lost') AND is_deleted = false", [brokerId]),
-      query("SELECT COUNT(*) FROM deals WHERE broker_id = $1 AND status = 'Lost' AND is_deleted = false", [brokerId]),
+      query("SELECT COUNT(*) FROM deals d WHERE (d.broker_id = $1 OR EXISTS (SELECT 1 FROM collab_rooms cr WHERE cr.client_id = d.client_id AND cr.property_id = d.property_id AND (cr.broker_1_id = $1 OR cr.broker_2_id = $1))) AND d.status IN ('Closed', 'Completed') AND d.is_deleted = false", [brokerId]),
+      query("SELECT COUNT(*) FROM deals d WHERE (d.broker_id = $1 OR EXISTS (SELECT 1 FROM collab_rooms cr WHERE cr.client_id = d.client_id AND cr.property_id = d.property_id AND (cr.broker_1_id = $1 OR cr.broker_2_id = $1) AND cr.is_active = true)) AND NOT (d.status IN ('Closed', 'Completed') AND d.updated_at < NOW() - INTERVAL '7 days') AND d.status != 'Lost' AND d.is_deleted = false", [brokerId]),
+      query("SELECT COUNT(*) FROM deals d WHERE (d.broker_id = $1 OR EXISTS (SELECT 1 FROM collab_rooms cr WHERE cr.client_id = d.client_id AND cr.property_id = d.property_id AND (cr.broker_1_id = $1 OR cr.broker_2_id = $1) AND cr.is_active = true)) AND d.status = 'Lost' AND d.is_deleted = false", [brokerId]),
       query(
         `SELECT d.id, d.status, d.final_price, d.client_id, d.property_id,
                 p.title as property_title, p.cover_image_url, p.price as listing_price,
@@ -25,7 +25,13 @@ export const getDashboardOverview = async (req, res, next) => {
          JOIN properties p ON d.property_id = p.id
          JOIN contacts c ON d.client_id = c.id
          WHERE d.broker_id = $1 
-         AND d.status NOT IN ('Closed', 'Lost')
+         AND NOT EXISTS (
+           SELECT 1 FROM collab_rooms cr 
+           WHERE cr.client_id = d.client_id AND cr.property_id = d.property_id 
+             AND cr.is_active = true
+         )
+         AND NOT (d.status IN ('Closed', 'Completed') AND d.updated_at < NOW() - INTERVAL '7 days')
+         AND d.status != 'Lost'
          AND d.is_deleted = false 
          AND p.is_deleted = false 
          AND c.is_deleted = false

@@ -10,6 +10,7 @@ import {
   Send
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomerHeader from '../Components/CustomerHeader';
 import StageIndicator from '../Components/CustomerDetailComponents/StageIndicator';
 import PropertyListItem from '../Components/CustomerDetailComponents/PropertyListItem';
@@ -30,11 +31,13 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import AddModal from './AddModal';
 import SiteVisitMapModal from './SiteVisitMapModal';
-import { visitsAPI, customersAPI } from '../config/api';
+import CollaborationSheet from './CollaborationSheet';
+import { visitsAPI, customersAPI, collabAPI } from '../config/api';
 import { showToast } from '../utils/toast';
 
 // --- SALES STAGES LIST ---
@@ -75,6 +78,7 @@ const formatBudget = (min, max) => {
 
 const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp, onStartDeal, onOpenDeal, onEditTask, onDeleteTask, onUpdateStage, onSelectProperties, openMapView = false, asScreen = false }) => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [activeDetailTab, setActiveDetailTab] = useState('Overview'); // 'Overview' | 'Connect'
 
   // Get followUps and deals directly from Redux for real-time updates
@@ -97,6 +101,37 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
   const [requestMessage, setRequestMessage] = useState('');
   const sentConnectRequests = useSelector((state) => state.ui.sentConnectRequests);
   const hasSentRequest = sentConnectRequests.includes(customer.id);
+
+  const user = useSelector((state) => state.auth.user);
+  const myId = user?.id || 'dummy-broker-id';
+  const [collabRoom, setCollabRoom] = useState(null);
+  const [loadingCollabRoom, setLoadingCollabRoom] = useState(false);
+  const [collabModalOpen, setCollabModalOpen] = useState(false);
+  const [collabModalRoomId, setCollabModalRoomId] = useState(null);
+
+  useEffect(() => {
+    const fetchCollabRoom = async () => {
+      const roomId = customer.collaborationRoomId || customer.collaboration_room_id;
+      if (roomId) {
+        try {
+          setLoadingCollabRoom(true);
+          const response = await collabAPI.getActiveRooms();
+          if (response.data.success) {
+            const rooms = response.data.data;
+            const foundRoom = rooms.find(r => String(r.id) === String(roomId));
+            if (foundRoom) {
+              setCollabRoom(foundRoom);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading collab room details in customer detail:", error);
+        } finally {
+          setLoadingCollabRoom(false);
+        }
+      }
+    };
+    fetchCollabRoom();
+  }, [customer.collaborationRoomId, customer.collaboration_room_id]);
 
   // Fetch customer details on mount to get latest property selections
   useEffect(() => {
@@ -212,7 +247,10 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
   }, [activeDeals, customer.id]);
 
   const dealtPropertyIds = useMemo(() => {
-    return customerDeals.map(d => d.propertyId);
+    // Only count as a started deal if its status/stage is not 'Interested'
+    return customerDeals
+      .filter(d => d.stage !== 'Interested' && d.status !== 'Interested')
+      .map(d => d.propertyId);
   }, [customerDeals]);
 
   const propertiesToShow = useMemo(() => {
@@ -405,11 +443,244 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
           {/* Main Content */}
           <ScrollView
             style={styles.content}
-            contentContainerStyle={{ paddingBottom: 100 }}
+            contentContainerStyle={{ paddingBottom: 120 }}
             showsVerticalScrollIndicator={false}
           >
             {activeDetailTab === 'Overview' ? (
               <View>
+
+            {/* Collaboration Room info for collaborated clients */}
+            {customer.collaborated && (
+              <View style={{
+                backgroundColor: '#f5f3ff',
+                borderColor: '#c084fc',
+                borderWidth: 1,
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 20,
+              }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Shield size={16} color="#7c3aed" />
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#7c3aed', fontFamily: 'Montserrat_700Bold' }}>
+                      Collaboration Active
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: collabRoom?.stage === 'Deal' ? '#d1fae5' : '#eff6ff',
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 6,
+                  }}>
+                    <Text style={{ fontSize: 9, fontWeight: '700', color: collabRoom?.stage === 'Deal' ? '#059669' : '#2563eb', fontFamily: 'Montserrat_700Bold' }}>
+                      {collabRoom?.stage === 'Deal' ? 'DEAL STAGE' : 'VISIT STAGE'}
+                    </Text>
+                  </View>
+                </View>
+
+                {loadingCollabRoom ? (
+                  <ActivityIndicator size="small" color="#7c3aed" />
+                ) : collabRoom ? (
+                  <View>
+                    {/* Partner Profile Info Card */}
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: '#ffffff',
+                      borderRadius: 12,
+                      padding: 12,
+                      marginBottom: 12,
+                      borderColor: '#e5e7eb',
+                      borderWidth: 1,
+                    }}>
+                      <View style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 19,
+                        backgroundColor: '#f3e8ff',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 12,
+                      }}>
+                        <Text style={{
+                          color: '#7c3aed',
+                          fontSize: 14,
+                          fontWeight: '700',
+                          fontFamily: 'Montserrat_700Bold',
+                        }}>
+                          {String(collabRoom.broker_1_id === myId ? collabRoom.broker_2_name : collabRoom.broker_1_name).charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#8b5cf6', fontFamily: 'Montserrat_700Bold', marginBottom: 2 }}>
+                          PARTNER BROKER
+                        </Text>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#1f2937', fontFamily: 'Montserrat_700Bold' }}>
+                          {String(collabRoom.broker_1_id === myId ? collabRoom.broker_2_name : collabRoom.broker_1_name)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Info Grid (2 Columns) */}
+                    <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+                      {/* Grid Item 1: Commission Split */}
+                      <View style={{
+                        flex: 1,
+                        backgroundColor: '#ffffff',
+                        borderRadius: 12,
+                        padding: 12,
+                        borderColor: '#e5e7eb',
+                        borderWidth: 1,
+                        alignItems: 'center',
+                      }}>
+                        <Text style={{ fontSize: 9, fontWeight: '700', color: '#6b7280', fontFamily: 'Montserrat_700Bold', marginBottom: 4 }}>
+                          COMMISSION SPLIT
+                        </Text>
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: '#7c3aed', fontFamily: 'Montserrat_700Bold' }}>
+                          {String(collabRoom.commission_split)}
+                        </Text>
+                      </View>
+
+                      {/* Grid Item 2: Pipeline Stage */}
+                      <View style={{
+                        flex: 1,
+                        backgroundColor: '#ffffff',
+                        borderRadius: 12,
+                        padding: 12,
+                        borderColor: '#e5e7eb',
+                        borderWidth: 1,
+                        alignItems: 'center',
+                      }}>
+                        <Text style={{ fontSize: 9, fontWeight: '700', color: '#6b7280', fontFamily: 'Montserrat_700Bold', marginBottom: 4 }}>
+                          STAGE STATUS
+                        </Text>
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: collabRoom?.stage === 'Deal' ? '#10b981' : '#2563eb', fontFamily: 'Montserrat_700Bold', textTransform: 'uppercase' }}>
+                          {collabRoom?.stage === 'Visit' ? 'Site Visit' : collabRoom?.stage}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Action Buttons */}
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <TouchableOpacity
+                        style={{
+                          flex: 1,
+                          backgroundColor: '#7c3aed',
+                          paddingVertical: 12,
+                          borderRadius: 12,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          shadowColor: '#7c3aed',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 4,
+                          elevation: 1,
+                        }}
+                        onPress={() => {
+                          if (collabRoom?.stage === 'Deal' || collabRoom?.stage === 'Closed' || collabRoom?.stage === 'Paid') {
+                            const matchingDeal = activeDeals?.find(d => 
+                              String(d.customerId || d.client_id) === String(customer.id) &&
+                              String(d.propertyId || d.property_id) === String(collabRoom?.property_id)
+                            ) || {
+                              id: customer.dealId || collabRoom?.dealId || 99,
+                              customerId: customer.id,
+                              propertyId: collabRoom?.property_id,
+                              roomId: collabRoom?.id,
+                              stage: collabRoom?.stage || 'Negotiation',
+                              status: collabRoom?.stage || 'Negotiation',
+                              client_name: customer.name || customer.full_name,
+                              client_phone: customer.phone,
+                              property_title: collabRoom?.property_title || collabRoom?.property || 'Property Details',
+                              cover_image_url: collabRoom?.property_image || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
+                              listing_price: collabRoom?.property_price
+                            };
+                            if (matchingDeal && onOpenDeal) {
+                              onOpenDeal(matchingDeal);
+                            } else {
+                              router.push('/deal-page');
+                            }
+                          } else {
+                            setCollabModalRoomId(collabRoom.id);
+                            setCollabModalOpen(true);
+                          }
+                        }}
+                      >
+                        <Text style={{ color: 'white', fontSize: 11, fontWeight: '700', fontFamily: 'Montserrat_700Bold' }}>
+                          Open Room (Visits)
+                        </Text>
+                      </TouchableOpacity>
+
+                      {collabRoom.stage !== 'Deal' && collabRoom.stage !== 'Closed' && collabRoom.stage !== 'Paid' ? (
+                        <TouchableOpacity
+                          style={{
+                            flex: 1,
+                            backgroundColor: '#16a34a',
+                            paddingVertical: 12,
+                            borderRadius: 12,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            shadowColor: '#16a34a',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 4,
+                            elevation: 1,
+                          }}
+                          onPress={async () => {
+                            try {
+                              const storeProperty = properties?.find(p => String(p.id) === String(collabRoom?.property_id));
+                              if (onStartDeal && storeProperty) {
+                                await onStartDeal(customer, storeProperty);
+                              } else {
+                                const res = await collabAPI.startDeal(collabRoom.id);
+                                if (res.data.success) {
+                                  showToast.success('Deal started! Competitor rooms deactivated.');
+                                  onClose();
+                                  setTimeout(() => {
+                                    router.push('/deal-page');
+                                  }, 100);
+                                }
+                              }
+                            } catch (err) {
+                              showToast.error('Failed to start deal');
+                            }
+                          }}
+                        >
+                          <Text style={{ color: 'white', fontSize: 11, fontWeight: '700', fontFamily: 'Montserrat_700Bold' }}>
+                            Start Deal
+                          </Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          style={{
+                            flex: 1,
+                            backgroundColor: '#1f2937',
+                            paddingVertical: 12,
+                            borderRadius: 12,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            shadowColor: '#1f2937',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 4,
+                            elevation: 1,
+                          }}
+                          onPress={() => {
+                            onClose();
+                            router.push('/deal-page');
+                          }}
+                        >
+                          <Text style={{ color: 'white', fontSize: 11, fontWeight: '700', fontFamily: 'Montserrat_700Bold' }}>
+                            Open Deal Page
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Loading collaboration details...</Text>
+                )}
+              </View>
+            )}
 
             {/* --- UPDATED NEXT STEP CARD (Vertical Layout + Full Width Button) --- */}
             {showNextStepCard && (
@@ -548,9 +819,9 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
                         <View style={styles.matchContent}>
                           <View>
                             <Text style={styles.matchTitle} numberOfLines={1}>{prop.title}</Text>
-                            <View style={styles.rowCenter}>
-                              <MapPin size={12} color="#9ca3af" />
-                              <Text style={styles.matchLoc} numberOfLines={1}>{prop.location}</Text>
+                            <View style={[styles.rowCenter, { alignItems: 'flex-start', marginTop: 2 }]}>
+                              <MapPin size={12} color="#9ca3af" style={{ marginTop: 2 }} />
+                              <Text style={[styles.matchLoc, { flex: 1 }]} numberOfLines={2}>{prop.address || prop.location}</Text>
                             </View>
                           </View>
 
@@ -602,9 +873,9 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
                           <View style={styles.matchContent}>
                             <View>
                               <Text style={styles.matchTitle} numberOfLines={1}>{prop.title}</Text>
-                              <View style={styles.rowCenter}>
-                                <MapPin size={12} color="#9ca3af" />
-                                <Text style={styles.matchLoc} numberOfLines={1}>{prop.location}</Text>
+                              <View style={[styles.rowCenter, { alignItems: 'flex-start', marginTop: 2 }]}>
+                                <MapPin size={12} color="#9ca3af" style={{ marginTop: 2 }} />
+                                <Text style={[styles.matchLoc, { flex: 1 }]} numberOfLines={2}>{prop.address || prop.location}</Text>
                               </View>
                             </View>
 
@@ -713,7 +984,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
 
             {/* Tasks - Show for Site Visit and other stages (except New) */}
             {customer.stage !== 'New' && (customer.stage === 'Site Visit' || customerTasks.length > 0) && (
-              <View style={styles.section}>
+              <View style={[styles.section, { marginBottom: 40 }]}>
                 <Text style={styles.sectionTitle}>Tasks ({customerTasks.length})</Text>
                 {customerTasks.length > 0 ? (
                   <View style={styles.listContainer}>
@@ -745,7 +1016,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
                     <Text style={{ fontSize: 16, fontWeight: '700', color: '#7c3aed', fontFamily: 'Montserrat_700Bold' }}>Anonymous Requirement</Text>
                   </View>
                   <Text style={{ fontSize: 12, color: '#6b7280', lineHeight: 18, marginBottom: 16, fontFamily: 'Lato_400Regular' }}>
-                    Jab aap match dhundoge, dusre brokers ko sirf requirement dikhegi - naam/phone nahi.
+                    When you search for matches, other brokers will only see the requirement - not your name or phone number.
                   </Text>
                   
                   <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 14, gap: 10 }}>
@@ -753,11 +1024,16 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
                       Budget: <Text style={{ fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>₹{formatBudget(customer.budgetMin, customer.budgetMax)}</Text>
                     </Text>
                     <Text style={{ fontSize: 13, color: '#4b5563', fontFamily: 'Lato_400Regular' }}>
-                      Chahiye: <Text style={{ fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{customer.configuration || '3 BHK'}, {customer.location || 'Bandra'}</Text>
+                      Required: <Text style={{ fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{customer.configuration || '3 BHK'}, {customer.preferredLocation ? (customer.preferredLocation.split(';').map(loc => loc.split(',')[0].trim()).join(', ')) : 'Bandra'}</Text>
                     </Text>
                     <Text style={{ fontSize: 13, color: '#4b5563', fontFamily: 'Lato_400Regular' }}>
-                      Type: <Text style={{ fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{customer.type || 'Flat'}</Text>
+                      Type: <Text style={{ fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{customer.propertyType || 'Flat'}</Text>
                     </Text>
+                    {customer.furnishing && (
+                      <Text style={{ fontSize: 13, color: '#4b5563', fontFamily: 'Lato_400Regular' }}>
+                        Furnishing: <Text style={{ fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>{customer.furnishing}</Text>
+                      </Text>
+                    )}
                   </View>
                 </View>
 
@@ -796,31 +1072,67 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
                       </View>
                     </View>
                   ) : (
-                    <Text style={{ fontSize: 13, color: '#9ca3af', fontFamily: 'Lato_400Regular' }}>Is client ke liye abhi koi request nahi.</Text>
+                    <Text style={{ fontSize: 13, color: '#9ca3af', fontFamily: 'Lato_400Regular' }}>No requests for this client yet.</Text>
                   )}
                 </View>
 
                 {/* Active Collaboration Rooms (Accepted Rooms) */}
                 <View style={[styles.collabSectionCard, { padding: 18, marginBottom: 16 }]}>
                   <Text style={{ fontSize: 15, fontWeight: '700', color: '#1f2937', marginBottom: 12, fontFamily: 'Montserrat_700Bold' }}>Active Collaborations</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' }}>
-                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#6b7280', fontFamily: 'Montserrat_700Bold' }}>A</Text>
+                  {loadingCollabRoom ? (
+                    <ActivityIndicator size="small" color="#7c3aed" />
+                  ) : collabRoom ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' }}>
+                      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#6b7280', fontFamily: 'Montserrat_700Bold' }}>
+                          {String((collabRoom.broker_1_id === myId ? collabRoom.broker_2_name : collabRoom.broker_1_name) || '').charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>
+                          {String(collabRoom.broker_1_id === myId ? collabRoom.broker_2_name : collabRoom.broker_1_name)}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>
+                          {`Verified Broker · ${collabRoom.commission_split} Split`}
+                        </Text>
+                      </View>
+                      <TouchableOpacity 
+                        onPress={() => {
+                          if (collabRoom?.stage === 'Deal' || collabRoom?.stage === 'Closed' || collabRoom?.stage === 'Paid') {
+                            const matchingDeal = activeDeals?.find(d => 
+                              String(d.customerId || d.client_id) === String(customer.id) &&
+                              String(d.propertyId || d.property_id) === String(collabRoom?.property_id)
+                            ) || {
+                              id: customer.dealId || collabRoom?.dealId || 99,
+                              customerId: customer.id,
+                              propertyId: collabRoom?.property_id,
+                              roomId: collabRoom?.id,
+                              stage: collabRoom?.stage || 'Negotiation',
+                              status: collabRoom?.stage || 'Negotiation',
+                              client_name: customer.name || customer.full_name,
+                              client_phone: customer.phone,
+                              property_title: collabRoom?.property_title || collabRoom?.property || 'Property Details',
+                              cover_image_url: collabRoom?.property_image || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
+                              listing_price: collabRoom?.property_price
+                            };
+                            if (matchingDeal && onOpenDeal) {
+                              onOpenDeal(matchingDeal);
+                            } else {
+                              router.push('/deal-page');
+                            }
+                          } else {
+                            setCollabModalRoomId(collabRoom.id);
+                            setCollabModalOpen(true);
+                          }
+                        }}
+                        style={{ backgroundColor: '#635BFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
+                      >
+                        <Text style={{ fontSize: 11, color: 'white', fontWeight: 'bold', fontFamily: 'Montserrat_700Bold' }}>Open Room</Text>
+                      </TouchableOpacity>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', fontFamily: 'Montserrat_700Bold' }}>Amit Verma</Text>
-                      <Text style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Lato_400Regular' }}>Verified Broker · 50/50 Split</Text>
-                    </View>
-                    <TouchableOpacity 
-                      onPress={() => {
-                        onClose();
-                        router.push('/collab-page?roomId=1');
-                      }}
-                      style={{ backgroundColor: '#635BFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
-                    >
-                      <Text style={{ fontSize: 11, color: 'white', fontWeight: 'bold', fontFamily: 'Montserrat_700Bold' }}>Open Room</Text>
-                    </TouchableOpacity>
-                  </View>
+                  ) : (
+                    <Text style={{ fontSize: 13, color: '#9ca3af', fontFamily: 'Lato_400Regular' }}>No collaborations for this client yet.</Text>
+                  )}
                 </View>
               </View>
             )}
@@ -899,15 +1211,17 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
                 <Text style={styles.visitSitesButtonText}>Visit Sites ({selectedPropertyIds.length})</Text>
               </TouchableOpacity>
             )}
-
-            {/* Floating Add Follow Up Button */}
-            <TouchableOpacity
-              style={styles.floatingAddButton}
-              onPress={() => setShowAddFollowUpModal(true)}
-            >
-              <Plus size={24} color="white" />
-            </TouchableOpacity>
           </View>
+        )}
+
+        {/* Floating Add Follow Up Button */}
+        {activeDetailTab === 'Overview' && customer.stage === 'Site Visit' && (
+          <TouchableOpacity
+            style={styles.floatingAddButton}
+            onPress={() => setShowAddFollowUpModal(true)}
+          >
+            <Plus size={24} color="white" />
+          </TouchableOpacity>
         )}
 
         {/* Fixed Bottom Button - Show only for Interested stage */}
@@ -936,7 +1250,7 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
             setShowMapView(false);
             setIsPropertyExpanded(false);
           }}
-          properties={properties.filter(p => selectedPropertyIds.includes(p.id))}
+          properties={properties.filter(p => selectedPropertyIds.map(String).includes(String(p.id)))}
           customer={customer}
           onPropertyInterested={handlePropertyInterested}
           onPropertyNotInterested={handlePropertyNotInterested}
@@ -969,6 +1283,13 @@ const CustomerDetailSheet = ({ customer, onClose, properties = [], onAddFollowUp
         customers={[customer]}
         properties={properties}
       />
+      {collabModalOpen && (
+        <CollaborationSheet
+          isOpen={collabModalOpen}
+          onClose={() => setCollabModalOpen(false)}
+          initialRoomId={collabModalRoomId}
+        />
+      )}
     </>
   );
 
@@ -1463,6 +1784,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     zIndex: 50,
   },
+  pickerContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
   pickerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1501,7 +1826,7 @@ const styles = StyleSheet.create({
     color: '#111827',
     padding: 0,
   },
-  pickerContent: { padding: 20, paddingTop: 8 },
+  pickerContent: { flex: 1, padding: 20, paddingTop: 8 },
   pickerItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1519,7 +1844,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
   },
   pickerItemTitle: { fontSize: 14, fontWeight: 'bold' },
-  pickerItemLocation: { fontSize: 11, color: '#9ca3af', marginLeft: 4 },
+  pickerItemLocation: { fontSize: 11, color: '#9ca3af', marginLeft: 4, flex: 1 },
   pickerItemPrice: { fontSize: 13, color: '#6b7280', marginTop: 4 },
 
   // Stage Indicator
@@ -1791,7 +2116,7 @@ const styles = StyleSheet.create({
     borderColor: '#a78bfa',
   },
 
-  // Fixed Bottom Button
+  // Fixed Bottom Container
   fixedBottomContainer: {
     position: 'absolute',
     bottom: 0,
@@ -1799,13 +2124,28 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: 'white',
     paddingHorizontal: 20,
-    paddingVertical: 10,
-    paddingBottom: 10,
+    paddingVertical: 12,
+    paddingBottom: 58,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
     shadowColor: '#000',
-
-
+  },
+  floatingAddButton: {
+    position: 'absolute',
+    bottom: 135,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#7c3aed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
+    zIndex: 99,
   },
   visitSitesButton: {
     flexDirection: 'row',

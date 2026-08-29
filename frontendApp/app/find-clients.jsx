@@ -1,14 +1,22 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, StyleSheet, ActivityIndicator } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { ArrowLeft, Search, Shield, ChevronRight, Check, Send, Users } from 'lucide-react-native';
 import { addSentConnectRequest } from '../src/store/slices/uiSlice';
 import { showToast } from '../src/utils/toast';
+import { collabAPI } from '../src/config/api';
 
 export default function FindClientsScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
+  const params = useLocalSearchParams();
+
+  // View state management: 'list' | 'detail' | 'request'
+  const [step, setStep] = useState(params.initialStep || 'list');
+  const [selectedBrokerMatch, setSelectedBrokerMatch] = useState(null);
+  const [selectedSplit, setSelectedSplit] = useState('50-50');
+  const [requestMessage, setRequestMessage] = useState('');
   
   // Get active selected property from Redux
   const { selectedProperty } = useSelector((state) => state.properties);
@@ -18,49 +26,61 @@ export default function FindClientsScreen() {
   const { customers } = useSelector((state) => state.customers);
   const allCustomers = customers || [];
 
-  const matchedBrokerClients = useMemo(() => {
-    if (!property) return [];
-    return allCustomers
-      .map(cust => {
-        // Calculate dynamic compatibility score
-        const sameBhk = cust.bhk === property.configuration || cust.configuration === property.configuration || cust.bhk === property.bhk;
-        const budgetMatch = property.price >= (cust.budgetMin || 0) && property.price <= (cust.budgetMax || 990000000);
-        const locMatch = property.location?.toLowerCase().includes((cust.preferredLocation || cust.location || '').toLowerCase()) || 
-                         (cust.preferredLocation || cust.location || '').toLowerCase().includes(property.location?.toLowerCase() || '');
-        
-        let compat = 20; // base score
-        if (sameBhk) compat += 30;
-        if (budgetMatch) compat += 30;
-        if (locMatch) compat += 20;
-        
-        const brokerName = cust.brokerName || 'Client Broker';
-        const initials = brokerName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  const [matchedBrokerClients, setMatchedBrokerClients] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-        return {
-          id: cust.id,
-          name: brokerName,
-          compat: compat,
-          bhk: cust.bhk || cust.configuration || '2 BHK',
-          price: `₹${(cust.budgetMin || 10000) >= 10000000 ? ((cust.budgetMin || 10000) / 10000000).toFixed(1) + ' Cr' : ((cust.budgetMin || 10000) / 100000).toFixed(0) + ' L'} - ₹${(cust.budgetMax || 99000000) >= 10000000 ? ((cust.budgetMax || 99000000) / 10000000).toFixed(1) + ' Cr' : ((cust.budgetMax || 99000000) / 100000).toFixed(0) + ' L'}`,
-          loc: cust.preferredLocation || cust.location || 'Mumbai',
-          initial: initials || 'CB',
-          client: cust
-        };
-      })
-      .sort((a, b) => b.compat - a.compat);
-  }, [allCustomers, property]);
+  useEffect(() => {
+    const fetchMatches = async () => {
+      setLoading(true);
+      try {
+        const res = await collabAPI.getMatchingClients(property.id);
+        if (res.data.success) {
+          const mapped = res.data.data.map(item => {
+            const brokerName = item.broker_name || 'Client Broker';
+            const initials = brokerName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+            return {
+              id: item.id,
+              name: brokerName,
+              compat: Math.round(item.compatibility || 50),
+              bhk: item.configuration || '2 BHK',
+              price: `₹${(item.budget_min || 10000) >= 10000000 ? ((item.budget_min || 10000) / 10000000).toFixed(1) + ' Cr' : ((item.budget_min || 10000) / 100000).toFixed(0) + ' L'} - ₹${(item.budget_max || 99000000) >= 10000000 ? ((item.budget_max || 99000000) / 10000000).toFixed(1) + ' Cr' : ((item.budget_max || 99000000) / 100000).toFixed(0) + ' L'}`,
+              loc: item.preferred_location || 'Mumbai',
+              initial: initials || 'CB',
+              requestStatus: item.request_status,
+              client: item
+            };
+          });
+          setMatchedBrokerClients(mapped);
 
-  // View state management: 'list' | 'detail' | 'request'
-  const [step, setStep] = useState('list');
-  const [selectedBrokerMatch, setSelectedBrokerMatch] = useState(null);
-  const [selectedSplit, setSelectedSplit] = useState('50-50');
-  const [requestMessage, setRequestMessage] = useState('');
+          if (params.initialStep === 'detail' && params.matchedId) {
+            const matchedItem = mapped.find(item => String(item.id) === String(params.matchedId));
+            if (matchedItem) {
+              setSelectedBrokerMatch(matchedItem);
+            } else {
+              setStep('list');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching matching clients:', err);
+        showToast.error('Failed to load matching clients');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (property?.id) {
+      fetchMatches();
+    }
+  }, [property?.id, params.initialStep, params.matchedId]);
+
+  // Screen body logic below
 
   if (!property) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>No Property Selected</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/dashboard')}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -76,10 +96,26 @@ export default function FindClientsScreen() {
     return `₹${amount} L`;
   };
 
-  const handleConfirmSend = () => {
-    dispatch(addSentConnectRequest(property.id));
-    showToast.success(`Request sent to ${selectedBrokerMatch?.name || 'Ravi Sir'}!`);
-    router.back();
+  const handleConfirmSend = async () => {
+    try {
+      const payload = {
+        property_id: property.id,
+        client_id: selectedBrokerMatch.client.id,
+        role: 'Property-side',
+        proposed_split: selectedSplit.replace('-', '/'),
+        message: requestMessage || `Hi, I have a property (${property.title}) that matches your client's requirements. Let's collaborate!`
+      };
+      
+      const res = await collabAPI.sendProposal(payload);
+      if (res.data.success) {
+        dispatch(addSentConnectRequest(property.id));
+        showToast.success(`Request sent to ${selectedBrokerMatch?.name || 'Broker'}!`);
+        router.replace('/dashboard');
+      }
+    } catch (err) {
+      console.error('Error sending collaboration proposal:', err);
+      showToast.error(err.response?.data?.message || 'Failed to send collaboration request');
+    }
   };
 
   return (
@@ -89,10 +125,11 @@ export default function FindClientsScreen() {
         <View style={{ flex: 1 }}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+            <TouchableOpacity onPress={() => router.replace('/dashboard')} style={styles.iconButton}>
               <ArrowLeft size={24} color="#111827" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Find Matching Clients</Text>
+            <View style={{ width: 32 }} />
           </View>
 
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -107,16 +144,23 @@ export default function FindClientsScreen() {
             <View style={styles.warningBanner}>
               <Shield size={20} color="#d97706" />
               <Text style={styles.warningText}>
-                Client ka phone number aur name hidden hai. Accept hone ke baad unlock hoga.
+                Client's name and phone number are hidden. They will unlock after the request is accepted.
               </Text>
             </View>
 
             {/* Match Heading */}
-            <Text style={styles.sectionHeading}>{matchedBrokerClients.length} clients mile aapki property ke liye</Text>
+            <Text style={styles.sectionHeading}>
+              {loading ? 'Finding clients...' : `${matchedBrokerClients.length} matching clients found for your property`}
+            </Text>
 
             {/* Matches Cards */}
             <View style={{ gap: 12 }}>
-              {matchedBrokerClients.length === 0 ? (
+              {loading ? (
+                <View style={{ padding: 40, alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color="#635BFF" />
+                  <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 12, fontFamily: 'Montserrat_500Medium' }}>Finding matching clients...</Text>
+                </View>
+              ) : matchedBrokerClients.length === 0 ? (
                 <View style={{ padding: 24, alignItems: 'center', backgroundColor: '#f9fafb', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' }}>
                   <Text style={{ color: '#6b7280', fontSize: 14, fontFamily: 'Montserrat_500Medium' }}>No matching clients found in CRM.</Text>
                 </View>
@@ -139,6 +183,13 @@ export default function FindClientsScreen() {
                         <View style={styles.scoreBadge}>
                           <Text style={styles.scoreText}>{item.compat}% Match</Text>
                         </View>
+                        {item.requestStatus && (
+                          <View style={{ backgroundColor: item.requestStatus === 'Matched' ? '#FEF3C7' : '#D1FAE5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 0.5, borderColor: item.requestStatus === 'Matched' ? '#FCD34D' : '#A7F3D0' }}>
+                            <Text style={{ fontSize: 9, fontWeight: '700', color: item.requestStatus === 'Matched' ? '#B45309' : '#065F46', fontFamily: 'Montserrat_700Bold' }}>
+                              {item.requestStatus === 'Matched' ? 'SENT' : 'ACTIVE'}
+                            </Text>
+                          </View>
+                        )}
                       </View>
                       <Text style={styles.matchDetails}>{item.bhk} • {item.price}</Text>
                       <Text style={styles.matchLocality}>{item.loc}</Text>
@@ -157,10 +208,20 @@ export default function FindClientsScreen() {
         <View style={{ flex: 1 }}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => setStep('list')} style={styles.iconButton}>
+            <TouchableOpacity 
+              onPress={() => {
+                if (params.initialStep === 'detail') {
+                  router.replace('/dashboard');
+                } else {
+                  setStep('list');
+                }
+              }} 
+              style={styles.iconButton}
+            >
               <ArrowLeft size={24} color="#111827" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Client Details</Text>
+            <View style={{ width: 32 }} />
           </View>
 
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -172,14 +233,16 @@ export default function FindClientsScreen() {
                 </View>
                 <View>
                   <Text style={styles.brokerNameText}>{selectedBrokerMatch?.name}</Text>
-                  <Text style={styles.brokerAgencyText}>Verified Broker • Mumbai</Text>
+                  <Text style={styles.brokerAgencyText}>
+                    {`Verified Broker • ${selectedBrokerMatch?.loc ? selectedBrokerMatch.loc.split(',').pop().trim() : 'Mumbai'}`}
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.lockInfoBox}>
                 <Shield size={16} color="#7c3aed" />
                 <Text style={styles.lockInfoText}>
-                  Contact details request accept hone ke baad unlock honge.
+                  Contact details will be unlocked after the request is accepted.
                 </Text>
               </View>
             </View>
@@ -216,14 +279,26 @@ export default function FindClientsScreen() {
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${selectedBrokerMatch?.compat || 91}%` }]} />
               </View>
-              <Text style={styles.scoreSubtext}>Budget, locality, BHK sab match karte hain</Text>
+              <Text style={styles.scoreSubtext}>Budget, locality, and BHK all match</Text>
             </View>
 
             {/* Send Request Button */}
-            <TouchableOpacity style={styles.submitButton} onPress={() => setStep('request')}>
-              <Text style={styles.submitButtonText}>Send Request</Text>
-              <Send size={18} color="white" />
-            </TouchableOpacity>
+            {selectedBrokerMatch?.requestStatus ? (
+              <TouchableOpacity 
+                style={[styles.submitButton, { backgroundColor: '#10B981', opacity: 0.9 }]} 
+                disabled={true}
+              >
+                <Text style={styles.submitButtonText}>
+                  {selectedBrokerMatch.requestStatus === 'Matched' ? 'Request Sent (Pending)' : 'Already Active in Collab'}
+                </Text>
+                <Check size={18} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.submitButton} onPress={() => setStep('request')}>
+                <Text style={styles.submitButtonText}>Proceed to Split Details</Text>
+                <Send size={18} color="white" />
+              </TouchableOpacity>
+            )}
           </ScrollView>
         </View>
       )}
@@ -237,6 +312,7 @@ export default function FindClientsScreen() {
               <ArrowLeft size={24} color="#111827" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Send Request</Text>
+            <View style={{ width: 32 }} />
           </View>
 
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -332,22 +408,27 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 50,
     paddingBottom: 16,
     paddingHorizontal: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderColor: '#e5e7eb',
-    gap: 12,
   },
   iconButton: {
     padding: 4,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
     fontFamily: 'Montserrat_700Bold',
+    textAlign: 'center',
   },
   scrollContent: {
     padding: 16,
@@ -516,17 +597,22 @@ const styles = StyleSheet.create({
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    width: '100%',
   },
   detailLabel: {
     fontSize: 13,
     color: '#6b7280',
     fontFamily: 'Lato_400Regular',
+    width: '30%',
   },
   detailValue: {
     fontSize: 13,
     fontWeight: 'bold',
     color: '#111827',
     fontFamily: 'Montserrat_700Bold',
+    width: '70%',
+    textAlign: 'right',
   },
   scoreBarCard: {
     backgroundColor: 'white',

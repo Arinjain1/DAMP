@@ -100,10 +100,13 @@ export const submitVisitFeedback = async (req, res, next) => {
       const { broker_id, client_id } = visitInfo.rows[0];
       const dealCheck = await query(`SELECT id FROM deals WHERE client_id = $1 AND property_id = $2`, [client_id, item.property_id]);
       if (dealCheck.rows.length === 0) {
+        const propRes = await query(`SELECT price FROM properties WHERE id = $1`, [item.property_id]);
+        const propertyPrice = propRes.rows[0]?.price || null;
+
         await query(
-          `INSERT INTO deals (broker_id, client_id, property_id, status) 
-           VALUES ($1, $2, $3, 'Interested')`,
-          [broker_id, client_id, item.property_id]
+          `INSERT INTO deals (broker_id, client_id, property_id, status, expected_price) 
+           VALUES ($1, $2, $3, 'Interested', $4)`,
+          [broker_id, client_id, item.property_id, propertyPrice]
         );
       }
     }

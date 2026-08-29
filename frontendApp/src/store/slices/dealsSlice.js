@@ -19,6 +19,7 @@ export const fetchDeals = createAsyncThunk(
           startedAt: deal.created_at,
           finalPrice: deal.final_price,
           tokenAmount: deal.token_amount,
+          expectedPrice: deal.expected_price,
           // Include customer info
           client_name: deal.client_name,
           client_phone: deal.client_phone,
@@ -27,7 +28,7 @@ export const fetchDeals = createAsyncThunk(
           property_address: deal.property_address,
           city: deal.city,
           cover_image_url: deal.cover_image_url,
-          listing_price: deal.final_price,
+          listing_price: deal.listing_price || deal.expected_price || deal.final_price,
           meetings: []
         }));
       }
@@ -61,23 +62,24 @@ export const fetchDealById = createAsyncThunk(
       if (response.data.success) {
         const deal = response.data.data;
         return {
-          id: deal.id,
-          customerId: deal.client_id,
-          propertyId: deal.property_id,
+          id: deal.deal_id || deal.id,
+          customerId: deal.client_id || deal.customerId,
+          propertyId: deal.property_id || deal.propertyId,
           stage: deal.status,
           status: deal.status,
           startedAt: deal.created_at,
           finalPrice: deal.final_price,
           tokenAmount: deal.token_amount,
+          expectedPrice: deal.expected_price,
           // Include customer info
           client_name: deal.client_name,
           client_phone: deal.client_phone,
           // Include property info
-          property_title: deal.property_title,
-          property_address: deal.property_address,
+          property_title: deal.title || deal.property_title,
+          property_address: deal.address || deal.property_address,
           city: deal.city,
           cover_image_url: deal.cover_image_url,
-          listing_price: deal.final_price,
+          listing_price: deal.price || deal.listing_price || deal.expected_price || deal.final_price,
           meetings: deal.meetings || []
         };
       }
@@ -250,33 +252,7 @@ const dealsSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchDeals.fulfilled, (state, action) => {
-        const loadedDeals = action.payload || [];
-        const hasMockDeal = loadedDeals.some(d => d.customerId === 'mock-manas');
-        
-        const mockDeals = [];
-        if (!hasMockDeal) {
-          mockDeals.push({
-            id: 'mock-deal-manas',
-            customerId: 'mock-manas',
-            propertyId: 2,
-            stage: 'In-Process',
-            status: 'In-Process',
-            startedAt: new Date().toISOString(),
-            finalPrice: 5200000,
-            tokenAmount: 100000,
-            client_name: 'Manas',
-            client_phone: '9876543210',
-            property_title: '2 BHK Apartment · Nipania',
-            property_address: 'Flat 402, Nipania Hills, Indore',
-            city: 'Indore',
-            cover_image_url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
-            listing_price: 5200000,
-            roomId: 1, // Marks as collaborated
-            meetings: []
-          });
-        }
-        
-        state.deals = [...mockDeals, ...loadedDeals];
+        state.deals = action.payload || [];
         state.loading = false;
       })
       .addCase(fetchDeals.rejected, (state, action) => {
@@ -357,6 +333,12 @@ const dealsSlice = createSlice({
       .addCase(updateDealStageAPI.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      .addCase('auth/logout', (state) => {
+        state.deals = [];
+        state.selectedDeal = null;
+        state.loading = false;
+        state.error = null;
       });
   },
 });

@@ -4,7 +4,8 @@ import {
   Alert, ImageBackground, Linking, Platform, FlatList, ScrollView, StatusBar, Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Image
 } from 'react-native';
 import Skeleton from '../Components/Skeleton';
 
@@ -51,6 +52,62 @@ const getMockTask = (customerId) => {
     'c4': { title: 'Document handover', time: 'Completed', type: 'Documentation' },
   };
   return tasks[customerId] || { title: 'Follow up required', time: 'Pending', type: 'General' };
+};
+
+const getStageSuggestion = (stage) => {
+  const suggestions = {
+    'New': {
+      title: 'Make a contact call to qualify the lead.',
+      type: 'Suggested Action',
+      time: 'Call Customer'
+    },
+    'Contacted': {
+      title: 'Present matching properties or propose a site visit.',
+      type: 'Suggested Action',
+      time: 'Match Properties'
+    },
+    'Site Visit': {
+      title: 'Collect visit feedback and update interested status.',
+      type: 'Suggested Action',
+      time: 'Follow Up'
+    },
+    'Interested': {
+      title: 'Discuss budget terms, propose deal, or search partners.',
+      type: 'Suggested Action',
+      time: 'Propose Deal'
+    },
+    'In-Process': {
+      title: 'Collect token payment and update deal terms.',
+      type: 'Suggested Action',
+      time: 'Update Deal'
+    },
+    'Negotiation': {
+      title: 'Broker mediation for final price terms.',
+      type: 'Suggested Action',
+      time: 'Negotiate'
+    },
+    'Token': {
+      title: 'Initiate legal paperwork verification.',
+      type: 'Suggested Action',
+      time: 'Verify Docs'
+    },
+    'Settlement': {
+      title: 'Collect remaining balance and finalize commission split.',
+      type: 'Suggested Action',
+      time: 'Settle Split'
+    },
+    'Agreement': {
+      title: 'Register property deed and record deal registry.',
+      type: 'Suggested Action',
+      time: 'Registry'
+    },
+    'Completed': {
+      title: 'Deal successfully closed! Keep in touch for referrals.',
+      type: 'Closed Deal',
+      time: 'Closed 🎉'
+    }
+  };
+  return suggestions[stage] || suggestions['New'];
 };
 
 // --- STAGE INDICATOR COMPONENT ---
@@ -112,7 +169,25 @@ const CustomerCard = memo(({
   customer, isExpanded, onToggleExpand, onEditCustomer, onDeleteCustomer, onOpenDeal, onSelect, handleCall 
 }) => {
   const colorTheme = useMemo(() => getRandomColor(customer.name?.charAt(0)), [customer.name]);
-  const currentTask = useMemo(() => getMockTask(customer.id), [customer.id]);
+  const currentTask = useMemo(() => {
+    if (customer.nextTask) {
+      const task = customer.nextTask;
+      let timeText = 'Pending';
+      if (task.due_date) {
+        const d = new Date(task.due_date);
+        timeText = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      }
+      return {
+        title: task.title || 'Follow up required',
+        time: timeText,
+        type: task.task_type || 'General'
+      };
+    }
+    if (['c1', 'c2', 'c3', 'c4'].includes(String(customer.id))) {
+      return getMockTask(customer.id);
+    }
+    return null;
+  }, [customer.id, customer.nextTask]);
 
   const handlePressCard = useCallback(() => {
     onToggleExpand(customer.id);
@@ -153,7 +228,7 @@ const CustomerCard = memo(({
 
   return (
     <View className="bg-white rounded-2xl p-4 border border-gray-200 mb-3">
-      {(customer.collaborated || customer.name?.toLowerCase().includes('arin') || customer.name?.toLowerCase().includes('karan') || customer.isCollab) && (
+      {(customer.collaborated || customer.isCollab) && (
         <View style={{ flexDirection: 'row', justifyContent: 'flex-start', marginBottom: 8 }}>
           <View style={{ backgroundColor: '#f3e8ff', borderColor: '#e9d5ff', borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
             <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#7c3aed' }}>COLLABORATED DEAL</Text>
@@ -166,14 +241,21 @@ const CustomerCard = memo(({
         onPress={handlePressCard}
         activeOpacity={0.9}
       >
-        <View 
-          className="w-12 h-12 rounded-full items-center justify-center" 
-          style={{ backgroundColor: colorTheme.bg }}
-        >
-          <Text className="text-xl font-bold" style={{ color: colorTheme.text }}>
-            {customer.name?.charAt(0) || '?'}
-          </Text>
-        </View>
+        {customer.image ? (
+          <Image 
+            source={{ uri: customer.image }} 
+            style={{ width: 48, height: 48, borderRadius: 24 }}
+          />
+        ) : (
+          <View 
+            className="w-12 h-12 rounded-full items-center justify-center" 
+            style={{ backgroundColor: colorTheme.bg, width: 48, height: 48, borderRadius: 24 }}
+          >
+            <Text className="text-xl font-bold" style={{ color: colorTheme.text }}>
+              {customer.name?.charAt(0) || '?'}
+            </Text>
+          </View>
+        )}
         <View className="flex-1">
           <View className="flex-row items-center gap-1.5 flex-wrap">
             <Text className="text-[15px] font-bold text-[#3E3E3E] mb-0.5" numberOfLines={1}>
@@ -221,15 +303,35 @@ const CustomerCard = memo(({
       </View>
 
       {/* Expanded Task Section */}
-      {isExpanded && currentTask && (
-        <View className="rounded-xl p-3 mb-3 border border-gray-200">
-          <Text className="text-sm font-semibold text-gray-800 mb-1.5">{currentTask.title}</Text>
-          <View className="flex-row justify-between items-center">
-            <Text className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-200 px-2.5 py-1.5 rounded-lg text-center">
-              {currentTask.type}
-            </Text>
-            <Text className="text-xs font-medium text-gray-500">{currentTask.time}</Text>
-          </View>
+      {isExpanded && (
+        <View className="rounded-xl p-3 mb-3 border border-gray-200 bg-gray-50/50">
+          {currentTask ? (
+            <>
+              <Text className="text-sm font-semibold text-gray-800 mb-1.5">{currentTask.title}</Text>
+              <View className="flex-row justify-between items-center">
+                <Text className="text-[10px] font-semibold uppercase tracking-wider text-[#635BFF] bg-purple-50 px-2.5 py-1 rounded-lg text-center border border-purple-100">
+                  {currentTask.type}
+                </Text>
+                <Text className="text-xs font-semibold text-[#635BFF]">{currentTask.time}</Text>
+              </View>
+            </>
+          ) : (
+            (() => {
+              const suggestion = getStageSuggestion(customer.stage || 'New');
+              return (
+                <>
+                  <Text className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">CRM Guide: Next Action</Text>
+                  <Text className="text-sm font-semibold text-gray-700 mb-2">{suggestion.title}</Text>
+                  <View className="flex-row justify-between items-center">
+                    <Text className="text-[9px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md text-center border border-amber-100">
+                      {suggestion.type}
+                    </Text>
+                    <Text className="text-xs font-semibold text-amber-600">{suggestion.time}</Text>
+                  </View>
+                </>
+              );
+            })()
+          )}
         </View>
       )}
 

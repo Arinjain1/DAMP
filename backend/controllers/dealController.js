@@ -13,21 +13,27 @@ export const getDeals = async (req, res, next) => {
   try {
     let sql = `
       SELECT 
-        d.id, d.status, d.final_price, d.created_at, d.updated_at,
+        d.id, d.status, d.final_price, d.expected_price, d.created_at, d.updated_at,
         d.client_id, d.property_id, d.broker_id as deal_owner_id,
-        p.title as property_title, p.address as property_address, p.city, p.cover_image_url,
+        p.title as property_title, p.address as property_address, p.city, p.cover_image_url, p.price as listing_price,
         c.name as client_name, c.phone as client_phone,
         CASE WHEN d.broker_id = $1 THEN true ELSE false END as is_my_deal
       FROM deals d
       JOIN properties p ON d.property_id = p.id
       JOIN contacts c ON d.client_id = c.id
       WHERE d.is_deleted = false AND c.is_deleted = false
+      AND NOT (d.status IN ('Closed', 'Completed') AND d.updated_at < NOW() - INTERVAL '7 days')
       AND (
         d.broker_id = $1 
         OR d.property_id IN (
           SELECT DISTINCT UNNEST(shared_properties) 
           FROM collaborations 
           WHERE (sender_id = $1 OR receiver_id = $1) AND status = 'accepted'
+        )
+        OR EXISTS (
+          SELECT 1 FROM collab_rooms cr
+          WHERE cr.property_id = d.property_id AND cr.client_id = d.client_id
+            AND (cr.broker_1_id = $1 OR cr.broker_2_id = $1) AND cr.is_active = true
         )
       )
     `;
@@ -37,7 +43,7 @@ export const getDeals = async (req, res, next) => {
     else if (type === 'network') sql += ` AND d.broker_id != $1`;
 
     if (status && status !== 'All') {
-      const statusMap = { 'New': "'Interested'", 'Contacted': "('Contacted', 'Meeting')", 'Site Visit': "'Site Visit'", 'Negotiation': "'Negotiation'", 'Closed': "('Token', 'Closed')" };
+      const statusMap = { 'New': "'Interested'", 'Contacted': "('Contacted', 'Meeting')", 'Site Visit': "'Site Visit'", 'Negotiation': "'Negotiation'", 'Closed': "('Token', 'Closed', 'Completed')" };
       sql += ` AND d.status ${statusMap[status] || "= '" + status + "'"}`;
     }
 
@@ -61,9 +67,13 @@ export const createDeal = async (req, res, next) => {
   const brokerId = req.user.id;
   const { client_id, property_id } = req.body;
   try {
+    // Fetch property price to populate expected_price
+    const propRes = await query(`SELECT price FROM properties WHERE id = $1`, [property_id]);
+    const propertyPrice = propRes.rows[0]?.price || null;
+
     const result = await query(
-      `INSERT INTO deals (broker_id, client_id, property_id, status) VALUES ($1, $2, $3, 'Interested') RETURNING *`,
-      [brokerId, client_id, property_id]
+      `INSERT INTO deals (broker_id, client_id, property_id, status, expected_price) VALUES ($1, $2, $3, 'Interested', $4) RETURNING *`,
+      [brokerId, client_id, property_id, propertyPrice]
     );
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) { next(err); }
@@ -76,11 +86,63 @@ export const updateDealStage = async (req, res, next) => {
   const { outcome } = req.body;
   try {
     const statusMap = { 'interested': 'Interested', 'site_visit': 'Site Visit', 'negotiation': 'Negotiation', 'token': 'Token', 'lost': 'Lost' };
+
+    // Verify if the user is authorized to update this deal (either owner or collaborator)
+    const authCheck = await query(
+      `SELECT d.id, d.client_id, d.property_id FROM deals d
+       WHERE d.id = $1 AND d.is_deleted = false
+       AND (
+         d.broker_id = $2
+         OR EXISTS (
+           SELECT 1 FROM collab_rooms cr
+           WHERE cr.property_id = d.property_id AND cr.client_id = d.client_id
+             AND (cr.broker_1_id = $2 OR cr.broker_2_id = $2) AND cr.is_active = true
+         )
+       )`,
+      [dealId, brokerId]
+    );
+    if (authCheck.rowCount === 0) return res.status(403).json({ message: "Unauthorized" });
+
     const result = await query(
-      `UPDATE deals SET status = $1, updated_at = NOW() WHERE id = $2 AND broker_id = $3 AND is_deleted = false RETURNING *`,
-      [statusMap[outcome], dealId, brokerId]
+      `UPDATE deals SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [statusMap[outcome], dealId]
     );
     if (result.rowCount === 0) return res.status(403).json({ message: "Unauthorized" });
+
+    const updatedDeal = result.rows[0];
+
+    // Synchronize client stage in the contacts table
+    const contactStatusMap = {
+      'Interested': 'Interested',
+      'Site Visit': 'Site Visit',
+      'Negotiation': 'Negotiation',
+      'Token': 'Token',
+      'Agreement': 'Agreement',
+      'Completed': 'Completed',
+      'Closed': 'Completed',
+      'Lost': 'Closed'
+    };
+    const newContactStatus = contactStatusMap[updatedDeal.status];
+    if (newContactStatus) {
+      await query(
+        `UPDATE contacts 
+         SET status = $1, updated_at = NOW() 
+         WHERE id = $2 AND is_deleted = false`,
+        [newContactStatus, updatedDeal.client_id]
+      );
+    }
+
+    // Synchronize to collab_rooms if a collaboration exists
+    const collabStageMap = { 'Site Visit': 'Visit', 'Negotiation': 'Deal', 'Token': 'Deal', 'Agreement': 'Deal', 'Completed': 'Closed', 'Closed': 'Closed', 'Lost': 'Closed' };
+    const newCollabStage = collabStageMap[updatedDeal.status];
+    if (newCollabStage) {
+      await query(
+        `UPDATE collab_rooms 
+         SET stage = $1, updated_at = NOW() 
+         WHERE property_id = $2 AND client_id = $3 AND is_active = true`,
+        [newCollabStage, updatedDeal.property_id, updatedDeal.client_id]
+      );
+    }
     res.json({ success: true, data: result.rows[0] });
   } catch (err) { next(err); }
 };
@@ -91,9 +153,17 @@ export const getNegotiation = async (req, res, next) => {
   const dealId = req.params.dealId;
   try {
     const result = await query(
-      `SELECT id, expected_price, customer_offer, owner_counter_offer, final_price, status, broker_id
-       FROM deals WHERE id = $1 AND is_deleted = false
-       AND (broker_id = $2 OR property_id IN (SELECT DISTINCT UNNEST(shared_properties) FROM collaborations WHERE (sender_id = $2 OR receiver_id = $2) AND status = 'accepted'))`,
+      `SELECT d.id, d.expected_price, d.customer_offer, d.owner_counter_offer, d.final_price, d.status, d.broker_id
+       FROM deals d WHERE d.id = $1 AND d.is_deleted = false
+       AND (
+         d.broker_id = $2 
+         OR d.property_id IN (SELECT DISTINCT UNNEST(shared_properties) FROM collaborations WHERE (sender_id = $2 OR receiver_id = $2) AND status = 'accepted')
+         OR EXISTS (
+           SELECT 1 FROM collab_rooms cr
+           WHERE cr.property_id = d.property_id AND cr.client_id = d.client_id
+             AND (cr.broker_1_id = $2 OR cr.broker_2_id = $2) AND cr.is_active = true
+         )
+       )`,
       [dealId, brokerId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: "Deal not found" });
@@ -120,12 +190,28 @@ export const updateNegotiation = async (req, res, next) => {
       newStatus = (currentStatus === 'Token' || currentStatus === 'Completed') ? currentStatus : 'Negotiation';
     }
 
+    // Verify if the user is authorized to update this negotiation (either owner or collaborator)
+    const authCheck = await query(
+      `SELECT d.id, d.client_id, d.property_id FROM deals d
+       WHERE d.id = $1 AND d.is_deleted = false
+       AND (
+         d.broker_id = $2
+         OR EXISTS (
+           SELECT 1 FROM collab_rooms cr
+           WHERE cr.property_id = d.property_id AND cr.client_id = d.client_id
+             AND (cr.broker_1_id = $2 OR cr.broker_2_id = $2) AND cr.is_active = true
+         )
+       )`,
+      [dealId, brokerId]
+    );
+    if (authCheck.rowCount === 0) return res.status(403).json({ message: "Unauthorized" });
+
     const result = await query(
       `UPDATE deals 
        SET expected_price = $1, customer_offer = $2, owner_counter_offer = $3, final_price = $4, status = $5
-       WHERE id = $6 AND broker_id = $7 AND is_deleted = false 
+       WHERE id = $6 AND is_deleted = false 
        RETURNING *`,
-      [expected_price, customer_offer, owner_counter_offer, final_price, newStatus, dealId, brokerId]
+      [expected_price, customer_offer, owner_counter_offer, final_price, newStatus, dealId]
     );
     if (result.rowCount === 0) return res.status(403).json({ message: "Unauthorized" });
     res.json({ success: true, data: result.rows[0] });
@@ -138,7 +224,19 @@ export const addTransaction = async (req, res, next) => {
   const dealId = req.params.dealId;
   const { transaction_type, amount, payment_mode, transaction_ref, status, due_date, remark } = req.body;
   try {
-    const dealCheck = await query(`SELECT id FROM deals WHERE id = $1 AND broker_id = $2 AND is_deleted = false`, [dealId, brokerId]);
+    const dealCheck = await query(
+      `SELECT d.id FROM deals d 
+       WHERE d.id = $1 AND d.is_deleted = false 
+       AND (
+         d.broker_id = $2
+         OR EXISTS (
+           SELECT 1 FROM collab_rooms cr
+           WHERE cr.property_id = d.property_id AND cr.client_id = d.client_id
+             AND (cr.broker_1_id = $2 OR cr.broker_2_id = $2) AND cr.is_active = true
+         )
+       )`,
+      [dealId, brokerId]
+    );
     if (dealCheck.rowCount === 0) return res.status(403).json({ message: "Unauthorized" });
 
     const result = await query(
@@ -146,6 +244,12 @@ export const addTransaction = async (req, res, next) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [dealId, transaction_type, amount, payment_mode, transaction_ref, status, due_date, remark]
     );
+
+    // If completed Token on creation (e.g. Cash payment), update the main Deal status
+    if (status === 'Completed' && transaction_type === 'Token') {
+      await query(`UPDATE deals SET token_amount = $1, status = 'Token' WHERE id = $2`, [amount, dealId]);
+    }
+
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) { next(err); }
 };
@@ -160,7 +264,15 @@ export const completeTransaction = async (req, res, next) => {
       `UPDATE deal_transactions dt
        SET status = 'Completed', completed_on = NOW(), transaction_ref = COALESCE($1, transaction_ref)
        FROM deals d
-       WHERE dt.id = $2 AND dt.deal_id = d.id AND d.broker_id = $3
+       WHERE dt.id = $2 AND dt.deal_id = d.id 
+       AND (
+         d.broker_id = $3
+         OR EXISTS (
+           SELECT 1 FROM collab_rooms cr
+           WHERE cr.property_id = d.property_id AND cr.client_id = d.client_id
+             AND (cr.broker_1_id = $3 OR cr.broker_2_id = $3) AND cr.is_active = true
+         )
+       )
        RETURNING dt.*`,
       [transaction_ref, transactionId, brokerId]
     );
@@ -185,7 +297,15 @@ export const cancelTransaction = async (req, res, next) => {
       `UPDATE deal_transactions dt
        SET status = 'Cancelled'
        FROM deals d
-       WHERE dt.id = $1 AND dt.deal_id = d.id AND d.broker_id = $2
+       WHERE dt.id = $1 AND dt.deal_id = d.id 
+       AND (
+         d.broker_id = $2
+         OR EXISTS (
+           SELECT 1 FROM collab_rooms cr
+           WHERE cr.property_id = d.property_id AND cr.client_id = d.client_id
+             AND (cr.broker_1_id = $2 OR cr.broker_2_id = $2) AND cr.is_active = true
+         )
+       )
        RETURNING dt.*`,
       [transactionId, brokerId]
     );
@@ -200,14 +320,28 @@ export const getDealHistory = async (req, res, next) => {
   const dealId = req.params.dealId;
   try {
     const dealRes = await query(
-      `SELECT id FROM deals WHERE id = $1 AND is_deleted = false
-       AND (broker_id = $2 OR property_id IN (SELECT DISTINCT UNNEST(shared_properties) FROM collaborations WHERE (sender_id = $2 OR receiver_id = $2) AND status = 'accepted'))`,
+      `SELECT d.id, d.final_price FROM deals d WHERE d.id = $1 AND d.is_deleted = false
+       AND (
+         d.broker_id = $2 
+         OR d.property_id IN (SELECT DISTINCT UNNEST(shared_properties) FROM collaborations WHERE (sender_id = $2 OR receiver_id = $2) AND status = 'accepted')
+         OR EXISTS (
+           SELECT 1 FROM collab_rooms cr
+           WHERE cr.property_id = d.property_id AND cr.client_id = d.client_id
+             AND (cr.broker_1_id = $2 OR cr.broker_2_id = $2) AND cr.is_active = true
+         )
+       )`,
       [dealId, brokerId]
     );
     if (dealRes.rowCount === 0) return res.status(404).json({ message: "History not found" });
 
     const history = await query(`SELECT * FROM deal_transactions WHERE deal_id = $1 ORDER BY created_at ASC`, [dealId]);
-    res.json({ success: true, data: history.rows });
+    res.json({ 
+      success: true, 
+      data: { 
+        transactions: history.rows, 
+        final_price: dealRes.rows[0].final_price 
+      } 
+    });
   } catch (err) { next(err); }
 };
 

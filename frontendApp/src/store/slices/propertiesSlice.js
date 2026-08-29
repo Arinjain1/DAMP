@@ -25,6 +25,9 @@ export const fetchProperties = createAsyncThunk(
           location: property.locality || property.city,
           projectName: property.project_name,
           address: property.address,
+          houseNo: property.house_no,
+          landmark: property.landmark,
+          pincode: property.pincode,
           price: property.price,
           size: property.size_sqft,
           sizeUnit: property.size_unit,
@@ -73,7 +76,10 @@ export const createProperty = createAsyncThunk(
         owner_phone: propertyData.ownerPhone,
         amenities: propertyData.amenities,
         bond: propertyData.bond,
-        image_url: propertyData.image
+        image_url: propertyData.image,
+        house_no: propertyData.houseNo,
+        landmark: propertyData.landmark,
+        pincode: propertyData.pincode
       });
       
       if (response.data.success) {
@@ -93,6 +99,9 @@ export const createProperty = createAsyncThunk(
           location: property.locality || property.city,
           projectName: property.project_name,
           address: property.address,
+          houseNo: property.house_no,
+          landmark: property.landmark,
+          pincode: property.pincode,
           price: property.price,
           size: property.size_sqft,
           sizeUnit: property.size_unit,
@@ -139,7 +148,10 @@ export const updatePropertyAPI = createAsyncThunk(
         owner_phone: data.ownerPhone,
         amenities: data.amenities,
         bond: data.bond,
-        image_url: data.image
+        image_url: data.image,
+        house_no: data.houseNo,
+        landmark: data.landmark,
+        pincode: data.pincode
       });
       
       if (response.data.success) {
@@ -159,6 +171,9 @@ export const updatePropertyAPI = createAsyncThunk(
           location: property.locality || property.city,
           projectName: property.project_name,
           address: property.address,
+          houseNo: property.house_no,
+          landmark: property.landmark,
+          pincode: property.pincode,
           price: property.price,
           size: property.size_sqft,
           sizeUnit: property.size_unit,
@@ -313,6 +328,12 @@ const propertiesSlice = createSlice({
       })
       .addCase(deleteProperty.rejected, (state, action) => {
         state.error = action.payload;
+      })
+      .addCase('auth/logout', (state) => {
+        state.properties = [];
+        state.selectedProperty = null;
+        state.loading = false;
+        state.error = null;
       });
   },
 });

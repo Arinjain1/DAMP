@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useMemo } from 'react';
 import { View, InteractionManager } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import AddModal from '../src/Modal and Sheets/AddModal';
 import CustomersList from '../src/Views/CustomersList';
 
@@ -25,12 +25,13 @@ import { addFollowUp, deleteFollowUp, updateFollowUp } from '../src/store/slices
 import { clearEditItem, setEditItem, setModalOpen, setModalType } from '../src/store/slices/uiSlice';
 
 // API
-import { customersAPI, tasksAPI, visitsAPI, dealsAPI } from '../src/config/api';
+import { customersAPI, tasksAPI, visitsAPI, dealsAPI, collabAPI } from '../src/config/api';
 import { showToast } from '../src/utils/toast';
 
 export default function Customers() {
   const dispatch = useDispatch();
   const router = useRouter();
+  const navigation = useNavigation();
 
   const { properties } = useSelector(state => state.properties);
   const { customers, selectedCustomer, loading } = useSelector(state => state.customers);
@@ -62,7 +63,8 @@ export default function Customers() {
             status: task.status === 'completed' ? 'Done' : 'Pending',
             siteVisitId: task.site_visit_id,
             propertyCount: task.site_visit_property_count || 0,
-            siteVisitProperties: task.site_visit_properties || []
+            siteVisitProperties: task.site_visit_properties || [],
+            collaborated: task.collaborated || false
           };
         });
         dispatch({ type: 'followUps/setFollowUps', payload: transformedTasks });
@@ -79,7 +81,7 @@ export default function Customers() {
     fetchTasks();
     
     // Add focus listener to refresh data when returning to this screen
-    const unsubscribe = router.addListener?.('focus', () => {
+    const unsubscribe = navigation.addListener('focus', () => {
       InteractionManager.runAfterInteractions(() => {
         dispatch(fetchCustomers()); // Use Redux thunk
         dispatch(fetchDeals()); // Using Redux thunk
@@ -87,16 +89,26 @@ export default function Customers() {
       });
     });
     
-  }, [fetchTasks]);
+    return unsubscribe;
+  }, [navigation, dispatch, fetchTasks]);
 
   // Redirect to full-page route when customer is selected
   useEffect(() => {
     if (selectedCustomer) {
       const dealStages = ['In-Process', 'Negotiation', 'Token', 'Settlement', 'Agreement', 'Completed'];
       const isInDealStage = dealStages.includes(selectedCustomer.stage);
-      const customerDeal = deals.find(d => d.customerId === selectedCustomer.id);
 
-      if (isInDealStage && customerDeal) {
+      if (isInDealStage) {
+        const customerDeal = deals.find(d => d.customerId === selectedCustomer.id) || {
+          id: selectedCustomer.dealId || 99,
+          customerId: selectedCustomer.id,
+          stage: selectedCustomer.stage || 'Negotiation',
+          status: selectedCustomer.stage || 'Negotiation',
+          client_name: selectedCustomer.name || selectedCustomer.full_name,
+          client_phone: selectedCustomer.phone,
+          property_title: 'Property Details',
+          cover_image_url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80'
+        };
         dispatch(setSelectedDeal(customerDeal));
         dispatch(clearSelectedCustomer());
         router.push('/deal-page');
@@ -130,6 +142,13 @@ export default function Customers() {
       details: customer.notes,
       budgetMin: customer.budgetMin,
       budgetMax: customer.budgetMax,
+      image: customer.image,
+      city: customer.city,
+      state: customer.state,
+      pincode: customer.pincode,
+      selectedProperties: customer.selectedProperties || [],
+      interestedProperties: customer.interestedProperties || [],
+      holdProperties: customer.holdProperties || [],
     };
     dispatch(setEditItem(editData));
     dispatch(setModalType('Customer'));
@@ -143,24 +162,18 @@ export default function Customers() {
   }, [dispatch]);
 
   const handleOpenDealFromList = useCallback((customer) => {
-    const customerDeal = deals.find(d => d.customerId === customer.id);
-    if (customerDeal) {
-      dispatch(setSelectedDeal(customerDeal));
-      router.push('/deal-page');
-    } else {
-      const mockDeal = {
-        id: 99,
-        customerId: customer.id,
-        propertyId: 'p1',
-        stage: 'Negotiation',
-        status: 'Negotiation',
-        startedAt: new Date().toISOString(),
-        meetings: []
-      };
-      dispatch(addDeal(mockDeal));
-      dispatch(setSelectedDeal(mockDeal));
-      router.push('/deal-page');
-    }
+    const customerDeal = deals.find(d => d.customerId === customer.id) || {
+      id: customer.dealId || 99,
+      customerId: customer.id,
+      stage: customer.stage || 'Negotiation',
+      status: customer.stage || 'Negotiation',
+      client_name: customer.name || customer.full_name,
+      client_phone: customer.phone,
+      property_title: 'Property Details',
+      cover_image_url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80'
+    };
+    dispatch(setSelectedDeal(customerDeal));
+    router.push('/deal-page');
   }, [deals, dispatch, router]);
 
   // 🚀 Memoized Modal Actions
@@ -177,7 +190,11 @@ export default function Customers() {
         budgetMin: data.budgetMin || 0,
         budgetMax: data.budgetMax || 0,
         preferredLocation: data.preferredLocation || '',
-        notes: data.details || ''
+        notes: data.details || '',
+        profile_image: data.image || null,
+        city: data.city || '',
+        state: data.state || '',
+        pincode: data.pincode || '',
       })).unwrap();
 
       dispatch(setModalOpen(false));
@@ -230,7 +247,11 @@ export default function Customers() {
             notes: updatedItem.details || '',
             selectedProperties: updatedItem.selectedProperties || [],
             interestedProperties: updatedItem.interestedProperties || [],
-            holdProperties: updatedItem.holdProperties || []
+            holdProperties: updatedItem.holdProperties || [],
+            profile_image: updatedItem.image || null,
+            city: updatedItem.city || '',
+            state: updatedItem.state || '',
+            pincode: updatedItem.pincode || '',
           }
         })).unwrap();
 
@@ -269,7 +290,8 @@ export default function Customers() {
                 note: task.description || '',
                 status: task.status === 'completed' ? 'Done' : 'Pending',
                 siteVisitId: task.site_visit_id,
-                propertyCount: task.site_visit_property_count || 0
+                propertyCount: task.site_visit_property_count || 0,
+                collaborated: task.collaborated || false
               }));
               dispatch({ type: 'followUps/setFollowUps', payload: transformedTasks });
             }
@@ -320,6 +342,27 @@ export default function Customers() {
 
   const handleStartDeal = useCallback(async (customer, property) => {
     try {
+      const roomId = customer.collaborationRoomId || customer.collaboration_room_id;
+      if (customer.collaborated && roomId) {
+        const response = await collabAPI.startDeal(roomId);
+        if (response.data.success) {
+          showToast.success('Deal started successfully!');
+          const newDeal = {
+            id: response.data.data.dealId,
+            customerId: customer.id,
+            propertyId: property.id,
+            stage: 'Negotiation',
+            startedAt: new Date().toISOString(),
+            meetings: []
+          };
+          dispatch(addDeal(newDeal));
+          dispatch(clearSelectedCustomer());
+          dispatch(setSelectedDeal(newDeal));
+          router.push('/deal-page');
+        }
+        return;
+      }
+
       const response = await dealsAPI.create({
         client_id: customer.id,
         property_id: property.id
@@ -399,24 +442,10 @@ export default function Customers() {
     }
   }, [dispatch]);
 
-  const mappedCustomers = useMemo(() => {
-    return (customers || []).map(cust => {
-      const isCollab = cust.name?.includes('Arin') || cust.name?.includes('Karan') || cust.collaborated;
-      if (isCollab) {
-        return {
-          ...cust,
-          collaborated: true,
-          stage: 'In-Process'
-        };
-      }
-      return cust;
-    });
-  }, [customers]);
-
   return (
     <View className="flex-1 bg-gray-50">
       <CustomersList
-        customers={mappedCustomers}
+        customers={customers}
         loading={loading}
         onSelect={handleSelectCustomer}
         onAddCustomer={handleAddCustomer}

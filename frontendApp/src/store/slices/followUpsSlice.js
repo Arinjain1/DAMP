@@ -58,6 +58,15 @@ const followUpsSlice = createSlice({
       state.error = action.payload;
     },
   },
+  extraReducers: (builder) => {
+    builder.addCase('auth/logout', (state) => {
+      state.followUps = [];
+      state.activeSiteVisit = null;
+      state.showFeedback = null;
+      state.loading = false;
+      state.error = null;
+    });
+  },
 });
 
 export const {

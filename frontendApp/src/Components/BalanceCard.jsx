@@ -4,6 +4,12 @@ export default function BalanceCard({ amount, label = 'Total Amount', remaining 
   // Use remaining if provided, otherwise use amount
   const displayRemaining = remaining !== undefined ? remaining : amount;
   
+  const formatValue = (val) => {
+    if (val === undefined || val === null) return '0';
+    const num = Math.round(Number(val));
+    return isNaN(num) ? String(val) : num.toLocaleString('en-IN');
+  };
+
   return (
     <View style={styles.cardContainer}>
       <ImageBackground
@@ -14,8 +20,8 @@ export default function BalanceCard({ amount, label = 'Total Amount', remaining 
       >
         <View style={styles.cardContent}>
           <Text style={styles.cardLabel}>{label}</Text>
-          <Text style={styles.cardAmount}>₹{amount?.toLocaleString('en-IN') || '25,000.40'}</Text>
-          <Text style={styles.remainingText}>Remaining  -- ₹{displayRemaining?.toLocaleString('en-IN') || '400'}</Text>
+          <Text style={styles.cardAmount}>₹{formatValue(amount)}</Text>
+          <Text style={styles.remainingText}>Remaining  -- ₹{formatValue(displayRemaining)}</Text>
         </View>
       </ImageBackground>
     </View>

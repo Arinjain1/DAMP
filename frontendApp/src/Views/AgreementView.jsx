@@ -1,14 +1,48 @@
-import { FileText, Upload, Download, CheckCircle } from 'lucide-react-native';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
-import { useSelector } from 'react-redux';
+import { FileText, Upload, Download, CheckCircle, CreditCard } from 'lucide-react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Image, ActivityIndicator } from 'react-native';
+import { useSelector, useDispatch } from 'react-redux';
+import React, { useState } from 'react';
+import { collabAPI } from '../config/api';
+import { showToast } from '../utils/toast';
+import { fetchCustomers } from '../store/slices/customersSlice';
 
 export default function AgreementView({ onMarkAgreementDone }) {
-  // Get customer from Redux store
+  const dispatch = useDispatch();
+  // Get customer and auth user from Redux store
   const { selectedDeal } = useSelector(state => state.deals);
   const { customers } = useSelector(state => state.customers);
+  const { user } = useSelector(state => state.auth);
   
   const customer = customers.find(c => c.id === selectedDeal?.customerId);
-  const isInProcessStage = customer?.stage === 'In-Process';
+  const isInProcessStage = customer && customer.stage !== 'Completed';
+
+  // Determine user settlement role and statuses
+  const isMeBroker1 = customer?.broker1Id === user?.id;
+  const isMeBroker2 = customer?.broker2Id === user?.id;
+  const hasMeSettled = (isMeBroker1 && customer?.broker1Settled) || (isMeBroker2 && customer?.broker2Settled);
+  const isFullySettled = customer?.commissionStatus === 'Paid';
+
+
+
+  const [settling, setSettling] = useState(false);
+
+  const handleSettleSplit = async () => {
+    if (!customer?.collaborationRoomId) return;
+    setSettling(true);
+    try {
+      const res = await collabAPI.settleSplit(customer.collaborationRoomId);
+      if (res.data.success) {
+        showToast.success(res.data.message || 'Split settlement marked!');
+        // Reload customers list to update frontend state
+        dispatch(fetchCustomers());
+      }
+    } catch (err) {
+      console.error('Error settling commission split:', err);
+      showToast.error(err.response?.data?.message || 'Failed to settle commission split');
+    } finally {
+      setSettling(false);
+    }
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
@@ -39,9 +73,31 @@ export default function AgreementView({ onMarkAgreementDone }) {
         </TouchableOpacity>
       </View>
 
+      {/* Settle Commission Split Button - Only show when deal is collaborated */}
+      {customer?.collaborated && (
+        <TouchableOpacity 
+          style={[styles.settleButton, (isFullySettled || hasMeSettled) && styles.settleButtonDisabled]}
+          onPress={handleSettleSplit}
+          disabled={settling || isFullySettled || hasMeSettled}
+        >
+          {settling ? (
+            <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 8 }} />
+          ) : (
+            <CreditCard size={20} color="#ffffff" style={{ marginRight: 8 }} />
+          )}
+          <Text style={styles.completeButtonText}>
+            {isFullySettled 
+              ? 'Commission Settled (Paid)' 
+              : hasMeSettled 
+                ? 'Settle marked (Waiting for partner)' 
+                : 'Settle Commission Split'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
       
-      {/* Complete Agreement Button - Only show when customer is in In-Process stage */}
-      {isInProcessStage && (
+      {/* Complete Agreement Button */}
+      {isInProcessStage ? (
         <TouchableOpacity 
           style={styles.completeButton}
           onPress={onMarkAgreementDone}
@@ -49,7 +105,12 @@ export default function AgreementView({ onMarkAgreementDone }) {
           <CheckCircle size={20} color="#ffffff" style={{ marginRight: 8 }} />
           <Text style={styles.completeButtonText}>Mark Agreement Complete</Text>
         </TouchableOpacity>
-      )}
+      ) : (customer?.stage === 'Completed') ? (
+        <View style={[styles.completeButton, { backgroundColor: '#10b981' }]}>
+          <CheckCircle size={20} color="#ffffff" style={{ marginRight: 8 }} />
+          <Text style={styles.completeButtonText}>Agreement Completed 🎉</Text>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -185,5 +246,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  settleButton: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  settleButtonDisabled: {
+    backgroundColor: '#10B981',
+    opacity: 0.9,
   },
 });

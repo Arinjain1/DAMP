@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Helper for currency formatting
 const formatCurrency = (amount) => {
@@ -37,6 +38,7 @@ const SiteVisitMapModal = ({
   onPropertyNotInterested,
   onPropertyHold
 }) => {
+  const insets = useSafeAreaInsets();
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
   const [isPropertyExpanded, setIsPropertyExpanded] = useState(true);
   
@@ -94,7 +96,7 @@ const SiteVisitMapModal = ({
 
         {/* Properties Horizontal Scroll - Small Cards */}
         {!isPropertyExpanded && (
-          <View style={styles.collapsedModalCard}>
+          <View style={[styles.collapsedModalCard, { paddingBottom: insets.bottom > 0 ? insets.bottom + 20 : 30 }]}>
             {/* Swipeable & Tappable Header */}
             <View
               onTouchStart={handleTouchStart}
@@ -132,9 +134,9 @@ const SiteVisitMapModal = ({
                   <Image source={{ uri: prop.image }} style={styles.propertyScrollImageSmall} />
                   <View style={styles.propertyScrollInfo}>
                     <Text style={styles.propertyScrollTitle} numberOfLines={2}>{prop.title}</Text>
-                    <View style={styles.propertyScrollLocation}>
-                      <MapPin size={14} color="#6b7280" />
-                      <Text style={styles.propertyScrollLocationText} numberOfLines={1}>{prop.location}</Text>
+                    <View style={[styles.propertyScrollLocation, { alignItems: 'flex-start', marginTop: 2 }]}>
+                      <MapPin size={14} color="#6b7280" style={{ marginTop: 2 }} />
+                      <Text style={styles.propertyScrollLocationText} numberOfLines={2}>{prop.address || prop.location}</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -145,7 +147,7 @@ const SiteVisitMapModal = ({
 
         {/* Expanded Property Details */}
         {isPropertyExpanded && properties.length > 0 && (
-          <View style={styles.expandedModalCard}>
+          <View style={[styles.expandedModalCard, { paddingBottom: insets.bottom > 0 ? insets.bottom + 20 : 30 }]}>
             
             {/* Swipeable Header (Cross button removed) */}
             <View
@@ -187,10 +189,10 @@ const SiteVisitMapModal = ({
                             {prop.title}
                           </Text>
                         </View>
-                        <View style={styles.expandedPropertyCardLocation}>
-                          <MapPin size={12} color="#6b7280" />
-                          <Text style={styles.expandedPropertyCardLocationText} numberOfLines={1}>
-                            {prop.location}
+                        <View style={[styles.expandedPropertyCardLocation, { alignItems: 'flex-start', marginTop: 2 }]}>
+                          <MapPin size={12} color="#6b7280" style={{ marginTop: 2 }} />
+                          <Text style={styles.expandedPropertyCardLocationText} numberOfLines={2}>
+                            {prop.address || prop.location}
                           </Text>
                         </View>
                         <Text style={styles.propertyPrice}>{formatCurrency(prop.price)}</Text>

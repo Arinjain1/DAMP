@@ -35,6 +35,26 @@ const INDIAN_STATES = [
 
 
 
+const parseCityState = (description) => {
+    if (!description) return { city: '', state: '' };
+    const parts = description.split(',').map(p => p.trim()).filter(Boolean);
+    let city = '';
+    let state = '';
+
+    if (parts.length > 0) {
+        if (parts[parts.length - 1].toLowerCase() === 'india') {
+            parts.pop();
+        }
+        if (parts.length > 0) {
+            state = parts[parts.length - 1];
+        }
+        if (parts.length > 1) {
+            city = parts[parts.length - 2];
+        }
+    }
+    return { city, state };
+};
+
 // ==========================================
 // MAIN COMPONENT
 // ==========================================
@@ -69,9 +89,18 @@ const AddModal = ({
     const [locationSuggestions, setLocationSuggestions] = useState([]);
     const [showLocationDropdown, setShowLocationDropdown] = useState(false);
     const [locationLoading, setLocationLoading] = useState(false);
+    const [locationSearchText, setLocationSearchText] = useState('');
+
+    const removeLocation = useCallback((locToRemove) => {
+        setFormData((prev) => {
+            const currentLocs = prev.preferredLocation ? prev.preferredLocation.split(';').map(l => l.trim()).filter(Boolean) : [];
+            const updated = currentLocs.filter(l => l !== locToRemove);
+            return { ...prev, preferredLocation: updated.join('; ') };
+        });
+    }, []);
 
     const [budgetRange, setBudgetRange] = useState({ min: 10000, max: 5000000 });
-    
+
     const debounceTimer = useRef(null);
     const scrollViewRef = useRef(null);
     const [isContentReady, setIsContentReady] = useState(false);
@@ -89,7 +118,7 @@ const AddModal = ({
 
     // Form initialization logic
     useEffect(() => {
-        if (!isOpen) return; 
+        if (!isOpen) return;
 
         if (editItem) {
             const updatedEditItem = { ...editItem };
@@ -114,8 +143,21 @@ const AddModal = ({
                 // Map furnishingStatus (from Redux/DB) to furnishing (form state)
                 updatedEditItem.furnishing = editItem.furnishing || editItem.furnishingStatus || 'Semi';
 
-                // Map address (from Redux/DB) to owner (form state)
-                updatedEditItem.owner = editItem.owner || editItem.address || '';
+                // Map address (from Redux/DB) to owner (form state) and parse pincode
+                let addressVal = editItem.owner || editItem.address || '';
+                let pincodeVal = editItem.pincode || '';
+                if (!pincodeVal) {
+                    const pinMatch = addressVal.match(/(.*) - (\d{6})$/);
+                    if (pinMatch) {
+                        addressVal = pinMatch[1].trim();
+                        pincodeVal = pinMatch[2].trim();
+                    }
+                }
+                updatedEditItem.owner = editItem.houseNo || editItem.house_no || addressVal;
+                updatedEditItem.house_no = editItem.houseNo || editItem.house_no || addressVal;
+                updatedEditItem.landmark = editItem.landmark || '';
+                updatedEditItem.pincode = pincodeVal;
+                updatedEditItem.location = editItem.locality || editItem.location || '';
 
                 if (editItem.price) {
                     const price = parseFloat(editItem.price);
@@ -123,7 +165,7 @@ const AddModal = ({
                     else if (price >= 100000) { updatedEditItem.priceValue = (price / 100000).toString(); updatedEditItem.priceUnit = 'Lakh'; }
                     else { updatedEditItem.priceValue = (price / 1000).toString(); updatedEditItem.priceUnit = 'Thousands'; }
                 }
-                
+
                 if (editItem.size !== undefined && editItem.size !== null) {
                     updatedEditItem.sizeValue = String(editItem.size);
                     updatedEditItem.sizeUnit = editItem.sizeUnit || 'Sq. Ft.';
@@ -140,15 +182,15 @@ const AddModal = ({
             setFormData(updatedEditItem);
         } else {
             if (type === 'Property') {
-                setFormData({ status: 'Available', listingType: 'Sell', category: 'Residential', type: 'Apartment/Flats', bhk: '2 BHK', commercialConfig: '', furnishing: 'Semi', image: '', location: '', priceValue: '', priceUnit: 'Thousands', sizeValue: '', sizeUnit: 'Sq. Ft.', owner: '', ownerName: '', ownerPhone: '', title: '', amenities: [] });
+                setFormData({ status: 'Available', listingType: 'Sell', category: 'Residential', type: 'Apartment/Flats', bhk: '2 BHK', commercialConfig: '', furnishing: 'Semi', image: '', location: '', priceValue: '', priceUnit: 'Thousands', sizeValue: '', sizeUnit: 'Sq. Ft.', owner: '', house_no: '', landmark: '', pincode: '', ownerName: '', ownerPhone: '', title: '', amenities: [] });
             } else if (type === 'Customer') {
-                setFormData({ status: 'New Lead', listingType: 'Buy', category: 'Residential', type: 'Apartment/Flats', bhk: '2 BHK', commercialConfig: '', furnishing: 'Semi', name: '', phone: '', preferredLocation: '' });
+                setFormData({ status: 'New Lead', listingType: 'Buy', category: 'Residential', type: 'Apartment/Flats', bhk: '2 BHK', commercialConfig: '', furnishing: 'Semi', name: '', phone: '', preferredLocation: '', city: '', state: '', pincode: '' });
                 setBudgetRange({ min: 10000, max: 5000000 });
             } else if (type === 'FollowUp') {
                 setFormData({ status: 'Pending', type: initialTaskType || 'Call', date: new Date().toISOString(), customerId: initialCustomer?.id || '', propertyIds: initialPropertyIds || [], note: '' });
             }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, editItem?.id, type]);
 
     const searchPlaces = useCallback((query) => {
@@ -157,36 +199,47 @@ const AddModal = ({
         debounceTimer.current = setTimeout(async () => {
             setLocationLoading(true);
             try {
-                const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
-                const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': API_KEY },
-                    body: JSON.stringify({ input: query, includedRegionCodes: ['in'] })
-                });
+                const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+                const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${API_KEY}&components=country:in`;
+                const response = await fetch(url);
                 const data = await response.json();
-                if (data.suggestions) {
-                    const suggestions = data.suggestions.map((item) => ({
-                        id: item.placePrediction.place,
-                        description: item.placePrediction.text.text,
-                        main_text: item.placePrediction.structuredFormat?.mainText?.text || item.placePrediction.text.text,
-                        secondary_text: item.placePrediction.structuredFormat?.secondaryText?.text || '',
+                if (data.predictions) {
+                    const suggestions = data.predictions.map((item) => ({
+                        id: item.place_id,
+                        description: item.description,
+                        main_text: item.structured_formatting?.main_text || item.description,
+                        secondary_text: item.structured_formatting?.secondary_text || '',
                     }));
                     setLocationSuggestions(suggestions);
                     setShowLocationDropdown(suggestions.length > 0);
+                } else {
+                    setLocationSuggestions([]);
+                    setShowLocationDropdown(false);
                 }
             } catch (_error) {
-                // Ignore API Errors visually
-            } finally { 
-                setLocationLoading(false); 
+                setLocationSuggestions([]);
+                setShowLocationDropdown(false);
+            } finally {
+                setLocationLoading(false);
             }
         }, 500);
     }, []);
 
-    const handleChange = useCallback((name, value) => {
+    const handleChange = useCallback((name, value, isMapSelection = false, geocodeDetails = null) => {
+        if (name === 'preferredLocation') {
+            setLocationSearchText(value);
+        }
         setFormData((prev) => {
             let processedValue = value;
             if (['price', 'size', 'budget'].includes(name)) processedValue = value === '' ? '' : Number(value) || 0;
             else if (name === 'date' && value instanceof Date) processedValue = value.toISOString();
+
+            if (isMapSelection && name === 'preferredLocation' && type === 'Customer') {
+                const currentLocs = prev.preferredLocation ? prev.preferredLocation.split(';').map(l => l.trim()).filter(Boolean) : [];
+                const newLocs = currentLocs.includes(value) ? currentLocs : [...currentLocs, value];
+                processedValue = newLocs.join('; ');
+                setLocationSearchText('');
+            }
 
             const newData = { ...prev, [name]: processedValue };
             if (name === 'category') {
@@ -195,32 +248,142 @@ const AddModal = ({
                 if (value !== 'Commercial') newData.commercialConfig = '';
             }
             if (name === 'type' && prev.category === 'Commercial') newData.commercialConfig = '';
+
+            if (isMapSelection && geocodeDetails) {
+                if (geocodeDetails.city) newData.city = geocodeDetails.city;
+                if (geocodeDetails.state) newData.state = geocodeDetails.state;
+                if (geocodeDetails.pincode) newData.pincode = geocodeDetails.pincode;
+                if (geocodeDetails.latitude !== undefined) newData.latitude = geocodeDetails.latitude;
+                if (geocodeDetails.longitude !== undefined) newData.longitude = geocodeDetails.longitude;
+            }
             return newData;
         });
-        if (name === 'location' && type === 'Property') searchPlaces(value);
+        if (!isMapSelection) {
+            if (name === 'location' && type === 'Property') searchPlaces(value);
+            if (name === 'preferredLocation' && type === 'Customer') searchPlaces(value);
+        }
     }, [type, searchPlaces]);
-    
-    const selectLocation = useCallback((location) => {
-        setFormData(prev => ({ ...prev, location: location.description }));
+
+    const selectLocation = useCallback(async (location) => {
+        try {
+            const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDiYnY4FG1juihWvHEgM-NSz2aEKUsKing';
+            const url = `https://maps.googleapis.com/maps/api/geocode/json?place_id=${location.id}&key=${API_KEY}`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            let cityVal = '';
+            let stateVal = '';
+            let pincodeVal = '';
+            let latVal = null;
+            let lngVal = null;
+
+            if (data.results && data.results.length > 0) {
+                let result = data.results[0];
+                for (const res of data.results) {
+                    const isPlusCode = res.types?.includes('plus_code') || 
+                                       /^[A-Z0-9]{4,8}\+[A-Z0-9]{2,}/i.test(res.formatted_address || '');
+                    if (!isPlusCode) {
+                        result = res;
+                        break;
+                    }
+                }
+                latVal = result.geometry.location.lat;
+                lngVal = result.geometry.location.lng;
+                if (result.address_components) {
+                    for (const comp of result.address_components) {
+                        const types = comp.types;
+                        if (types.includes('postal_code')) {
+                            pincodeVal = comp.long_name;
+                        } else if (types.includes('locality')) {
+                            cityVal = comp.long_name;
+                        } else if (types.includes('administrative_area_level_2') && !cityVal) {
+                            cityVal = comp.long_name;
+                        } else if (types.includes('administrative_area_level_1')) {
+                            stateVal = comp.long_name;
+                        }
+                    }
+                }
+            }
+
+            if (type === 'Property') {
+                setFormData(prev => ({
+                    ...prev,
+                    location: location.description,
+                    city: cityVal || prev.city,
+                    state: stateVal || prev.state,
+                    pincode: pincodeVal || prev.pincode,
+                    latitude: latVal,
+                    longitude: lngVal
+                }));
+            } else if (type === 'Customer') {
+                setFormData(prev => {
+                    const currentLocs = prev.preferredLocation ? prev.preferredLocation.split(';').map(l => l.trim()).filter(Boolean) : [];
+                    const newLocs = currentLocs.includes(location.description) ? currentLocs : [...currentLocs, location.description];
+                    return {
+                        ...prev,
+                        preferredLocation: newLocs.join('; '),
+                        city: cityVal || prev.city,
+                        state: stateVal || prev.state,
+                        pincode: pincodeVal || prev.pincode,
+                        latitude: latVal,
+                        longitude: lngVal
+                    };
+                });
+                setLocationSearchText('');
+            }
+        } catch (e) {
+            console.error('Error fetching place details in selectLocation:', e);
+            const { city, state } = parseCityState(location.description);
+            if (type === 'Property') {
+                setFormData(prev => ({
+                    ...prev,
+                    location: location.description,
+                    city: city || prev.city,
+                    state: state || prev.state
+                }));
+            } else if (type === 'Customer') {
+                setFormData(prev => ({ ...prev, preferredLocation: location.description }));
+            }
+        }
         setShowLocationDropdown(false);
         setLocationSuggestions([]);
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    }, []);
+    }, [type]);
 
     const pickImage = useCallback(() => setPhotoSheetVisible(true), []);
     const openCamera = useCallback(async () => {
         const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
         if (!cameraPermission.granted) return;
-        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [16, 9], quality: 0.8 });
-        if (!result.canceled && result.assets) handleChange('image', result.assets[0].uri);
-    }, [handleChange]);
+        const isProperty = type === 'Property';
+        const result = await ImagePicker.launchCameraAsync({ 
+            mediaTypes: ['images'], 
+            allowsEditing: true, 
+            aspect: isProperty ? [16, 9] : [1, 1], 
+            quality: 0.5, 
+            base64: true 
+        });
+        if (!result.canceled && result.assets) {
+            const base64Data = `data:image/jpeg;base64,${result.assets[0].base64}`;
+            handleChange('image', base64Data);
+        }
+    }, [type, handleChange]);
 
     const openGallery = useCallback(async () => {
         const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!mediaPermission.granted) return;
-        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [16, 9], quality: 0.8 });
-        if (!result.canceled && result.assets) handleChange('image', result.assets[0].uri);
-    }, [handleChange]);
+        const isProperty = type === 'Property';
+        const result = await ImagePicker.launchImageLibraryAsync({ 
+            mediaTypes: ['images'], 
+            allowsEditing: true, 
+            aspect: isProperty ? [16, 9] : [1, 1], 
+            quality: 0.5, 
+            base64: true 
+        });
+        if (!result.canceled && result.assets) {
+            const base64Data = `data:image/jpeg;base64,${result.assets[0].base64}`;
+            handleChange('image', base64Data);
+        }
+    }, [type, handleChange]);
 
     const handleSubmit = useCallback(() => {
         const finalData = { ...formData };
@@ -257,7 +420,7 @@ const AddModal = ({
 
     return (
         <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent hardwareAccelerated>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{flex: 1}}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
                 <View className="flex-1 justify-end bg-black/60">
                     <TouchableOpacity activeOpacity={1} onPress={onClose} className="absolute inset-0" />
                     <View className="bg-white w-full h-[90vh] rounded-t-3xl overflow-hidden shadow-2xl">
@@ -316,6 +479,12 @@ const AddModal = ({
                                             budgetRange={budgetRange}
                                             setBudgetRange={setBudgetRange}
                                             pickImage={pickImage}
+                                            locationSuggestions={locationSuggestions}
+                                            locationLoading={locationLoading}
+                                            showLocationDropdown={showLocationDropdown}
+                                            selectLocation={selectLocation}
+                                            locationSearchText={locationSearchText}
+                                            removeLocation={removeLocation}
                                         />
                                     )}
 

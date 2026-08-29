@@ -112,7 +112,7 @@ const PropertyPickerModal = memo(({
             )}
           </View>
 
-          <ScrollView style={styles.pickerContent} contentContainerStyle={{ paddingBottom: 100 }}>
+          <ScrollView style={styles.pickerContent} contentContainerStyle={{ paddingBottom: 120 }}>
             {filteredProperties.map(p => {
               const isSelected = selectedPropertyIds.includes(p.id);
               const canToggle = customer.stage === 'Contacted' || customer.stage === 'Site Visit';
@@ -129,9 +129,9 @@ const PropertyPickerModal = memo(({
                   <Image source={{ uri: p.image }} style={styles.pickerImg} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.pickerItemTitle}>{p.title}</Text>
-                    <View style={styles.rowCenter}>
-                      <MapPin size={10} color="#9ca3af" />
-                      <Text style={styles.pickerItemLocation}>{p.location}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 4, marginTop: 2 }}>
+                      <MapPin size={10} color="#9ca3af" style={{ marginTop: 2 }} />
+                      <Text style={styles.pickerItemLocation} numberOfLines={3}>{p.address || p.location}</Text>
                     </View>
                     <Text style={styles.pickerItemPrice}>{formatCurrency(p.price)}</Text>
                   </View>

@@ -88,7 +88,7 @@ export default function Properties() {
         city: data.city || '',
         locality: data.location || '',
         projectName: data.title || '',
-        address: data.owner || '',
+        address: data.house_no || data.owner || '',
         price: calculatePrice(data.priceValue, data.priceUnit),
         size: parseFloat(data.sizeValue) || 0,
         sizeUnit: data.sizeUnit || 'Sq. Ft.',
@@ -98,7 +98,10 @@ export default function Properties() {
         ownerPhone: data.ownerPhone || '',
         amenities: data.amenities || [],
         bond: data.bond ? parseFloat(data.bond) : null,
-        image: data.image || null
+        image: data.image || null,
+        houseNo: data.house_no || '',
+        landmark: data.landmark || '',
+        pincode: data.pincode || '',
       })).unwrap();
 
       dispatch(setModalOpen(false));
@@ -132,7 +135,7 @@ export default function Properties() {
           city: data.city || '',
           locality: data.location || '',
           projectName: data.title || '',
-          address: data.owner || '',
+          address: data.house_no || data.owner || '',
           price: calculatePrice(data.priceValue, data.priceUnit),
           size: parseFloat(data.sizeValue) || 0,
           sizeUnit: data.sizeUnit || 'Sq. Ft.',
@@ -142,7 +145,10 @@ export default function Properties() {
           ownerPhone: data.ownerPhone || '',
           amenities: data.amenities || [],
           bond: data.bond ? parseFloat(data.bond) : null,
-          image: data.image || null
+          image: data.image || null,
+          houseNo: data.house_no || '',
+          landmark: data.landmark || '',
+          pincode: data.pincode || '',
         }
       })).unwrap();
 

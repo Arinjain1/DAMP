@@ -48,7 +48,10 @@ const PropertyCard = memo(({
         ]
       );
     } else {
-      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.location)}`);
+      const queryStr = (property.latitude && property.longitude)
+        ? `${property.latitude},${property.longitude}`
+        : property.location;
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queryStr)}`);
     }
   };
 
@@ -56,11 +59,11 @@ const PropertyCard = memo(({
     <View style={styles.matchCard}>
       <Image source={{ uri: property.image }} style={styles.matchImg} />
       <View style={styles.matchContent}>
-        <View>
+        <View style={{ marginRight: 8, marginBottom: 6 }}>
           <Text style={styles.matchTitle} numberOfLines={1}>{property.title}</Text>
-          <View style={styles.rowCenter}>
-            <MapPin size={12} color="#9ca3af" />
-            <Text style={styles.matchLoc} numberOfLines={1}>{property.location}</Text>
+          <View style={[styles.rowCenter, { alignItems: 'flex-start', marginTop: 2 }]}>
+            <MapPin size={12} color="#9ca3af" style={{ marginTop: 2 }} />
+            <Text style={[styles.matchLoc, { flex: 1 }]} numberOfLines={2}>{property.address || property.location}</Text>
           </View>
         </View>
 
