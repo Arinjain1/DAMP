@@ -12,13 +12,12 @@ import {
   Platform,
   StatusBar,
   Alert,
-  ActivityIndicator,
+  
 } from 'react-native';
 import {
   Check,
   Phone,
-  Plus,
-  X,
+ 
   Calendar,
   DollarSign,
   ArrowLeft,
@@ -36,11 +35,10 @@ import WhatsAppIcon from '../Components/WhatsAppIcon';
 import { router } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useDispatch, useSelector } from 'react-redux';
-import { addFollowUp, setFollowUps } from '../store/slices/followUpsSlice';
+import {  setFollowUps } from '../store/slices/followUpsSlice';
 import { tasksAPI, collabAPI } from '../config/api';
 import { addDeal, setSelectedDeal } from '../store/slices/dealsSlice';
-import { setSelectedCustomer } from '../store/slices/customersSlice';
-import { setSelectedProperty } from '../store/slices/propertiesSlice';
+
 
 const mapRoomToFrontend = (room, myId) => {
   const isBroker1 = room.broker_1_id === myId;
@@ -466,6 +464,7 @@ export default function CollaborationSheet({ isOpen, onClose, initialRoomId, ini
       }
     } catch (err) {
       showToast.error('Failed to update task');
+      console.log(err)
     }
   };
 
@@ -918,7 +917,7 @@ export default function CollaborationSheet({ isOpen, onClose, initialRoomId, ini
                                   COUNTER NOTE:
                                 </Text>
                                 <Text style={{ fontSize: 12, color: '#374151', fontFamily: 'Lato_400Regular', fontStyle: 'italic' }}>
-                                  "{room.counterNote}"
+                                  {room.counterNote}
                                 </Text>
                               </View>
                             )}
@@ -1634,7 +1633,7 @@ export default function CollaborationSheet({ isOpen, onClose, initialRoomId, ini
                                 COUNTER NOTE:
                               </Text>
                               <Text style={{ fontSize: 13, color: '#374151', fontFamily: 'Lato_400Regular', fontStyle: 'italic' }}>
-                                "{req.counterNote}"
+                                {req.counterNote}
                               </Text>
                             </View>
                           )}
