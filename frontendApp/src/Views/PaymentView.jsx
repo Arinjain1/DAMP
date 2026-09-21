@@ -114,8 +114,7 @@ export default function PaymentView() {
           setOwnerCounter("1.25");
           setOwnerUnit("Crore");
           setFinalPrice("1.22");
-          setFinalUnit("Crore");
-          setDealAmount(12200000);
+          dispatch(setCurrentDeal({ dealId: selectedDeal.id, finalPrice: 12200000 }));
           return;
         }
         

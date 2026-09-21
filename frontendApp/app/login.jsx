@@ -7,7 +7,7 @@ import {
 } from '@expo-google-fonts/montserrat';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
+import { ArrowLeft, Phone } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -20,17 +20,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { authAPI, setAuthToken } from '../src/config/api';
-import { loginSuccess } from '../src/store/slices/authSlice';
+import { authAPI } from '../src/config/api';
 import { showToast } from '../src/utils/toast';
 
 export default function Login() {
-  const dispatch = useDispatch();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Montserrat_400Regular,
@@ -43,42 +38,33 @@ export default function Login() {
 
   if (!fontsLoaded) return null;
 
-  const handleLogin = async () => {
-    // Validation
-    if (!email || !password) {
-      showToast.warn('Please enter email and password');
+  const handleSendOtp = async () => {
+    const clean = phoneNumber.replace(/\D/g, '').slice(-10);
+    if (!clean || clean.length !== 10) {
+      showToast.warn('Please enter a valid 10-digit mobile number');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await authAPI.login({ email, password });
+      const response = await authAPI.sendOTP({ phone_number: clean });
 
-      if (response.data) {
-        // Backend returns user data directly (no success flag)
-        const { id, full_name, email: userEmail, role, token } = response.data;
-
-        const userData = {
-          id,
-          name: full_name,
-          full_name,
-          email: userEmail,
-          role,
-          token
-        };
-
-        // CRITICAL: Set auth token BEFORE dispatching login success
-        // This ensures the token is available for immediate API calls
-        setAuthToken(token);
-
-        // Dispatch login success - this will trigger navigation to dashboard
-        dispatch(loginSuccess(userData));
-        
-        showToast.success('Login successful!');
+      if (response.data && response.data.success) {
+        showToast.success('OTP sent successfully!');
+        router.push({
+          pathname: '/otp',
+          params: {
+            phone_number: response.data.phone_number || clean,
+            verification_token: response.data.verification_token,
+          },
+        });
+      } else {
+        showToast.error(response.data?.message || 'Failed to send OTP');
       }
     } catch (error) {
-      console.error('Login error:', error);
-      const errorMessage = error.response?.data?.message || 'Unable to connect to server. Please check your connection.';
+      console.error('Login Send OTP Error:', error);
+      const errorMessage =
+        error.response?.data?.message || 'Unable to connect to server. Please check your connection.';
       showToast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -112,66 +98,41 @@ export default function Login() {
           {/* HEADER */}
           <View style={styles.header}>
             <Text style={styles.title}>Login</Text>
-            <Text style={styles.subtitle}>Login with email & password</Text>
+            <Text style={styles.subtitle}>Enter your mobile number to receive an OTP</Text>
           </View>
 
           {/* FORM */}
           <View style={styles.form}>
-            {/* EMAIL */}
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              placeholderTextColor="#9CA3AF"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-
-            {/* PASSWORD */}
-            <View style={styles.passwordContainer}>
+            {/* PHONE NUMBER INPUT */}
+            <View style={styles.phoneInputContainer}>
+              <View style={styles.countryCodeBadge}>
+                <Text style={styles.countryCodeText}>+91</Text>
+              </View>
               <TextInput
-                style={styles.passwordInput}
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
+                style={styles.phoneInput}
+                placeholder="10-digit Mobile Number"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
                 placeholderTextColor="#9CA3AF"
-                secureTextEntry={!showPassword}
+                keyboardType="phone-pad"
+                maxLength={10}
               />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff size={20} color="#9CA3AF" />
-                ) : (
-                  <Eye size={20} color="#9CA3AF" />
-                )}
-              </TouchableOpacity>
             </View>
 
-            {/* FORGOT PASSWORD */}
-            <TouchableOpacity
-              style={styles.forgotWrap}
-              onPress={() => router.push('/forgot-password')}
-            >
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </TouchableOpacity>
-
-            {/* CONTINUE BUTTON */}
+            {/* SEND OTP BUTTON */}
             <TouchableOpacity
               style={[styles.continueBtn, loading && { opacity: 0.75 }]}
-              onPress={handleLogin}
+              onPress={handleSendOtp}
               disabled={loading}
             >
               <Text style={styles.continueText}>
-                {loading ? 'Processing...' : 'Continue'}
+                {loading ? 'Sending OTP...' : 'Send OTP'}
               </Text>
             </TouchableOpacity>
 
             {/* SIGN UP ROW */}
             <View style={styles.signupRow}>
-              <Text style={styles.signupText}>Don’t have an account?</Text>
+              <Text style={styles.signupText}>Don&apos;t have an account?</Text>
               <TouchableOpacity onPress={() => router.push('/register')}>
                 <Text style={styles.signupLink}> Sign up</Text>
               </TouchableOpacity>
@@ -181,7 +142,7 @@ export default function Login() {
           {/* FOOTER */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              By logging in, you agree to the{' '}
+              By continuing, you agree to the{' '}
               <Text style={styles.link}>Terms of Service</Text> and{' '}
               <Text style={styles.link}>Privacy Policy</Text>.
             </Text>
@@ -219,66 +180,54 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_500Medium',
     fontWeight: '400',
     color: '#111827',
-    marginBottom: 60,
+    marginBottom: 20,
   },
 
   subtitle: {
     fontSize: 15,
     fontFamily: 'Montserrat_400Regular',
     color: '#1A1D1B',
+    marginBottom: 20,
   },
 
   form: {
     gap: 18,
   },
 
-  input: {
+  phoneInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     height: 60,
     borderRadius: 22,
-    paddingHorizontal: 22,
-    fontSize: 16,
-    fontFamily: 'Lato_400Regular',
     borderWidth: 1.2,
     borderColor: '#D1D5DB',
-    color: '#111827',
-
+    backgroundColor: '#fff',
+    overflow: 'hidden',
   },
 
-  passwordContainer: {
-    position: 'relative',
-  },
-
-  passwordInput: {
-    height: 60,
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    paddingRight: 60,
-    fontSize: 16,
-    fontFamily: 'Lato_400Regular',
-    borderWidth: 1.2,
-    borderColor: '#D1D5DB',
-    color: '#111827',
-  },
-
-  eyeButton: {
-    position: 'absolute',
-    right: 20,
-    top: 20,
-    width: 20,
-    height: 20,
+  countryCodeBadge: {
+    paddingHorizontal: 16,
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    borderRightWidth: 1,
+    borderRightColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
   },
 
-  forgotWrap: {
-    alignSelf: 'flex-end',
-    marginTop: -10,
+  countryCodeText: {
+    fontSize: 16,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#374151',
   },
 
-  forgotText: {
-    fontSize: 13,
-    color: '#AFA0F8',
-    fontFamily: 'Montserrat_500Medium',
+  phoneInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: 16,
+    fontSize: 16,
+    fontFamily: 'Lato_400Regular',
+    color: '#111827',
   },
 
   continueBtn: {
@@ -287,7 +236,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 66,
+    marginTop: 30,
   },
 
   continueText: {
@@ -300,7 +249,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 6,
   },
 
   signupText: {

@@ -145,7 +145,7 @@ export default function FindPropertiesScreen() {
             <View style={styles.warningBanner}>
               <Shield size={20} color="#d97706" />
               <Text style={styles.warningText}>
-                Property's exact address and owner are hidden. They will unlock after the request is accepted.
+                Property&apos;s exact address and owner are hidden. They will unlock after the request is accepted.
               </Text>
             </View>
 

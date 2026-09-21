@@ -4,12 +4,14 @@ import StatusBadge from './StatusBadge';
 import api from '../utils/api';
 
 const BrokerProfileView = ({ broker, onClose, setToast, onStatusUpdate }) => {
-  if (!broker) return null;
-
   const [activities, setActivities] = useState([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
 
   useEffect(() => {
+    if (!broker?.id) {
+      setLoadingActivity(false);
+      return;
+    }
     const fetchActivity = async () => {
       try {
         const response = await api.get(`/admin/brokers/${broker.id}/activity`);
@@ -23,7 +25,9 @@ const BrokerProfileView = ({ broker, onClose, setToast, onStatusUpdate }) => {
       }
     };
     fetchActivity();
-  }, [broker.id]);
+  }, [broker?.id]);
+
+  if (!broker) return null;
 
   const handleToggleBlock = async () => {
     const isCurrentlyBlocked = broker.status === 'Blocked';

@@ -16,19 +16,8 @@ import * as Location from 'expo-location';
 import * as LucideIcons from 'lucide-react-native';
 import { showToast } from '../utils/toast';
 
-let MapView = null;
-let PROVIDER_GOOGLE = null;
-let hasNativeMap = false;
+import { MapView, PROVIDER_GOOGLE, hasNativeMap } from '../utils/mapModule';
 
-try {
-  const Maps = require('react-native-maps');
-  MapView = Maps.default;
-  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
-  hasNativeMap = !!MapView;
-} catch (e) {
-  console.log('react-native-maps native binary module not registered. Falling back to static maps.');
-  hasNativeMap = false;
-}
 
 const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDiYnY4FG1juihWvHEgM-NSz2aEKUsKing';
 

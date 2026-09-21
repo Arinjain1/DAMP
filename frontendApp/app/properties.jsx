@@ -1,8 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { StatusBar, View, InteractionManager } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 // Components
 import AddModal from '../src/Modal and Sheets/AddModal.jsx';

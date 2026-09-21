@@ -304,6 +304,7 @@ export default function PropertyDetailPage() {
               {selectedAmenities.length > 0 ? (
                 <View className="flex-row flex-wrap gap-2">
                   {selectedAmenities.map((amenity) => {
+                    // eslint-disable-next-line import/namespace
                     const IconComponent = LucideIcons[amenity.icon] || LucideIcons.Check;
                     return (
                       <View key={amenity.id} className="bg-purple-50/70 border border-purple-100 px-3 py-1.5 rounded-full flex-row items-center gap-1.5">

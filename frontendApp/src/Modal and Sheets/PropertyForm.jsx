@@ -306,4 +306,7 @@ const PropertyForm = memo(({
   );
 });
 
+PropertyForm.displayName = 'PropertyForm';
+
 export default PropertyForm;
+

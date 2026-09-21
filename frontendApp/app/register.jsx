@@ -1,14 +1,18 @@
 import { Lato_400Regular, Lato_700Bold } from '@expo-google-fonts/lato';
-import { Montserrat_400Regular, Montserrat_500Medium, Montserrat_600SemiBold, Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
+import {
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_600SemiBold,
+  Montserrat_700Bold,
+  useFonts,
+} from '@expo-google-fonts/montserrat';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -19,21 +23,31 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { authAPI } from '../src/config/api';
+import { useDispatch } from 'react-redux';
+import { authAPI, setAuthToken } from '../src/config/api';
+import { loginSuccess } from '../src/store/slices/authSlice';
 import { showToast } from '../src/utils/toast';
 
-const { height } = Dimensions.get('window');
-
 export default function Register() {
+  const dispatch = useDispatch();
+  const params = useLocalSearchParams();
+  const initialPhone = (params.phone_number || '').toString();
+  const verificationToken = (params.verification_token || '').toString();
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
+    phone: initialPhone,
     age: '',
     location: '',
-    password: '',
   });
-  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (params.phone_number) {
+      setFormData((prev) => ({ ...prev, phone: params.phone_number.toString() }));
+    }
+  }, [params.phone_number]);
+
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
 
@@ -49,14 +63,12 @@ export default function Register() {
   if (!fontsLoaded) return null;
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // --- UPDATED LOCATION LOGIC (No API Key Needed) ---
   const handleGetLocation = async () => {
     setLocationLoading(true);
     try {
-      // 1. Request Permission
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         showToast.warn('Allow location access to detect your city.');
@@ -64,12 +76,14 @@ export default function Register() {
         return;
       }
 
-      // 2. Get Coordinates
-      let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      let location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
       const { latitude, longitude } = location.coords;
 
-      // 3. Call Google Geocoding API to extract city name
-      const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDiYnY4FG1juihWvHEgM-NSz2aEKUsKing';
+      const API_KEY =
+        process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+        'AIzaSyDiYnY4FG1juihWvHEgM-NSz2aEKUsKing';
       const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${API_KEY}`;
       const response = await fetch(url);
       const data = await response.json();
@@ -85,16 +99,15 @@ export default function Register() {
             cityVal = component.long_name;
           }
         }
-        
+
         if (cityVal) {
           handleChange('location', cityVal);
         } else {
-          showToast.warn('Could not detect city name from Google Maps.');
+          showToast.warn('Could not detect city name.');
         }
       } else {
-        showToast.warn('Could not detect location from Google Maps.');
+        showToast.warn('Could not detect location from GPS.');
       }
-
     } catch (error) {
       console.error('Location detection error:', error);
       showToast.error('Make sure Location/GPS is enabled on your device.');
@@ -104,38 +117,66 @@ export default function Register() {
   };
 
   const handleRegister = async () => {
-    // Validation
-    if (!formData.name || !formData.email || !formData.phone || !formData.password) {
-      showToast.warn('Please fill all required fields');
-      return;
-    }
+    const cleanPhone = formData.phone.replace(/\D/g, '').slice(-10);
 
-    if (formData.password.length < 6) {
-      showToast.warn('Password must be at least 6 characters');
+    if (!formData.name || !cleanPhone || cleanPhone.length !== 10) {
+      showToast.warn('Please enter full name and a valid 10-digit phone number');
       return;
     }
 
     setLoading(true);
     try {
-      // Map frontend field names to backend expected names
+      // If user has not verified OTP yet, send OTP first
+      if (!verificationToken) {
+        const otpRes = await authAPI.sendOTP({ phone_number: cleanPhone });
+        if (otpRes.data && otpRes.data.success) {
+          showToast.success('OTP sent to your mobile number!');
+          router.push({
+            pathname: '/otp',
+            params: {
+              phone_number: cleanPhone,
+              verification_token: otpRes.data.verification_token,
+            },
+          });
+          return;
+        }
+      }
+
+      // If phone is already verified with verification_token:
       const registerData = {
-        full_name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        phone_number: formData.phone,
-        age: formData.age ? parseInt(formData.age) : null,
-        city: formData.location || ''
+        full_name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone_number: cleanPhone,
+        age: formData.age ? parseInt(formData.age, 10) : null,
+        city: formData.location || '',
+        verification_token: verificationToken,
       };
 
       const response = await authAPI.register(registerData);
 
-      if (response.data) {
-        showToast.success('Account created! Please login.');
-        setTimeout(() => router.replace('/login'), 1500);
+      if (response.data && response.data.success) {
+        const token = response.data.token;
+        setAuthToken(token);
+        dispatch(
+          loginSuccess({
+            id: response.data.id,
+            name: response.data.full_name,
+            full_name: response.data.full_name,
+            email: response.data.email,
+            phone_number: response.data.phone_number,
+            role: response.data.role,
+            token,
+          })
+        );
+        showToast.success('Account created successfully!');
+        router.replace('/dashboard');
+      } else {
+        showToast.error(response.data?.message || 'Registration failed');
       }
     } catch (error) {
       console.error('Registration error:', error);
-      const errorMessage = error.response?.data?.message || 'Unable to connect to server. Please check your connection.';
+      const errorMessage =
+        error.response?.data?.message || 'Unable to connect to server. Please try again.';
       showToast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -169,7 +210,9 @@ export default function Register() {
           {/* HEADER */}
           <View style={styles.header}>
             <Text style={styles.title}>Sign Up</Text>
-            <Text style={styles.subtitle}>Create your account</Text>
+            <Text style={styles.subtitle}>
+              {verificationToken ? 'Complete your broker profile' : 'Create your account with OTP'}
+            </Text>
           </View>
 
           {/* FORM */}
@@ -183,29 +226,23 @@ export default function Register() {
               placeholderTextColor="#9CA3AF"
             />
 
-            {/* EMAIL */}
-            <TextInput
-              style={styles.input}
-              value={formData.email}
-              onChangeText={(v) => handleChange('email', v)}
-              placeholder="Email Address"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-
             {/* PHONE & AGE ROW */}
             <View style={styles.rowContainer}>
+              <View style={[styles.phoneInputContainer, styles.halfInput]}>
+                <Text style={styles.codeText}>+91</Text>
+                <TextInput
+                  style={styles.phoneInnerInput}
+                  value={formData.phone}
+                  onChangeText={(v) => handleChange('phone', v)}
+                  placeholder="Mobile"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  editable={!verificationToken}
+                />
+              </View>
               <TextInput
-                style={[styles.input, styles.halfInput]}
-                value={formData.phone}
-                onChangeText={(v) => handleChange('phone', v)}
-                placeholder="Phone"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="phone-pad"
-              />
-              <TextInput
-                style={[styles.input, styles.halfInput]}
+                style={[styles.input, styles.quarterInput]}
                 value={formData.age}
                 onChangeText={(v) => handleChange('age', v)}
                 placeholder="Age"
@@ -214,6 +251,17 @@ export default function Register() {
                 maxLength={2}
               />
             </View>
+
+            {/* EMAIL */}
+            <TextInput
+              style={styles.input}
+              value={formData.email}
+              onChangeText={(v) => handleChange('email', v)}
+              placeholder="Email Address (Optional)"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
 
             {/* LOCATION */}
             <View style={styles.locationContainer}>
@@ -237,28 +285,6 @@ export default function Register() {
               </TouchableOpacity>
             </View>
 
-            {/* PASSWORD */}
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                value={formData.password}
-                onChangeText={(v) => handleChange('password', v)}
-                placeholder="Password"
-                placeholderTextColor="#9CA3AF"
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff size={20} color="#9CA3AF" />
-                ) : (
-                  <Eye size={20} color="#9CA3AF" />
-                )}
-              </TouchableOpacity>
-            </View>
-
             {/* BUTTON */}
             <TouchableOpacity
               style={[styles.continueBtn, loading && { opacity: 0.75 }]}
@@ -266,14 +292,18 @@ export default function Register() {
               disabled={loading}
             >
               <Text style={styles.continueText}>
-                {loading ? 'Creating Account...' : 'Sign Up'}
+                {loading
+                  ? 'Processing...'
+                  : verificationToken
+                  ? 'Complete Registration'
+                  : 'Get OTP & Register'}
               </Text>
             </TouchableOpacity>
 
             {/* LOGIN LINK */}
             <View style={styles.signupRow}>
               <Text style={styles.signupText}>Already have an account?</Text>
-              <TouchableOpacity onPress={() => router.back()}>
+              <TouchableOpacity onPress={() => router.push('/login')}>
                 <Text style={styles.signupLink}> Log In</Text>
               </TouchableOpacity>
             </View>
@@ -320,27 +350,29 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_500Medium',
     fontWeight: '400',
     color: '#111827',
-    marginBottom: 30,
+    marginBottom: 16,
   },
 
   subtitle: {
     fontSize: 15,
     fontFamily: 'Montserrat_400Regular',
-    color: '#1A1D1B',
+    color: '#6B7280',
+    marginBottom: 10,
   },
 
   form: {
-    gap: 18,
+    gap: 16,
   },
 
   input: {
-    height: 50,
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    fontSize: 16,
+    height: 52,
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    fontSize: 15,
     fontFamily: 'Lato_400Regular',
     borderWidth: 1.2,
     borderColor: '#D1D5DB',
+    backgroundColor: '#fff',
     color: '#111827',
   },
 
@@ -350,90 +382,83 @@ const styles = StyleSheet.create({
   },
 
   halfInput: {
+    flex: 2.2,
+  },
+
+  quarterInput: {
     flex: 1,
   },
 
+  phoneInputContainer: {
+    height: 52,
+    borderRadius: 20,
+    borderWidth: 1.2,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+
+  codeText: {
+    fontSize: 15,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#4B5563',
+    marginRight: 8,
+  },
+
+  phoneInnerInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 15,
+    fontFamily: 'Lato_400Regular',
+    color: '#111827',
+  },
+
   locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     position: 'relative',
   },
 
   locationInput: {
-    height: 50,
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    paddingRight: 80,
-    fontSize: 16,
+    flex: 1,
+    height: 52,
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingRight: 75,
+    fontSize: 15,
     fontFamily: 'Lato_400Regular',
     borderWidth: 1.2,
     borderColor: '#D1D5DB',
+    backgroundColor: '#fff',
     color: '#111827',
   },
 
   gpsButton: {
     position: 'absolute',
-    right: 7,
-    top: 6,
-    backgroundColor: '#C4B5FD',
+    right: 6,
+    backgroundColor: '#8B5CF6',
+    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 18,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
 
   gpsText: {
-    color: '#111827',
+    color: '#fff',
     fontSize: 12,
     fontFamily: 'Montserrat_600SemiBold',
   },
 
-  passwordContainer: {
-    position: 'relative',
-  },
-
-  passwordInput: {
-    height: 50,
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    paddingRight: 60,
-    fontSize: 16,
-    fontFamily: 'Lato_400Regular',
-    borderWidth: 1.2,
-    borderColor: '#D1D5DB',
-    color: '#111827',
-  },
-
-  eyeButton: {
-    position: 'absolute',
-    right: 20,
-    top: 14,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  terms: {
-    fontSize: 12,
-    textAlign: 'center',
-    color: '#6B7280',
-    fontFamily: 'Lato_400Regular',
-    marginTop: 8,
-  },
-
-  link: {
-    textDecorationLine: 'underline',
-    fontFamily: 'Lato_700Bold',
-    color: '#374151',
-  },
-
   continueBtn: {
     backgroundColor: '#C4B5FD',
-    height: 55,
-    borderRadius: 30,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 56,
+    marginTop: 18,
   },
 
   continueText: {
@@ -446,7 +471,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 4,
   },
 
   signupText: {
@@ -465,6 +490,7 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     marginBottom: 28,
     paddingHorizontal: 10,
+    paddingTop: 20,
   },
 
   footerText: {

@@ -21,7 +21,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSelector } from 'react-redux';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { dashboardAPI, collabAPI } from '../config/api';
 import {
   INITIAL_PROFILE,
@@ -485,11 +485,6 @@ const Dashboard = ({
               <View style={styles.nameColumn}>
                 <View style={styles.nameRow}>
                   <Text style={styles.userName}>{user?.name || 'User'}</Text>
-                  <Image 
-                    source={require('../../assets/images/pajamas_partner-verified.png')} 
-                    style={styles.verificationBadge}
-                    contentFit="contain"
-                  />
                 </View>
                 <Text style={styles.dateText}>{currentDate}</Text>
               </View>

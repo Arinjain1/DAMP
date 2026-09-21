@@ -24,7 +24,7 @@ import {
 } from 'react-native';
 import { showToast } from '@/src/utils/toast';
 import { useDispatch, useSelector } from 'react-redux';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 
 // Components
 import WhatsAppIcon from '@/src/Components/WhatsAppIcon';

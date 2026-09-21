@@ -144,7 +144,7 @@ export default function FindClientsScreen() {
             <View style={styles.warningBanner}>
               <Shield size={20} color="#d97706" />
               <Text style={styles.warningText}>
-                Client's name and phone number are hidden. They will unlock after the request is accepted.
+                Client&apos;s name and phone number are hidden. They will unlock after the request is accepted.
               </Text>
             </View>
 

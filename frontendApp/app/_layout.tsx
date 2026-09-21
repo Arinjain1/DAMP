@@ -1,7 +1,7 @@
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect, useState } from "react";
-import { LogBox, View } from 'react-native';
+import { LogBox, View, Platform, Pressable } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Provider, useSelector } from 'react-redux';
 
@@ -13,7 +13,7 @@ import { loginSuccess, logout } from '../src/store/slices/authSlice';
 import { deactivateSubscription } from '../src/store/slices/subscriptionSlice';
 import { loadPersistedData } from '../src/store/middleware/persistenceMiddleware';
 import { setAuthToken, setNavigationRef, setUnauthorizedCallback, setSubscriptionErrorCallback } from '../src/config/api';
-import { useInitializeData } from '../src/hooks/useInitializeData';
+
 import { showToast } from '../src/utils/toast';
 
 // 🔤 FONT LOADING
@@ -81,60 +81,133 @@ function AppNavigator() {
     );
   }
 
+  const isIOS = Platform.OS === 'ios';
+  const bottomInset = insets.bottom;
+  const tabHeight = isIOS
+    ? (bottomInset > 0 ? 84 : 64)
+    : (bottomInset > 0 ? 64 + bottomInset : 64);
+  const tabPaddingBottom = isIOS
+    ? (bottomInset > 0 ? 24 : 8)
+    : (bottomInset > 0 ? bottomInset + 4 : 8);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: true,
+        tabBarLabelPosition: 'below-icon',
+        tabBarHideOnKeyboard: true,
+        tabBarButton: (props) => (
+          <Pressable
+            {...props}
+            android_ripple={null}
+            style={({ pressed }) => [
+              props.style,
+              {
+                flex: 1,
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 0,
+                opacity: pressed ? 0.75 : 1,
+              },
+            ]}
+          />
+        ),
         tabBarStyle: {
-          backgroundColor: 'white',
-          borderTopColor: '#e5e7eb',
+          backgroundColor: '#ffffff',
+          borderTopColor: '#f1f5f9',
           borderTopWidth: 1,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
+          height: tabHeight,
+          paddingBottom: tabPaddingBottom,
           paddingTop: 8,
-
-          height: 60 + (insets.bottom > 0 ? insets.bottom : 15),
-          elevation: 5,
-          paddingHorizontal: 10,
-          paddingVertical: 8,
+          shadowColor: '#0f172a',
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.04,
+          shadowRadius: 8,
+          elevation: 6,
         },
-        tabBarActiveTintColor: '#111827',
-        tabBarInactiveTintColor: '#9ca3af',
-
+        tabBarItemStyle: {
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: 2,
+        },
+        tabBarActiveTintColor: '#7C3AED',
+        tabBarInactiveTintColor: '#94A3B8',
+        tabBarActiveBackgroundColor: 'transparent',
+        tabBarInactiveBackgroundColor: 'transparent',
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontFamily: 'Montserrat_600SemiBold',
+          lineHeight: 14,
+          letterSpacing: -0.1,
+          includeFontPadding: false,
+          marginTop: 0,
+          marginBottom: 0,
+          textAlign: 'center',
+        },
+        tabBarIconStyle: {
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 3,
+          marginTop: 0,
+        },
       }}
     >
       <Tabs.Screen
         name="dashboard"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <Home size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Home size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="properties"
         options={{
           title: 'Inventory',
-          tabBarIcon: ({ color }) => <Briefcase size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Briefcase size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="customers"
         options={{
           title: 'Clients',
-          tabBarIcon: ({ color }) => <Users size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Users size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="followups"
         options={{
           title: 'Tasks',
-          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Calendar size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <User size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <User size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            </View>
+          ),
         }}
       />
 

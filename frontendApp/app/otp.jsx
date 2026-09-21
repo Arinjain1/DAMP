@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -14,10 +14,18 @@ import {
   View,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
+import { authAPI, setAuthToken } from '../src/config/api';
 import { loginSuccess } from '../src/store/slices/authSlice';
+import { showToast } from '../src/utils/toast';
 
 export default function OTP() {
   const dispatch = useDispatch();
+  const params = useLocalSearchParams();
+  const phoneNumber = (params.phone_number || '').toString();
+  const [verificationToken, setVerificationToken] = useState(
+    (params.verification_token || '').toString()
+  );
+
   const [otp, setOtp] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
@@ -38,14 +46,32 @@ export default function OTP() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [verificationToken]);
 
   const handleOtpChange = (value, index) => {
+    // Only accept numeric digit
+    const cleaned = value.replace(/\D/g, '');
+
+    if (cleaned.length > 1) {
+      // User pasted multi-digit OTP or auto-filled
+      const pastedDigits = cleaned.slice(0, 4).split('');
+      const newOtp = [...otp];
+      pastedDigits.forEach((digit, i) => {
+        if (index + i < 4) {
+          newOtp[index + i] = digit;
+        }
+      });
+      setOtp(newOtp);
+      const nextFocus = Math.min(index + pastedDigits.length, 3);
+      inputRefs.current[nextFocus]?.focus();
+      return;
+    }
+
     const newOtp = [...otp];
-    newOtp[index] = value;
+    newOtp[index] = cleaned.slice(-1);
     setOtp(newOtp);
 
-    if (value && index < 3) {
+    if (cleaned && index < 3) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -58,32 +84,88 @@ export default function OTP() {
 
   const handleVerify = async () => {
     const otpCode = otp.join('');
-    if (otpCode.length !== 4) return;
+    if (otpCode.length !== 4) {
+      showToast.warn('Please enter the complete 4-digit OTP');
+      return;
+    }
+
+    if (!phoneNumber) {
+      showToast.error('Mobile number is missing. Please login again.');
+      router.replace('/login');
+      return;
+    }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await authAPI.verifyOTP({
+        phone_number: phoneNumber,
+        otp: otpCode,
+        verification_token: verificationToken,
+      });
+
+      if (response.data && response.data.success) {
+        if (response.data.isNewUser) {
+          showToast.success('Mobile verified! Please complete your registration.');
+          router.replace({
+            pathname: '/register',
+            params: {
+              phone_number: response.data.phone_number || phoneNumber,
+              verification_token: verificationToken,
+            },
+          });
+        } else {
+          const { user, token } = response.data;
+          setAuthToken(token);
+          dispatch(
+            loginSuccess({
+              id: user.id,
+              name: user.full_name,
+              full_name: user.full_name,
+              email: user.email,
+              phone_number: user.phone_number,
+              role: user.role,
+              token,
+            })
+          );
+          showToast.success('Login successful!');
+          router.replace('/dashboard');
+        }
+      } else {
+        showToast.error(response.data?.message || 'Invalid OTP');
+      }
+    } catch (error) {
+      console.error('OTP verify error:', error);
+      const msg =
+        error.response?.data?.message || 'Invalid or expired OTP. Please try again.';
+      showToast.error(msg);
+    } finally {
       setLoading(false);
-      const userData = {
-        id: 1,
-        name: 'Rajesh Sharma',
-        email: 'rajesh@example.com',
-        phone: '+91 98765 43210'
-      };
-      dispatch(loginSuccess(userData));
-    }, 1500);
+    }
   };
 
-  const handleResend = () => {
-    setTimer(60);
-    setCanResend(false);
-    setOtp(['', '', '', '']);
+  const handleResend = async () => {
+    if (!phoneNumber) return;
+    try {
+      const response = await authAPI.resendOTP({ phone_number: phoneNumber });
+      if (response.data?.success) {
+        if (response.data.verification_token) {
+          setVerificationToken(response.data.verification_token);
+        }
+        showToast.success('New OTP sent to your phone');
+        setTimer(60);
+        setCanResend(false);
+        setOtp(['', '', '', '']);
+      }
+    } catch (err) {
+      showToast.error(err.response?.data?.message || 'Failed to resend OTP');
+    }
   };
 
-  const handleBack = () => {
-    router.back();
-  };
-
-  const isOtpComplete = otp.every(digit => digit !== '');
+  const isOtpComplete = otp.every((digit) => digit !== '');
+  const maskedPhone =
+    phoneNumber.length >= 10
+      ? `+91 ******${phoneNumber.slice(-4)}`
+      : phoneNumber;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -105,14 +187,16 @@ export default function OTP() {
           showsVerticalScrollIndicator={false}
         >
           {/* BACK BUTTON */}
-          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color="#333" />
           </TouchableOpacity>
 
           {/* HEADER */}
           <View style={styles.header}>
-            <Text style={styles.title}>OTP</Text>
-            <Text style={styles.subtitle}>Enter code</Text>
+            <Text style={styles.title}>OTP Verification</Text>
+            <Text style={styles.subtitle}>
+              Enter the 4-digit code sent to {maskedPhone}
+            </Text>
           </View>
 
           {/* FORM */}
@@ -126,10 +210,7 @@ export default function OTP() {
                   value={digit}
                   onChangeText={(value) => handleOtpChange(value, index)}
                   onKeyPress={(e) => handleKeyPress(e, index)}
-                  style={[
-                    styles.otpInput,
-                    digit && styles.otpInputFilled
-                  ]}
+                  style={[styles.otpInput, digit && styles.otpInputFilled]}
                   keyboardType="numeric"
                   maxLength={1}
                   textAlign="center"
@@ -145,9 +226,7 @@ export default function OTP() {
                   <Text style={styles.resendText}>Resend code</Text>
                 </TouchableOpacity>
               ) : (
-                <Text style={styles.timerText}>
-                  Resend code in {timer}s
-                </Text>
+                <Text style={styles.timerText}>Resend code in {timer}s</Text>
               )}
             </View>
 
@@ -157,11 +236,11 @@ export default function OTP() {
               disabled={!isOtpComplete || loading}
               style={[
                 styles.continueBtn,
-                (!isOtpComplete || loading) && { opacity: 0.75 }
+                (!isOtpComplete || loading) && { opacity: 0.75 },
               ]}
             >
               <Text style={styles.continueText}>
-                {loading ? 'Processing...' : 'Continue'}
+                {loading ? 'Verifying...' : 'Verify & Continue'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -187,7 +266,6 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
 
-  /* BACK BUTTON */
   backButton: {
     width: 44,
     height: 44,
@@ -199,91 +277,90 @@ const styles = StyleSheet.create({
     borderColor: '#15151520',
   },
 
-  /* HEADER */
   header: {
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 42,
-    fontFamily: 'Montserrat_500Medium',
-    fontWeight: '400',
-    color: '#111827',
-    marginBottom: 60,
-  },
-  subtitle: {
-    fontSize: 15,
-    fontFamily: 'Montserrat_500Medium',
-    fontWeight: 600,
-    color: 'black',
+    marginBottom: 40,
   },
 
-  /* FORM */
-  form: {
-    gap: 18,
+  title: {
+    fontSize: 32,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#111827',
+    marginBottom: 12,
   },
+
+  subtitle: {
+    fontSize: 15,
+    fontFamily: 'Montserrat_400Regular',
+    color: '#6B7280',
+    lineHeight: 22,
+  },
+
+  form: {
+    gap: 24,
+  },
+
   otpInputContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 0,
     gap: 12,
-    marginTop: 20,
+    marginTop: 10,
   },
+
   otpInput: {
     flex: 1,
-    height: 60,
-    borderWidth: 1.2,
+    height: 64,
+    borderRadius: 18,
+    borderWidth: 1.5,
     borderColor: '#D1D5DB',
-    borderRadius: 22,
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-    backgroundColor: 'transparent',
+    backgroundColor: '#fff',
+    fontSize: 24,
     fontFamily: 'Montserrat_600SemiBold',
-  },
-  otpInputFilled: {
-    borderColor: '#C4B5FD',
-    backgroundColor: 'rgba(196, 181, 253, 0.1)',
+    color: '#111827',
   },
 
-  /* RESEND */
+  otpInputFilled: {
+    borderColor: '#8B5CF6',
+    backgroundColor: '#FAF5FF',
+  },
+
   resendContainer: {
     alignItems: 'center',
-    marginTop: 58,
-  },
-  timerText: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '400',
-    fontFamily: 'Montserrat_400Regular',
-  },
-  resendText: {
-    fontSize: 13,
-    color: '#EF4444',
-    fontWeight: '500',
-    fontFamily: 'Montserrat_500Medium',
+    marginTop: 4,
   },
 
-  /* BUTTON */
+  resendText: {
+    fontSize: 14,
+    color: '#7C3AED',
+    fontFamily: 'Montserrat_600SemiBold',
+  },
+
+  timerText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontFamily: 'Montserrat_400Regular',
+  },
+
   continueBtn: {
     backgroundColor: '#C4B5FD',
     height: 60,
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 20,
   },
+
   continueText: {
     fontSize: 16,
     color: '#111827',
     fontFamily: 'Montserrat_600SemiBold',
   },
 
-  /* FOOTER */
   footer: {
     marginTop: 'auto',
     marginBottom: 28,
     paddingHorizontal: 10,
   },
+
   footerText: {
     textAlign: 'center',
     fontSize: 12,
@@ -291,6 +368,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Lato_400Regular',
     lineHeight: 18,
   },
+
   link: {
     textDecorationLine: 'underline',
     fontFamily: 'Lato_700Bold',
