@@ -1,0 +1,43 @@
+export const activeDealsMockData = [
+  {
+    id: '1',
+    propertyTitle: '3 BHK Luxury Apartment',
+    location: 'Scheme 140, Indore',
+    status: 'Agreement Ready',
+    statusBg: '#D1FAE5',
+    statusTextColor: '#065F46',
+    dealValue: '₹82 Lakh',
+    commission: '₹1,64,000',
+    splitType: '(50/50 Split)',
+    buyerName: 'Rajesh Sharma',
+    stage: 'Documentation',
+  },
+  {
+    id: '2',
+    propertyTitle: '3 BHK Luxury Apartment',
+    location: 'Scheme 140, Indore',
+    status: 'Token Received',
+    statusBg: '#FEF3C7',
+    statusTextColor: '#92400E',
+    dealValue: '₹82 Lakh',
+    commission: '₹1,64,000',
+    splitType: '(Solo Mandate)',
+    buyerName: 'Rajesh Sharma',
+    stage: 'Token Agreement',
+  },
+  {
+    id: '3',
+    propertyTitle: '4 BHK Independent Villa',
+    location: 'Super Corridor, Indore',
+    status: 'Under Negotiation',
+    statusBg: '#EFF6FF',
+    statusTextColor: '#1E40AF',
+    dealValue: '₹1.45 Cr',
+    commission: '₹2,90,000',
+    splitType: '(Co-Brokered)',
+    buyerName: 'Vikram Malhotra',
+    stage: 'Final Negotiation',
+  },
+];
+
+export default activeDealsMockData;
